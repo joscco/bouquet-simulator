@@ -1,0 +1,243 @@
+<section class="flex min-h-[calc(100vh-56px)] flex-col bg-stone-100">
+  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-3 sm:px-6">
+    <div class="flex min-w-0 items-center gap-3">
+      <input
+        class="min-w-0 max-w-52 border-0 bg-transparent text-lg font-semibold tracking-tight text-stone-900 outline-none"
+        [ngModel]="draft().name"
+        aria-label="Blumenname"
+        (ngModelChange)="updateRoot('name', $event)"
+      >
+      <select
+        class="max-w-36 cursor-pointer rounded-lg border-0 bg-stone-100 px-2 py-1.5 text-[10px] font-semibold text-stone-500 outline-none"
+        [ngModel]="draft().id"
+        aria-label="Vorlage"
+        (ngModelChange)="selectDefinition($event)"
+      >
+        @for (flower of store.definitions(); track flower.id) {
+          <option [value]="flower.id">{{ flower.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <details class="relative">
+        <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-xl border border-stone-200 text-sm hover:bg-stone-50" title="Stängel">⌁</summary>
+        <div class="absolute right-0 z-30 mt-2 grid w-56 grid-cols-2 gap-2 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+          <label class="text-[9px] font-bold uppercase text-stone-400">Breite<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="draft().stem.width" (ngModelChange)="updateStem('width', $event)"></label>
+          <label class="text-[9px] font-bold uppercase text-stone-400">Taper<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0.1" max="1" step="0.05" [ngModel]="draft().stem.taper" (ngModelChange)="updateStem('taper', $event)"></label>
+          <label class="text-[9px] font-bold uppercase text-stone-400">Farbe<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)"></label>
+          <label class="text-[9px] font-bold uppercase text-stone-400">Licht<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)"></label>
+        </div>
+      </details>
+      <label class="grid h-9 w-9 cursor-pointer place-items-center rounded-xl border border-stone-200 text-base hover:bg-stone-50" title="Laden">
+        ↥
+        <input class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
+      </label>
+      <button class="grid h-9 w-9 place-items-center rounded-xl border border-stone-200 text-base hover:bg-stone-50" type="button" title="Exportieren" (click)="exportFlower()">↓</button>
+      <button class="h-9 rounded-xl bg-emerald-950 px-4 text-xs font-semibold text-white hover:bg-emerald-900" type="button" (click)="saveToCatalog()">Speichern</button>
+    </div>
+  </header>
+
+  @if (message()) {
+    <div class="absolute left-1/2 top-28 z-40 -translate-x-1/2 rounded-full bg-stone-900 px-4 py-2 text-xs text-white shadow-lg">{{ message() }}</div>
+  }
+
+  <div class="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_440px]">
+    <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2]">
+      <div class="absolute left-4 top-4 z-10 flex items-center gap-2">
+        <button class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-950 text-xl text-white shadow-lg shadow-emerald-950/15 hover:bg-emerald-900" type="button" title="Knoten hinzufügen" (click)="addNode()">＋</button>
+        <span class="rounded-full bg-white/80 px-3 py-2 text-[10px] font-semibold text-stone-400 shadow-sm backdrop-blur">Port ziehen → Knoten</span>
+      </div>
+
+      <svg
+        #graphCanvas
+        class="h-full min-h-[620px] w-full touch-none select-none"
+        viewBox="0 0 1000 680"
+        role="application"
+        aria-label="Interaktiver Knotengraph"
+        (pointermove)="graphPointerMove($event)"
+        (pointerup)="graphPointerUp($event)"
+        (pointercancel)="graphPointerUp($event)"
+        (pointerdown)="clearConnectionSelection()"
+      >
+        <defs>
+          <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
+          </pattern>
+          <marker id="edge-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#a8a29e" />
+          </marker>
+          <marker id="edge-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#047857" />
+          </marker>
+        </defs>
+        <rect width="1000" height="680" fill="url(#graph-grid)" />
+
+        @for (edge of graphLayout().edges; track edge.key) {
+          <path
+            [attr.d]="edge.path"
+            fill="none"
+            stroke="transparent"
+            stroke-width="18"
+            class="cursor-pointer"
+            (pointerdown)="selectConnection($event, edge.sourceId, edge.index)"
+          />
+          <path
+            [attr.d]="edge.path"
+            fill="none"
+            [attr.stroke]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? '#047857' : '#a8a29e'"
+            [attr.stroke-width]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 3 : 2"
+            [attr.marker-end]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 'url(#edge-arrow-selected)' : 'url(#edge-arrow)'"
+            class="pointer-events-none"
+          />
+          <g
+            class="pointer-events-none"
+            [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'"
+          >
+            <rect x="-14" y="-10" width="28" height="18" rx="9" fill="#ffffff" stroke="#e7e5e4" />
+            <text y="3" class="fill-stone-500 text-[8px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
+          </g>
+        }
+
+        @if (connectionDrag(); as pending) {
+          <path
+            [attr.d]="'M ' + pending.start.x + ' ' + pending.start.y + ' L ' + pending.end.x + ' ' + pending.end.y"
+            fill="none"
+            stroke="#047857"
+            stroke-width="3"
+            stroke-dasharray="7 6"
+            marker-end="url(#edge-arrow-selected)"
+            class="pointer-events-none"
+          />
+        }
+
+        @for (node of graphLayout().nodes; track node.id) {
+          <g
+            class="cursor-grab outline-none active:cursor-grabbing"
+            [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+            tabindex="0"
+            role="button"
+            (pointerdown)="startNodeDrag($event, node.id)"
+            (pointerup)="finishConnection($event, node.id)"
+            (keydown.enter)="selectNode(node.id)"
+          >
+            <rect
+              x="-80" y="-36" width="160" height="72" rx="17"
+              [attr.fill]="selectedNodeId() === node.id && !selectedEdge() ? '#ecfdf5' : '#ffffff'"
+              [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#047857' : '#d6d3d1'"
+              [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
+              class="drop-shadow-sm"
+            />
+            <circle cx="-80" cy="0" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+            <text x="-59" y="-6" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
+            <text x="-59" y="13" class="pointer-events-none fill-stone-400 text-[8px]">
+              {{ node.root ? 'BASIS' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}{{ node.draggable ? '  ·  DRAG' : '' }}
+            </text>
+            <circle
+              cx="80" cy="0" r="10"
+              fill="#064e3b"
+              stroke="#ffffff"
+              stroke-width="3"
+              class="cursor-crosshair"
+              (pointerdown)="startConnection($event, node.id)"
+            />
+            <path d="M76 -3 82 0 76 3" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
+          </g>
+        }
+      </svg>
+
+      @if (validationIssues().length) {
+        <div class="absolute bottom-4 left-4 max-w-sm space-y-1">
+          @for (issue of validationIssues(); track issue.message) {
+            <div
+              class="rounded-lg px-3 py-2 text-[10px] shadow-sm"
+              [class.bg-rose-100]="issue.severity === 'error'"
+              [class.text-rose-800]="issue.severity === 'error'"
+              [class.bg-amber-100]="issue.severity === 'warning'"
+              [class.text-amber-800]="issue.severity === 'warning'"
+            >{{ issue.message }}</div>
+          }
+        </div>
+      }
+    </main>
+
+    <aside class="min-h-0 overflow-y-auto border-l border-stone-200 bg-white p-3">
+      <section class="relative mb-3 h-[520px] overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2]">
+        <span class="pointer-events-none absolute left-3 top-3 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">Vorschau</span>
+        <app-bouquet-canvas class="block h-full" [state]="previewState()" [definitions]="[draft()]" [selectedId]="'editor-preview'" />
+      </section>
+
+      @if (selectedConnection(); as selection) {
+        <section class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
+          <div class="mb-4 flex items-center gap-2">
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-900 text-white">→</span>
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-xs font-semibold text-stone-800">{{ selection.source.name }} → {{ selection.connection.childId }}</div>
+              <div class="text-[9px] uppercase tracking-wider text-stone-400">Verbindung</div>
+            </div>
+            <button class="grid h-8 w-8 place-items-center rounded-lg text-rose-600 hover:bg-rose-100" type="button" title="Verbindung löschen" (click)="removeSelectedConnection()">×</button>
+          </div>
+
+          <div class="mb-3 grid grid-cols-2 rounded-xl bg-white p-1">
+            <button
+              class="rounded-lg px-2 py-2 text-[10px] font-semibold"
+              [class.bg-emerald-900]="selection.connection.mode === 'branches'"
+              [class.text-white]="selection.connection.mode === 'branches'"
+              type="button"
+              (click)="updateConnectionMode(selection.index, 'branches')"
+            >Verzweigung</button>
+            <button
+              class="rounded-lg px-2 py-2 text-[10px] font-semibold"
+              [class.bg-emerald-900]="selection.connection.mode === 'chain'"
+              [class.text-white]="selection.connection.mode === 'chain'"
+              type="button"
+              (click)="updateConnectionMode(selection.index, 'chain')"
+            >Kette</button>
+          </div>
+
+          <div class="grid grid-cols-[1fr_72px_72px] items-center gap-2">
+            <span class="text-[10px] font-semibold text-stone-500">Anzahl</span>
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="50" [ngModel]="selection.connection.repeat.min" (ngModelChange)="updateConnectionValue(selection.index, 'repeat', 'min', $event)">
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="50" [ngModel]="selection.connection.repeat.max" (ngModelChange)="updateConnectionValue(selection.index, 'repeat', 'max', $event)">
+            <span class="text-[10px] font-semibold text-stone-500">Länge</span>
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="500" [ngModel]="selection.connection.length.min" (ngModelChange)="updateConnectionValue(selection.index, 'length', 'min', $event)">
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="500" [ngModel]="selection.connection.length.max" (ngModelChange)="updateConnectionValue(selection.index, 'length', 'max', $event)">
+            <span class="text-[10px] font-semibold text-stone-500">Winkel</span>
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="selection.connection.angle.min" (ngModelChange)="updateConnectionValue(selection.index, 'angle', 'min', $event)">
+            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="selection.connection.angle.max" (ngModelChange)="updateConnectionValue(selection.index, 'angle', 'max', $event)">
+          </div>
+          <p class="mt-3 text-center text-[9px] text-stone-400">Entf oder × löscht die Verbindung</p>
+        </section>
+      } @else if (selectedNode(); as node) {
+        <section class="rounded-2xl border border-stone-200 p-3">
+          <div class="mb-3 flex items-center gap-2">
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-stone-100">{{ node.graphic ? '●' : '○' }}</span>
+            <input class="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold outline-none" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
+            @if (node.id !== draft().rootNodeId) {
+              <button class="grid h-8 w-8 place-items-center rounded-lg text-rose-600 hover:bg-rose-50" type="button" title="Knoten löschen" (click)="removeSelectedNode()">×</button>
+            }
+          </div>
+
+          <div class="mb-3 grid grid-cols-2 gap-2">
+            <label class="flex cursor-pointer items-center justify-between rounded-xl bg-stone-50 p-2 text-[10px] font-semibold">
+              Grafik
+              <input class="h-4 w-4 accent-emerald-900" type="checkbox" [ngModel]="!!node.graphic" (ngModelChange)="setHasGraphic($event)">
+            </label>
+            <label class="flex cursor-pointer items-center justify-between rounded-xl bg-stone-50 p-2 text-[10px] font-semibold">
+              Im Strauß beweglich
+              <input class="h-4 w-4 accent-emerald-900" type="checkbox" [ngModel]="node.draggable" (ngModelChange)="setNodeDraggable($event)">
+            </label>
+          </div>
+
+          @if (node.graphic; as graphic) {
+            <app-drawing-canvas [image]="graphic.svg" (imageChange)="updateGraphicImage($event)" />
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <label class="text-[9px] font-bold uppercase text-stone-400">Breite<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="1" max="500" [ngModel]="graphic.width" (ngModelChange)="updateGraphic('width', $event)"></label>
+              <label class="text-[9px] font-bold uppercase text-stone-400">Höhe<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="1" max="500" [ngModel]="graphic.height" (ngModelChange)="updateGraphic('height', $event)"></label>
+            </div>
+          }
+        </section>
+      }
+    </aside>
+  </div>
+</section>
