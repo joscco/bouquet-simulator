@@ -1,5 +1,5 @@
-<section class="flex min-h-[calc(100vh-56px)] flex-col bg-stone-100">
-  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-3 sm:px-6">
+<section class="flex min-h-[calc(100vh-56px)] flex-col bg-stone-100 lg:h-[calc(100dvh-56px)] lg:min-h-0 lg:overflow-hidden">
+  <header class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-3 sm:px-6">
     <div class="flex min-w-0 items-center gap-3">
       <input
         class="min-w-0 max-w-52 border-0 bg-transparent text-lg font-semibold tracking-tight text-stone-900 outline-none"
@@ -42,36 +42,54 @@
     <div class="absolute left-1/2 top-28 z-40 -translate-x-1/2 rounded-full bg-stone-900 px-4 py-2 text-xs text-white shadow-lg">{{ message() }}</div>
   }
 
-  <div class="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_440px]">
-    <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2]">
-      <div class="absolute left-4 top-4 z-10 flex items-center gap-2">
-        <button class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-950 text-xl text-white shadow-lg shadow-emerald-950/15 hover:bg-emerald-900" type="button" title="Knoten hinzufügen" (click)="addNode()">＋</button>
-        <span class="rounded-full bg-white/80 px-3 py-2 text-[10px] font-semibold text-stone-400 shadow-sm backdrop-blur">Port ziehen → Knoten</span>
+  <div class="grid min-h-0 flex-1 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
+    <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1">
+      <div class="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-2xl border border-stone-200 bg-white/90 p-1.5 shadow-lg backdrop-blur">
+        <button class="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-950 px-3 text-[10px] font-bold text-white hover:bg-emerald-900" type="button" (click)="addNode()"><span class="text-base">＋</span>Knoten</button>
+        <button class="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[10px] font-bold text-amber-900 hover:bg-amber-100" type="button" (click)="addLoop()"><span class="text-sm">↻</span>Loop</button>
+        <span class="mx-1 h-6 w-px bg-stone-200"></span>
+        <button class="h-9 rounded-xl px-3 text-[10px] font-bold text-stone-600 hover:bg-stone-100" type="button" title="Tree automatisch anordnen" (click)="autoLayout()">⌘ Auto-Layout</button>
       </div>
 
       <svg
         #graphCanvas
         class="h-full min-h-[620px] w-full touch-none select-none"
-        viewBox="0 0 1000 680"
+        [attr.viewBox]="graphViewBox()"
         role="application"
         aria-label="Interaktiver Knotengraph"
         (pointermove)="graphPointerMove($event)"
         (pointerup)="graphPointerUp($event)"
         (pointercancel)="graphPointerUp($event)"
-        (pointerdown)="clearConnectionSelection()"
+        (pointerdown)="graphPointerDown($event)"
+        (wheel)="graphWheel($event)"
       >
         <defs>
           <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
             <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
           </pattern>
-          <marker id="edge-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#a8a29e" />
+          <marker id="edge-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M 1 1 L 11 6 L 1 11 Z" fill="#a8a29e" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" />
           </marker>
-          <marker id="edge-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#047857" />
+          <marker id="edge-arrow-selected" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M 1 1 L 11 6 L 1 11 Z" fill="#047857" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" />
           </marker>
         </defs>
-        <rect width="1000" height="680" fill="url(#graph-grid)" />
+        <rect width="1000" height="1000" fill="url(#graph-grid)" />
+
+        @for (node of graphLayout().nodes; track node.id) {
+          @if (node.loop) {
+            <rect
+              [attr.x]="node.x - node.width / 2"
+              [attr.y]="node.y - node.height / 2"
+              [attr.width]="node.width"
+              [attr.height]="node.height"
+              rx="24"
+              [attr.fill]="selectedNodeId() === node.id && !selectedEdge() ? '#fffbeb' : '#fffcf2'"
+              stroke="none"
+              class="pointer-events-none"
+            />
+          }
+        }
 
         @for (edge of graphLayout().edges; track edge.key) {
           <path
@@ -79,33 +97,43 @@
             fill="none"
             stroke="transparent"
             stroke-width="18"
-            class="cursor-pointer"
-            (pointerdown)="selectConnection($event, edge.sourceId, edge.index)"
+            [class.cursor-pointer]="edge.selectable"
+            (pointerdown)="edge.selectable && selectConnection($event, edge.sourceId, edge.index)"
           />
           <path
             [attr.d]="edge.path"
             fill="none"
-            [attr.stroke]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? '#047857' : '#a8a29e'"
+            stroke="#ffffff"
+            stroke-width="7"
+            stroke-linecap="round"
+            class="pointer-events-none"
+          />
+          <path
+            [attr.d]="edge.path"
+            fill="none"
+            [attr.stroke]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? '#047857' : edge.color"
             [attr.stroke-width]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 3 : 2"
             [attr.marker-end]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 'url(#edge-arrow-selected)' : 'url(#edge-arrow)'"
+            stroke-linecap="round"
             class="pointer-events-none"
           />
           <g
             class="pointer-events-none"
             [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'"
           >
-            <rect x="-14" y="-10" width="28" height="18" rx="9" fill="#ffffff" stroke="#e7e5e4" />
+            <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" stroke="#e7e5e4" />
             <text y="3" class="fill-stone-500 text-[8px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
           </g>
         }
 
         @if (connectionDrag(); as pending) {
           <path
-            [attr.d]="'M ' + pending.start.x + ' ' + pending.start.y + ' L ' + pending.end.x + ' ' + pending.end.y"
+            [attr.d]="pendingConnectionPath()"
             fill="none"
             stroke="#047857"
             stroke-width="3"
             stroke-dasharray="7 6"
+            stroke-linecap="round"
             marker-end="url(#edge-arrow-selected)"
             class="pointer-events-none"
           />
@@ -121,27 +149,44 @@
             (pointerup)="finishConnection($event, node.id)"
             (keydown.enter)="selectNode(node.id)"
           >
-            <rect
-              x="-80" y="-36" width="160" height="72" rx="17"
-              [attr.fill]="selectedNodeId() === node.id && !selectedEdge() ? '#ecfdf5' : '#ffffff'"
-              [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#047857' : '#d6d3d1'"
-              [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
-              class="drop-shadow-sm"
-            />
-            <circle cx="-80" cy="0" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
-            <text x="-59" y="-6" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
-            <text x="-59" y="13" class="pointer-events-none fill-stone-400 text-[8px]">
-              {{ node.root ? 'BASIS' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}{{ node.draggable ? '  ·  DRAG' : '' }}
-            </text>
-            <circle
-              cx="80" cy="0" r="10"
-              fill="#064e3b"
-              stroke="#ffffff"
-              stroke-width="3"
-              class="cursor-crosshair"
-              (pointerdown)="startConnection($event, node.id)"
-            />
-            <path d="M76 -3 82 0 76 3" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
+            @if (node.loop) {
+              <rect
+                [attr.x]="-node.width / 2"
+                [attr.y]="-node.height / 2"
+                [attr.width]="node.width"
+                [attr.height]="node.height"
+                rx="24"
+                fill="transparent"
+                [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#d97706' : '#f59e0b'"
+                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
+                stroke-dasharray="6 4"
+                pointer-events="stroke"
+                class="drop-shadow-sm"
+              />
+              <circle cx="0" [attr.cy]="node.height / 2" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
+              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[8px]">LOOP-CONTAINER</text>
+              <circle cx="0" [attr.cy]="node.height / 2 - 28" r="9" fill="#059669" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
+              <text x="14" [attr.y]="node.height / 2 - 25" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
+              <circle cx="0" [attr.cy]="-node.height / 2 + 28" r="9" fill="#f59e0b" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerup)="finishLoopEnd($event, node.id)" />
+              <text x="14" [attr.y]="-node.height / 2 + 31" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
+              <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
+            } @else {
+              <rect
+                x="-80" y="-36" width="160" height="72" rx="17"
+                [attr.fill]="selectedNodeId() === node.id && !selectedEdge() ? '#ecfdf5' : node.loopMember ? '#fffbeb' : '#ffffff'"
+                [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#047857' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
+                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
+                class="drop-shadow-sm"
+              />
+              <circle cx="0" cy="36" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+              <text x="-59" y="-6" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
+              <text x="-59" y="13" class="pointer-events-none fill-stone-400 text-[8px]">
+                {{ node.root ? 'BASIS' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}{{ node.draggable ? '  ·  DRAG' : '' }}
+              </text>
+              <circle cx="0" cy="-36" r="10" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
+              <path d="M-3 -32 0 -38 3 -32" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
+            }
           </g>
         }
       </svg>
@@ -161,13 +206,25 @@
       }
     </main>
 
-    <aside class="min-h-0 overflow-y-auto border-l border-stone-200 bg-white p-3">
-      <section class="relative mb-3 h-[520px] overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2]">
+    <aside class="min-h-0 border-l border-stone-200 bg-white p-3 lg:contents">
+      <section class="relative mb-3 h-[520px] shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2] lg:col-start-3 lg:row-start-1 lg:m-3 lg:h-auto lg:min-h-0">
         <span class="pointer-events-none absolute left-3 top-3 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">Vorschau</span>
-        <app-bouquet-canvas class="block h-full" [state]="previewState()" [definitions]="[draft()]" [selectedId]="'editor-preview'" />
+        <button class="absolute right-3 top-3 z-20 h-8 rounded-xl border border-stone-200 bg-white/90 px-3 text-[9px] font-bold text-stone-600 shadow-sm backdrop-blur hover:bg-white" type="button" title="Neue Vorschau generieren" (click)="regeneratePreview()">⤨ Neu generieren</button>
+        <app-bouquet-canvas
+          class="block h-full"
+          [state]="previewState()"
+          [definitions]="[draft()]"
+          [zoom]="previewZoom()"
+          [zoomEnabled]="true"
+          (zoomChange)="previewZoom.set($event)"
+          [highlightedNodeId]="selectedEdge() ? null : selectedNodeId()"
+          [highlightedConnection]="selectedEdge()"
+        />
       </section>
 
-      @if (selectedConnection(); as selection) {
+      <div class="bg-white lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-scroll lg:border-r lg:border-stone-200 lg:p-3 [scrollbar-gutter:stable]">
+        <div class="mb-3 px-1 text-[9px] font-bold uppercase tracking-widest text-stone-400">Eigenschaften</div>
+        @if (selectedConnection(); as selection) {
         <section class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
           <div class="mb-4 flex items-center gap-2">
             <span class="grid h-8 w-8 place-items-center rounded-lg bg-emerald-900 text-white">→</span>
@@ -195,29 +252,58 @@
             >Kette</button>
           </div>
 
-          <div class="grid grid-cols-[1fr_72px_72px] items-center gap-2">
-            <span class="text-[10px] font-semibold text-stone-500">Anzahl</span>
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="50" [ngModel]="selection.connection.repeat.min" (ngModelChange)="updateConnectionValue(selection.index, 'repeat', 'min', $event)">
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="50" [ngModel]="selection.connection.repeat.max" (ngModelChange)="updateConnectionValue(selection.index, 'repeat', 'max', $event)">
-            <span class="text-[10px] font-semibold text-stone-500">Länge</span>
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="500" [ngModel]="selection.connection.length.min" (ngModelChange)="updateConnectionValue(selection.index, 'length', 'min', $event)">
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0" max="500" [ngModel]="selection.connection.length.max" (ngModelChange)="updateConnectionValue(selection.index, 'length', 'max', $event)">
-            <span class="text-[10px] font-semibold text-stone-500">Winkel</span>
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="selection.connection.angle.min" (ngModelChange)="updateConnectionValue(selection.index, 'angle', 'min', $event)">
-            <input class="h-9 rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="selection.connection.angle.max" (ngModelChange)="updateConnectionValue(selection.index, 'angle', 'max', $event)">
+          <div class="space-y-2 rounded-xl bg-white p-3">
+            <app-interval-slider label="Anzahl" [value]="selection.connection.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateConnectionRange(selection.index, 'repeat', $event)" />
+            <app-interval-slider label="Länge" unit=" px" [value]="selection.connection.length" [minimum]="0" [maximum]="250" (valueChange)="updateConnectionRange(selection.index, 'length', $event)" />
+            <app-interval-slider label="Winkel" unit="°" [value]="selection.connection.angle" [minimum]="-180" [maximum]="180" (valueChange)="updateConnectionRange(selection.index, 'angle', $event)" />
+          </div>
+          <div class="mt-3 rounded-xl bg-white p-3">
+            <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">Stängel dieser Verbindung</div>
+            <div class="grid grid-cols-[52px_1fr] items-center gap-3">
+              <label class="grid h-10 w-10 cursor-pointer place-items-center overflow-hidden rounded-lg border border-stone-200" title="Stängelfarbe">
+                <input
+                  class="h-14 w-14 cursor-pointer border-0 p-0"
+                  type="color"
+                  aria-label="Stängelfarbe dieser Verbindung"
+                  [ngModel]="connectionStemColor(selection.connection)"
+                  (ngModelChange)="updateConnectionStem(selection.index, 'color', $event)"
+                >
+              </label>
+              <label class="min-w-0 text-[9px] font-semibold text-stone-500">
+                <span class="mb-1 flex justify-between"><span>Dicke</span><span class="tabular-nums">{{ connectionStemWidth(selection.connection) }} px</span></span>
+                <input
+                  class="w-full accent-emerald-800"
+                  type="range"
+                  min="1"
+                  max="30"
+                  step="0.5"
+                  [ngModel]="connectionStemWidth(selection.connection)"
+                  (ngModelChange)="updateConnectionStem(selection.index, 'width', $event)"
+                >
+              </label>
+            </div>
           </div>
           <p class="mt-3 text-center text-[9px] text-stone-400">Entf oder × löscht die Verbindung</p>
         </section>
-      } @else if (selectedNode(); as node) {
+        } @else if (selectedNode(); as node) {
         <section class="rounded-2xl border border-stone-200 p-3">
           <div class="mb-3 flex items-center gap-2">
             <span class="grid h-8 w-8 place-items-center rounded-lg bg-stone-100">{{ node.graphic ? '●' : '○' }}</span>
             <input class="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold outline-none" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
+            <button class="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-stone-100" type="button" title="Knoten kopieren" (click)="duplicateSelectedNode()">⧉</button>
             @if (node.id !== draft().rootNodeId) {
               <button class="grid h-8 w-8 place-items-center rounded-lg text-rose-600 hover:bg-rose-50" type="button" title="Knoten löschen" (click)="removeSelectedNode()">×</button>
             }
           </div>
 
+          @if (node.loop) {
+            <div class="rounded-xl bg-amber-50 p-3">
+              <app-interval-slider label="Loop-Durchläufe" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
+              <p class="mb-0 mt-2 text-[9px] leading-relaxed text-amber-900/70">
+                Grünen inneren Start zum ersten Knoten ziehen. Vom letzten Knoten zum gelben inneren Ende ziehen.
+              </p>
+            </div>
+          } @else {
           <div class="mb-3 grid grid-cols-2 gap-2">
             <label class="flex cursor-pointer items-center justify-between rounded-xl bg-stone-50 p-2 text-[10px] font-semibold">
               Grafik
@@ -230,14 +316,26 @@
           </div>
 
           @if (node.graphic; as graphic) {
-            <app-drawing-canvas [image]="graphic.svg" (imageChange)="updateGraphicImage($event)" />
+            <app-drawing-canvas
+              [image]="graphic.png"
+              [startPoint]="graphic.start"
+              [endPoint]="graphic.end"
+              (imageChange)="updateGraphicImage($event)"
+              (startPointChange)="updateGraphicPoint('start', $event)"
+              (endPointChange)="updateGraphicPoint('end', $event)"
+            />
             <div class="mt-2 grid grid-cols-2 gap-2">
               <label class="text-[9px] font-bold uppercase text-stone-400">Breite<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="1" max="500" [ngModel]="graphic.width" (ngModelChange)="updateGraphic('width', $event)"></label>
               <label class="text-[9px] font-bold uppercase text-stone-400">Höhe<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="1" max="500" [ngModel]="graphic.height" (ngModelChange)="updateGraphic('height', $event)"></label>
             </div>
+            <div class="mt-2 rounded-xl bg-stone-50 p-3">
+              <app-interval-slider label="Zusatzwinkel" unit="°" [value]="graphic.rotation" [minimum]="-180" [maximum]="180" (valueChange)="updateGraphicRotation($event)" />
+            </div>
+          }
           }
         </section>
-      }
+        }
+      </div>
     </aside>
   </div>
 </section>

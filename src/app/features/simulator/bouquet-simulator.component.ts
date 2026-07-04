@@ -46,11 +46,7 @@ export class BouquetSimulatorComponent {
   }
 
   previewGraphic(definition: FlowerDefinition): string {
-    const source = [...definition.nodes].reverse().find((node) => node.graphic)?.graphic?.svg;
-    if (!source) return '';
-    return source.startsWith('data:')
-      ? source
-      : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source.trim())}`;
+    return [...definition.nodes].reverse().find((node) => node.graphic)?.graphic?.png ?? '';
   }
 
   exportProject(): void {

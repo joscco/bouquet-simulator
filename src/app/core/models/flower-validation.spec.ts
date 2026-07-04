@@ -38,4 +38,14 @@ describe('flower definition validation', () => {
       message: '„Ohne Verbindung“ ist nicht mit dem Basisknoten verbunden und wird nicht erzeugt.',
     });
   });
+
+  it('rejects non-PNG node graphics', () => {
+    const definition = structuredClone(DEFAULT_FLOWERS[0]);
+    definition.nodes.find((node) => node.graphic)!.graphic!.png = 'data:image/svg+xml,<svg></svg>';
+
+    expect(validateFlowerDefinition(definition)).toContainEqual({
+      severity: 'error',
+      message: '„Blattgrafik“ verwendet keine PNG-Grafik.',
+    });
+  });
 });

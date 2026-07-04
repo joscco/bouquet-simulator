@@ -3,6 +3,11 @@ export interface NumberRange {
   max: number;
 }
 
+export interface GraphicPoint {
+  x: number;
+  y: number;
+}
+
 export type NodeRepeatMode = 'chain' | 'branches';
 
 export interface FlowerNodeConnection {
@@ -11,15 +16,19 @@ export interface FlowerNodeConnection {
   mode: NodeRepeatMode;
   length: NumberRange;
   angle: NumberRange;
+  stem?: {
+    color: string;
+    width: number;
+  };
 }
 
 export interface FlowerNodeGraphic {
-  svg: string;
+  png: string;
   width: number;
   height: number;
   rotation: NumberRange;
-  anchorX: number;
-  anchorY: number;
+  start: GraphicPoint;
+  end: GraphicPoint;
 }
 
 export interface FlowerNodeDefinition {
@@ -28,6 +37,11 @@ export interface FlowerNodeDefinition {
   draggable: boolean;
   graphic: FlowerNodeGraphic | null;
   connections: FlowerNodeConnection[];
+  loop?: {
+    repeat: NumberRange;
+    startNodeId: string | null;
+    endNodeId: string | null;
+  };
 }
 
 export interface FlowerDefinition {

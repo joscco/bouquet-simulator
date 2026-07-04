@@ -13,6 +13,7 @@ import {
 import {
   Application,
   Assets,
+  ColorMatrixFilter,
   Container,
   FederatedPointerEvent,
   Graphics,
@@ -28,16 +29,32 @@ import {projectFlower} from '../../core/rendering/projection';
   selector: 'app-bouquet-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'bouquet-canvas-host'},
-  template: '<div #canvasHost class="canvas-mount" aria-label="Interaktive Straußansicht"></div>',
+  template: `
+    <div
+      #canvasHost
+      class="canvas-mount"
+      aria-label="Interaktive Straußansicht"
+      (wheel)="zoomWithWheel($event)"
+      (pointerdown)="startZoomGesture($event)"
+      (pointermove)="moveZoomGesture($event)"
+      (pointerup)="endZoomGesture($event)"
+      (pointercancel)="endZoomGesture($event)"
+    ></div>
+  `,
 })
 export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly state = input.required<BouquetState>();
   readonly definitions = input.required<FlowerDefinition[]>();
   readonly selectedId = input<string | null>(null);
+  readonly zoom = input(1);
+  readonly zoomEnabled = input(false);
+  readonly highlightedNodeId = input<string | null>(null);
+  readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
 
   @Output() readonly nodeDrag = new EventEmitter<{instanceId: string; nodeId: string; dx: number; dy: number}>();
   @Output() readonly rotateDrag = new EventEmitter<number>();
   @Output() readonly selectionChange = new EventEmitter<string | null>();
+  @Output() readonly zoomChange = new EventEmitter<number>();
 
   @ViewChild('canvasHost', {static: true}) private readonly canvasHost!: ElementRef<HTMLDivElement>;
 
@@ -54,12 +71,17 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     localScale: number;
   } | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private readonly zoomTouches = new Map<number, {x: number; y: number}>();
+  private zoomPinchDistance: number | null = null;
 
   constructor() {
     effect(() => {
       this.state();
       this.definitions();
       this.selectedId();
+      this.zoom();
+      this.highlightedNodeId();
+      this.highlightedConnection();
       void this.rebuildScene();
     });
   }
@@ -91,6 +113,37 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver?.disconnect();
     this.app?.destroy(true, {children: true, texture: false});
     this.app = null;
+  }
+
+  zoomWithWheel(event: WheelEvent): void {
+    if (!this.zoomEnabled()) return;
+    event.preventDefault();
+    this.zoomChange.emit(clamp(this.zoom() * Math.exp(-event.deltaY * 0.0015), 0.6, 1.8));
+  }
+
+  startZoomGesture(event: PointerEvent): void {
+    if (!this.zoomEnabled() || event.pointerType !== 'touch') return;
+    this.zoomTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    if (this.zoomTouches.size === 2) {
+      this.backgroundDrag = null;
+      this.zoomPinchDistance = touchDistance(this.zoomTouches);
+    }
+  }
+
+  moveZoomGesture(event: PointerEvent): void {
+    if (!this.zoomTouches.has(event.pointerId)) return;
+    this.zoomTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
+    if (this.zoomTouches.size !== 2) return;
+    const distance = touchDistance(this.zoomTouches);
+    if (this.zoomPinchDistance) {
+      this.zoomChange.emit(clamp(this.zoom() * distance / this.zoomPinchDistance, 0.6, 1.8));
+    }
+    this.zoomPinchDistance = distance;
+  }
+
+  endZoomGesture(event: PointerEvent): void {
+    this.zoomTouches.delete(event.pointerId);
+    if (this.zoomTouches.size < 2) this.zoomPinchDistance = null;
   }
 
   private readonly onBackgroundPointerDown = (event: FederatedPointerEvent): void => {
@@ -140,13 +193,14 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const definition = definitions.get(flower.definitionId);
       if (!definition) continue;
       const localScale = flower.scale * flower.perspective;
+      const displayScale = localScale * this.zoom();
       const sourceFlower = this.state().flowers.find((candidate) => candidate.instanceId === flower.instanceId);
       const node = await this.createFlower(
         definition,
         flower.instanceId,
         flower.seed,
         sourceFlower?.nodeOffsets ?? {},
-        localScale,
+        displayScale,
       );
       if (version !== this.renderVersion) {
         scene.destroy({children: true});
@@ -154,7 +208,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       }
       node.x = app.screen.width / 2 + flower.viewX;
       node.y = app.screen.height - 76 + flower.viewY;
-      node.scale.set(localScale);
+      node.scale.set(displayScale);
       node.alpha = 0.96 + flower.perspective * 0.03;
       scene.addChild(node);
     }
@@ -188,28 +242,91 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     const templates = new Map(definition.nodes.map((template) => [template.id, template]));
     const textureEntries = await Promise.all(definition.nodes
       .filter((template) => template.graphic)
-      .map(async (template) => [template.id, await this.loadSvg(template.graphic!.svg)] as const));
+      .map(async (template) => [template.id, await this.loadPng(template.graphic!.png)] as const));
     const textures = new Map(textureEntries);
     const tree = generateFlowerTree(definition, seed, nodeOffsets);
     const treeNodes = new Map(tree.nodes.map((treeNode) => [treeNode.id, treeNode]));
 
+    const graphicOutlines = new Container();
+    const nodeOutlines = new Graphics();
+    const outlineOffsets = [
+      [-2, 0], [2, 0], [0, -2], [0, 2],
+      [-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4],
+    ] as const;
+    for (const treeNode of tree.nodes) {
+      if (treeNode.templateId !== this.highlightedNodeId()) continue;
+      const template = templates.get(treeNode.templateId);
+      const graphic = template?.graphic ?? null;
+      const texture = textures.get(treeNode.templateId);
+      if (template && graphic && texture) {
+        const rotation = this.graphicRotation(template, treeNode.angle, treeNode.id, seed);
+        for (const [offsetX, offsetY] of outlineOffsets) {
+          const outline = new Sprite(texture);
+          outline.anchor.set(graphic.start.x, graphic.start.y);
+          outline.width = graphic.width;
+          outline.height = graphic.height;
+          outline.position.set(treeNode.x + offsetX, treeNode.y + offsetY);
+          outline.rotation = rotation;
+          graphicOutlines.addChild(outline);
+        }
+      } else {
+        nodeOutlines
+          .circle(treeNode.x, treeNode.y, 11)
+          .stroke({color: '#eab308', width: 2, alpha: 0.72});
+      }
+    }
+    if (graphicOutlines.children.length) {
+      const yellowSilhouette = new ColorMatrixFilter();
+      yellowSilhouette.matrix = [
+        0, 0, 0, 0, 0.92,
+        0, 0, 0, 0, 0.72,
+        0, 0, 0, 0, 0.08,
+        0, 0, 0, 1, 0,
+      ];
+      graphicOutlines.filters = [yellowSilhouette];
+      graphicOutlines.alpha = 0.72;
+      node.addChild(graphicOutlines);
+    }
+    node.addChild(nodeOutlines);
+
     const skeleton = new Graphics();
+    const highlightedConnection = this.highlightedConnection();
     for (const edge of tree.edges) {
       const from = this.requiredTreeNode(treeNodes, edge.from);
       const to = this.requiredTreeNode(treeNodes, edge.to);
-      const depthScale = Math.max(0.24, Math.pow(stem.taper, Math.max(0, from.depth - 1)));
-      const width = Math.max(1.1, stem.width * depthScale);
+      const connection = templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex];
+      const edgeStem = connection?.stem;
+      const baseWidth = edgeStem?.width ?? stem.width;
+      const startWidth = Math.max(1.1, baseWidth * Math.max(0.18, Math.pow(stem.taper, from.depth)));
+      const endWidth = Math.max(1.1, baseWidth * Math.max(0.18, Math.pow(stem.taper, to.depth)));
+      const isHighlighted = highlightedConnection?.sourceId === edge.connectionSourceId
+        && highlightedConnection.index === edge.connectionIndex;
+      if (isHighlighted) {
+        this.drawTaperedSegment(
+          skeleton,
+          from,
+          to,
+          startWidth + 3,
+          endWidth + 3,
+          '#eab308',
+          0.72,
+        );
+      }
+      this.drawTaperedSegment(
+        skeleton,
+        from,
+        to,
+        startWidth,
+        endWidth,
+        edgeStem?.color ?? stem.color,
+      );
       skeleton
-        .moveTo(from.x, from.y)
-        .lineTo(to.x, to.y)
-        .stroke({color: stem.color, width, cap: 'round', join: 'round'});
-      skeleton
-        .moveTo(from.x - width * 0.12, from.y)
-        .lineTo(to.x - width * 0.12, to.y)
+        .moveTo(from.x - startWidth * 0.12, from.y)
+        .lineTo(to.x - endWidth * 0.12, to.y)
         .stroke({
-          color: stem.highlightColor,
-          width: Math.max(0.8, width * 0.18),
-          alpha: 0.65,
+          color: edgeStem ? '#ffffff' : stem.highlightColor,
+          width: Math.max(0.7, (startWidth + endWidth) * 0.09),
+          alpha: edgeStem ? 0.3 : 0.65,
           cap: 'round',
         });
     }
@@ -220,11 +337,11 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const texture = textures.get(treeNode.templateId);
       if (!template?.graphic || !texture) continue;
       const sprite = new Sprite(texture);
-      sprite.anchor.set(template.graphic.anchorX, template.graphic.anchorY);
+      sprite.anchor.set(template.graphic.start.x, template.graphic.start.y);
       sprite.width = template.graphic.width;
       sprite.height = template.graphic.height;
       sprite.position.set(treeNode.x, treeNode.y);
-      sprite.rotation = treeNode.angle + this.graphicRotation(template, treeNode.id, seed);
+      sprite.rotation = this.graphicRotation(template, treeNode.angle, treeNode.id, seed);
       node.addChild(sprite);
     }
 
@@ -273,28 +390,82 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     return node;
   }
 
+  private drawTaperedSegment(
+    graphics: Graphics,
+    from: FlowerTreeNode,
+    to: FlowerTreeNode,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    alpha = 1,
+  ): void {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 0.001) {
+      graphics.circle(from.x, from.y, Math.max(startWidth, endWidth) / 2).fill({color, alpha});
+      return;
+    }
+    const perpendicularX = -dy / length;
+    const perpendicularY = dx / length;
+    graphics
+      .poly([
+        from.x + perpendicularX * startWidth / 2,
+        from.y + perpendicularY * startWidth / 2,
+        to.x + perpendicularX * endWidth / 2,
+        to.y + perpendicularY * endWidth / 2,
+        to.x - perpendicularX * endWidth / 2,
+        to.y - perpendicularY * endWidth / 2,
+        from.x - perpendicularX * startWidth / 2,
+        from.y - perpendicularY * startWidth / 2,
+      ])
+      .fill({color, alpha});
+    graphics.circle(from.x, from.y, startWidth / 2).fill({color, alpha});
+    graphics.circle(to.x, to.y, endWidth / 2).fill({color, alpha});
+  }
+
   private requiredTreeNode(nodes: Map<string, FlowerTreeNode>, id: string): FlowerTreeNode {
     const node = nodes.get(id);
     if (!node) throw new Error(`Flower tree node "${id}" does not exist.`);
     return node;
   }
 
-  private graphicRotation(template: FlowerNodeDefinition, generatedId: string, seed: number): number {
-    const range = template.graphic!.rotation;
+  private graphicRotation(
+    template: FlowerNodeDefinition,
+    connectionAngle: number,
+    generatedId: string,
+    seed: number,
+  ): number {
+    const graphic = template.graphic!;
+    const range = graphic.rotation;
     const hash = [...generatedId].reduce((value, character) => ((value * 31) + character.charCodeAt(0)) | 0, 17);
     const unit = Math.abs(Math.sin(hash + seed * 9973) * 43758.5453) % 1;
-    return (range.min + unit * (range.max - range.min)) * Math.PI / 180;
+    const randomOffset = (range.min + unit * (range.max - range.min)) * Math.PI / 180;
+    const imageAxis = Math.atan2(
+      (graphic.end.y - graphic.start.y) * graphic.height,
+      (graphic.end.x - graphic.start.x) * graphic.width,
+    );
+    const connectionAxis = connectionAngle - Math.PI / 2;
+    return connectionAxis - imageAxis + randomOffset;
   }
 
-  private loadSvg(svg: string): Promise<Texture> {
-    let texture = this.textureCache.get(svg);
+  private loadPng(png: string): Promise<Texture> {
+    let texture = this.textureCache.get(png);
     if (!texture) {
-      const url = svg.startsWith('data:')
-        ? svg
-        : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`;
-      texture = Assets.load<Texture>(url);
-      this.textureCache.set(svg, texture);
+      texture = Assets.load<Texture>(png);
+      this.textureCache.set(png, texture);
     }
     return texture;
   }
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function touchDistance(touches: Map<number, {x: number; y: number}>): number {
+  const points = [...touches.values()];
+  const first = points[0]!;
+  const second = points[1]!;
+  return Math.hypot(second.x - first.x, second.y - first.y);
 }
