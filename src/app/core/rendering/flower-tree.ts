@@ -162,6 +162,7 @@ export function generateFlowerTree(
         entryConnectionIndex,
         iteration,
         repeat,
+        true,
       );
       for (const step of path) {
         expandChildren(
@@ -238,6 +239,7 @@ export function generateFlowerTree(
     connectionIndex: number,
     repeatIndex: number,
     repeatCount: number,
+    forceUpright = false,
   ): FlowerTreeNode {
     const serial = (counters.get(templateId) ?? 0) + 1;
     counters.set(templateId, serial);
@@ -247,7 +249,17 @@ export function generateFlowerTree(
     const fanOffset = connection.mode === 'branches' && repeatCount > 1
       ? (repeatIndex / (repeatCount - 1) - 0.5) * Math.min(70, Math.abs(connection.angle.max - connection.angle.min))
       : 0;
-    const angle = parent.angle + (baseAngle + fanOffset) * Math.PI / 180;
+    // Stems should feel like plants, not like a pure random walk:
+    // every new growth step keeps some inherited direction, but softly bends
+    // back towards the vertical axis. Loop restarts get the strongest pull so
+    // side leaves do not accidentally become the next main-stem direction.
+    const uprightness = forceUpright
+      ? 0.68
+      : connection.mode === 'chain'
+        ? 0.42
+        : clamp(parent.depth * 0.045, 0.08, 0.28);
+    const inheritedAngle = parent.angle * (1 - uprightness);
+    const angle = inheritedAngle + (baseAngle + fanOffset) * Math.PI / 180;
     const length = Math.max(0, randomRange(connection.length, random));
     const offset = offsets[id] ?? {x: 0, y: 0};
     const node: FlowerTreeNode = {
@@ -276,6 +288,10 @@ function randomInteger(range: NumberRange, random: () => number): number {
   const minimum = Math.max(0, Math.ceil(Math.min(Number(range.min) || 0, Number(range.max) || 0)));
   const maximum = Math.max(minimum, Math.floor(Math.max(Number(range.min) || 0, Number(range.max) || 0)));
   return minimum + Math.floor(random() * (maximum - minimum + 1));
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function mulberry32(seed: number): () => number {

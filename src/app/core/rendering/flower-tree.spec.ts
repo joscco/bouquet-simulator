@@ -28,9 +28,9 @@ describe('procedural flower tree generator', () => {
     const petalNodes = tree.nodes.filter((node) => node.templateId === 'petal');
 
     expect(stemNodes.length).toBeGreaterThanOrEqual(2);
-    expect(leafNodes.map((node) => node.parentId)).toEqual(stemNodes.map((node) => node.id));
+    expect(new Set(leafNodes.map((node) => node.parentId))).toEqual(new Set(stemNodes.map((node) => node.id)));
     expect(stemNodes.slice(1).map((node) => node.parentId)).toEqual(
-      leafNodes.slice(0, -1).map((node) => node.id),
+      stemNodes.slice(0, -1).map((node) => node.id),
     );
     expect(petalNodes.length).toBeGreaterThanOrEqual(15);
     expect(new Set(petalNodes.map((node) => node.parentId)).size).toBe(1);
@@ -43,8 +43,9 @@ describe('procedural flower tree generator', () => {
     const blooms = tree.nodes.filter((node) => node.templateId === 'bloom');
 
     expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
+    expect(stems.slice(1).map((node) => node.parentId)).toEqual(stems.slice(0, -1).map((node) => node.id));
     expect(blooms).toHaveLength(1);
-    expect(blooms[0].parentId).toBe(leaves.at(-1)?.id);
+    expect(blooms[0].parentId).toBe(stems.at(-1)?.id);
   });
 
   it('repeats every node on a multi-node loop path', () => {
@@ -61,6 +62,23 @@ describe('procedural flower tree generator', () => {
     expect(leaves).toHaveLength(2);
     expect(stems[1].parentId).toBe(leaves[0].id);
     expect(bloom?.parentId).toBe(leaves[1].id);
+  });
+
+  it('can repeat one stem while growing leaves as side branches', () => {
+    const definition = structuredClone(DEFAULT_FLOWERS[0]);
+    const loop = definition.nodes.find((node) => node.id === 'growth-loop')!.loop!;
+    loop.repeat = {min: 3, max: 3};
+    loop.startNodeId = 'stem';
+    loop.endNodeId = 'stem';
+    const tree = generateFlowerTree(definition, 0.31);
+    const stems = tree.nodes.filter((node) => node.templateId === 'stem');
+    const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
+    const bloom = tree.nodes.find((node) => node.templateId === 'bloom');
+
+    expect(stems).toHaveLength(3);
+    expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
+    expect(stems.slice(1).map((node) => node.parentId)).toEqual(stems.slice(0, -1).map((node) => node.id));
+    expect(bloom?.parentId).toBe(stems.at(-1)?.id);
   });
 
   it('applies a node offset before positioning its descendants', () => {

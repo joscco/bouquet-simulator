@@ -33,7 +33,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         id: 'growth-loop', name: 'Stängel mit Blättern', draggable: false, graphic: null,
-        loop: {repeat: {min: 2, max: 3}, startNodeId: 'stem', endNodeId: 'leaf'},
+        loop: {repeat: {min: 2, max: 3}, startNodeId: 'stem', endNodeId: 'stem'},
         connections: [
           {childId: 'bloom', mode: 'branches', repeat: {min: 1, max: 1}, length: {min: 36, max: 48}, angle: {min: -5, max: 5}},
         ],
@@ -69,7 +69,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         id: 'growth-loop', name: 'Stängel mit Blättern', draggable: false, graphic: null,
-        loop: {repeat: {min: 3, max: 4}, startNodeId: 'stem', endNodeId: 'leaf'},
+        loop: {repeat: {min: 3, max: 4}, startNodeId: 'stem', endNodeId: 'stem'},
         connections: [
           {childId: 'flower-head', mode: 'branches', repeat: {min: 2, max: 4}, length: {min: 42, max: 115}, angle: {min: -42, max: 42}},
         ],
@@ -105,7 +105,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         id: 'growth-loop', name: 'Stängel mit Blättern', draggable: false, graphic: null,
-        loop: {repeat: {min: 3, max: 4}, startNodeId: 'stem', endNodeId: 'leaf'},
+        loop: {repeat: {min: 3, max: 4}, startNodeId: 'stem', endNodeId: 'stem'},
         connections: [
           {childId: 'umbel', mode: 'branches', repeat: {min: 3, max: 5}, length: {min: 34, max: 82}, angle: {min: -48, max: 48}},
         ],

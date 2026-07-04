@@ -23,7 +23,16 @@ import {
 } from 'pixi.js';
 import {BouquetState, FlowerDefinition, FlowerNodeDefinition} from '../../core/models/flower.models';
 import {FlowerTreeNode, generateFlowerTree} from '../../core/rendering/flower-tree';
-import {projectFlower} from '../../core/rendering/projection';
+import {projectFlower, projectLocalAngle, projectLocalPoint, viewDeltaToLocalOffset} from '../../core/rendering/projection';
+
+interface StemPoint {
+  x: number;
+  y: number;
+}
+
+interface RenderedTreeNode extends FlowerTreeNode {
+  renderDepth: number;
+}
 
 @Component({
   selector: 'app-bouquet-canvas',
@@ -69,6 +78,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     x: number;
     y: number;
     localScale: number;
+    rotation: number;
   } | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private readonly zoomTouches = new Map<number, {x: number; y: number}>();
@@ -152,16 +162,18 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   };
 
   private readonly onBackgroundPointerMove = (event: FederatedPointerEvent): void => {
-    if (this.nodeDragState?.pointerId === event.pointerId) {
-      const dx = (event.global.x - this.nodeDragState.x) / this.nodeDragState.localScale;
-      const dy = (event.global.y - this.nodeDragState.y) / this.nodeDragState.localScale;
-      this.nodeDragState.x = event.global.x;
-      this.nodeDragState.y = event.global.y;
+    const nodeDrag = this.nodeDragState;
+    if (nodeDrag?.pointerId === event.pointerId) {
+      const viewDx = (event.global.x - nodeDrag.x) / nodeDrag.localScale;
+      const viewDy = (event.global.y - nodeDrag.y) / nodeDrag.localScale;
+      const localDelta = viewDeltaToLocalOffset(viewDx, viewDy, nodeDrag.rotation);
+      nodeDrag.x = event.global.x;
+      nodeDrag.y = event.global.y;
       this.nodeDrag.emit({
-        instanceId: this.nodeDragState.instanceId,
-        nodeId: this.nodeDragState.nodeId,
-        dx,
-        dy,
+        instanceId: nodeDrag.instanceId,
+        nodeId: nodeDrag.nodeId,
+        dx: localDelta.x,
+        dy: localDelta.y,
       });
       return;
     }
@@ -200,6 +212,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         flower.instanceId,
         flower.seed,
         sourceFlower?.nodeOffsets ?? {},
+        this.state().rotation,
         displayScale,
       );
       if (version !== this.renderVersion) {
@@ -235,6 +248,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     instanceId: string,
     seed: number,
     nodeOffsets: Record<string, {x: number; y: number}>,
+    rotation: number,
     localScale: number,
   ): Promise<Container> {
     const node = new Container();
@@ -245,7 +259,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       .map(async (template) => [template.id, await this.loadPng(template.graphic!.png)] as const));
     const textures = new Map(textureEntries);
     const tree = generateFlowerTree(definition, seed, nodeOffsets);
-    const treeNodes = new Map(tree.nodes.map((treeNode) => [treeNode.id, treeNode]));
+    const renderedTree = this.projectTreeNodes(tree.nodes, rotation);
+    const treeNodes = new Map(renderedTree.map((treeNode) => [treeNode.id, treeNode]));
 
     const graphicOutlines = new Container();
     const nodeOutlines = new Graphics();
@@ -253,7 +268,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       [-2, 0], [2, 0], [0, -2], [0, 2],
       [-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4],
     ] as const;
-    for (const treeNode of tree.nodes) {
+    for (const treeNode of renderedTree) {
       if (treeNode.templateId !== this.highlightedNodeId()) continue;
       const template = templates.get(treeNode.templateId);
       const graphic = template?.graphic ?? null;
@@ -302,7 +317,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const isHighlighted = highlightedConnection?.sourceId === edge.connectionSourceId
         && highlightedConnection.index === edge.connectionIndex;
       if (isHighlighted) {
-        this.drawTaperedSegment(
+        this.drawTaperedCurve(
           skeleton,
           from,
           to,
@@ -312,7 +327,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
           0.72,
         );
       }
-      this.drawTaperedSegment(
+      this.drawTaperedCurve(
         skeleton,
         from,
         to,
@@ -320,19 +335,19 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         endWidth,
         edgeStem?.color ?? stem.color,
       );
-      skeleton
-        .moveTo(from.x - startWidth * 0.12, from.y)
-        .lineTo(to.x - endWidth * 0.12, to.y)
-        .stroke({
-          color: edgeStem ? '#ffffff' : stem.highlightColor,
-          width: Math.max(0.7, (startWidth + endWidth) * 0.09),
-          alpha: edgeStem ? 0.3 : 0.65,
-          cap: 'round',
-        });
+      this.drawStemHighlight(
+        skeleton,
+        from,
+        to,
+        startWidth,
+        endWidth,
+        edgeStem ? '#ffffff' : stem.highlightColor,
+        edgeStem ? 0.3 : 0.65,
+      );
     }
     node.addChild(skeleton);
 
-    for (const treeNode of [...tree.nodes].sort((first, second) => second.depth - first.depth)) {
+    for (const treeNode of [...renderedTree].sort((first, second) => first.renderDepth - second.renderDepth || second.depth - first.depth)) {
       const template = templates.get(treeNode.templateId);
       const texture = textures.get(treeNode.templateId);
       if (!template?.graphic || !texture) continue;
@@ -347,10 +362,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
     const graphicMargin = Math.max(20, ...definition.nodes.map((template) =>
       template.graphic ? Math.max(template.graphic.width, template.graphic.height) * 0.55 : 0));
-    const minimumX = Math.min(...tree.nodes.map((treeNode) => treeNode.x)) - graphicMargin;
-    const maximumX = Math.max(...tree.nodes.map((treeNode) => treeNode.x)) + graphicMargin;
-    const minimumY = Math.min(...tree.nodes.map((treeNode) => treeNode.y)) - graphicMargin;
-    const maximumY = Math.max(...tree.nodes.map((treeNode) => treeNode.y), 8) + graphicMargin;
+    const minimumX = Math.min(...renderedTree.map((treeNode) => treeNode.x)) - graphicMargin;
+    const maximumX = Math.max(...renderedTree.map((treeNode) => treeNode.x)) + graphicMargin;
+    const minimumY = Math.min(...renderedTree.map((treeNode) => treeNode.y)) - graphicMargin;
+    const maximumY = Math.max(...renderedTree.map((treeNode) => treeNode.y), 8) + graphicMargin;
     if (this.selectedId() === instanceId) {
       node.addChild(
         new Graphics()
@@ -366,7 +381,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.selectionChange.emit(instanceId);
     });
 
-    for (const treeNode of tree.nodes.filter((candidate) => candidate.draggable)) {
+    for (const treeNode of renderedTree.filter((candidate) => candidate.draggable)) {
       const handle = new Graphics()
         .circle(treeNode.x, treeNode.y, this.selectedId() === instanceId ? 10 : 7)
         .fill({color: '#fffdf8', alpha: this.selectedId() === instanceId ? 0.92 : 0.62})
@@ -382,6 +397,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
           x: event.global.x,
           y: event.global.y,
           localScale: Math.max(0.01, localScale),
+          rotation,
         };
         this.selectionChange.emit(instanceId);
       });
@@ -390,10 +406,109 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     return node;
   }
 
-  private drawTaperedSegment(
+  private projectTreeNodes(nodes: FlowerTreeNode[], rotation: number): RenderedTreeNode[] {
+    return nodes.map((node) => {
+      const projectedPoint = projectLocalPoint(node.x, node.y, rotation);
+      return {
+        ...node,
+        x: projectedPoint.x,
+        y: projectedPoint.y,
+        angle: projectLocalAngle(node.angle, rotation),
+        renderDepth: projectedPoint.depth,
+      };
+    });
+  }
+
+  private drawTaperedCurve(
     graphics: Graphics,
     from: FlowerTreeNode,
     to: FlowerTreeNode,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    alpha = 1,
+  ): void {
+    const points = this.sampleStemCurve(from, to);
+    for (let index = 0; index < points.length - 1; index++) {
+      const start = points[index]!;
+      const end = points[index + 1]!;
+      const amount = index / Math.max(1, points.length - 2);
+      this.drawTaperedSegment(
+        graphics,
+        start,
+        end,
+        lerp(startWidth, endWidth, amount),
+        lerp(startWidth, endWidth, Math.min(1, amount + 1 / Math.max(1, points.length - 2))),
+        color,
+        alpha,
+      );
+    }
+  }
+
+  private drawStemHighlight(
+    graphics: Graphics,
+    from: FlowerTreeNode,
+    to: FlowerTreeNode,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    alpha: number,
+  ): void {
+    const points = this.sampleStemCurve(from, to, 8);
+    for (let index = 0; index < points.length - 1; index++) {
+      const start = points[index]!;
+      const end = points[index + 1]!;
+      const amount = index / Math.max(1, points.length - 2);
+      const offset = -lerp(startWidth, endWidth, amount) * 0.14;
+      graphics
+        .moveTo(start.x + offset, start.y)
+        .lineTo(end.x + offset, end.y)
+        .stroke({
+          color,
+          width: Math.max(0.7, lerp(startWidth, endWidth, amount) * 0.16),
+          alpha,
+          cap: 'round',
+        });
+    }
+  }
+
+  private sampleStemCurve(from: FlowerTreeNode, to: FlowerTreeNode, segments = 12): StemPoint[] {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 0.001) return [{x: from.x, y: from.y}, {x: to.x, y: to.y}];
+
+    const startHandle = Math.min(58, Math.max(14, distance * 0.34));
+    const endHandle = Math.min(48, Math.max(12, distance * 0.26));
+    const control1 = {
+      x: from.x + Math.sin(from.angle) * startHandle,
+      y: from.y - Math.cos(from.angle) * startHandle,
+    };
+    const control2 = {
+      x: to.x - Math.sin(to.angle) * endHandle,
+      y: to.y + Math.cos(to.angle) * endHandle,
+    };
+
+    return Array.from({length: segments + 1}, (_, index) => {
+      const t = index / segments;
+      const inverse = 1 - t;
+      return {
+        x: inverse ** 3 * from.x
+          + 3 * inverse ** 2 * t * control1.x
+          + 3 * inverse * t ** 2 * control2.x
+          + t ** 3 * to.x,
+        y: inverse ** 3 * from.y
+          + 3 * inverse ** 2 * t * control1.y
+          + 3 * inverse * t ** 2 * control2.y
+          + t ** 3 * to.y,
+      };
+    });
+  }
+
+  private drawTaperedSegment(
+    graphics: Graphics,
+    from: StemPoint,
+    to: StemPoint,
     startWidth: number,
     endWidth: number,
     color: string,
@@ -461,6 +576,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function lerp(start: number, end: number, amount: number): number {
+  return start + (end - start) * amount;
 }
 
 function touchDistance(touches: Map<number, {x: number; y: number}>): number {

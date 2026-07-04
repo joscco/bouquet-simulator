@@ -17,6 +17,8 @@
           <option [value]="flower.id">{{ flower.name }}</option>
         }
       </select>
+      <button class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] font-bold text-stone-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50" type="button" (click)="createNewDefinition()">＋ Neu</button>
+      <button class="rounded-xl border border-stone-200 bg-white px-3 py-2 text-[10px] font-bold text-stone-700 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50" type="button" (click)="duplicateDefinition()">⧉ Duplizieren</button>
     </div>
 
     <div class="flex items-center gap-2">
@@ -46,9 +48,9 @@
     <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1">
       <div class="absolute left-4 top-4 z-10 flex items-center gap-1 rounded-2xl border border-stone-200 bg-white/90 p-1.5 shadow-lg backdrop-blur">
         <button class="flex h-9 items-center gap-1.5 rounded-xl bg-emerald-950 px-3 text-[10px] font-bold text-white hover:bg-emerald-900" type="button" (click)="addNode()"><span class="text-base">＋</span>Knoten</button>
-        <button class="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[10px] font-bold text-amber-900 hover:bg-amber-100" type="button" (click)="addLoop()"><span class="text-sm">↻</span>Loop</button>
+        <button class="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[10px] font-bold text-amber-900 hover:bg-amber-100" type="button" (click)="addLoop()"><span class="text-sm">↻</span>Wiederholung</button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
-        <button class="h-9 rounded-xl px-3 text-[10px] font-bold text-stone-600 hover:bg-stone-100" type="button" title="Tree automatisch anordnen" (click)="autoLayout()">⌘ Auto-Layout</button>
+        <button class="h-9 rounded-xl px-3 text-[10px] font-bold text-stone-600 hover:bg-stone-100" type="button" title="Graph automatisch anordnen" (click)="autoLayout()">⌘ Aufräumen</button>
       </div>
 
       <svg
@@ -67,10 +69,10 @@
           <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
             <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
           </pattern>
-          <marker id="edge-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+          <marker id="edge-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
             <path d="M 1 1 L 11 6 L 1 11 Z" fill="#a8a29e" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" />
           </marker>
-          <marker id="edge-arrow-selected" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+          <marker id="edge-arrow-selected" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
             <path d="M 1 1 L 11 6 L 1 11 Z" fill="#047857" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" />
           </marker>
         </defs>
@@ -88,6 +90,20 @@
               stroke="none"
               class="pointer-events-none"
             />
+            <rect
+              [attr.x]="node.x - node.width / 2"
+              [attr.y]="node.y - node.height / 2"
+              [attr.width]="node.width"
+              [attr.height]="node.height"
+              rx="24"
+              fill="#ffffff"
+              fill-opacity="0.001"
+              stroke="none"
+              class="cursor-grab active:cursor-grabbing"
+              pointer-events="all"
+              (pointerdown)="startNodeDrag($event, node.id)"
+              (pointerup)="finishConnection($event, node.id)"
+            />
           }
         }
 
@@ -96,7 +112,7 @@
             [attr.d]="edge.path"
             fill="none"
             stroke="transparent"
-            stroke-width="18"
+            stroke-width="28"
             [class.cursor-pointer]="edge.selectable"
             (pointerdown)="edge.selectable && selectConnection($event, edge.sourceId, edge.index)"
           />
@@ -104,7 +120,7 @@
             [attr.d]="edge.path"
             fill="none"
             stroke="#ffffff"
-            stroke-width="7"
+            stroke-width="11"
             stroke-linecap="round"
             class="pointer-events-none"
           />
@@ -112,7 +128,7 @@
             [attr.d]="edge.path"
             fill="none"
             [attr.stroke]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? '#047857' : edge.color"
-            [attr.stroke-width]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 3 : 2"
+            [attr.stroke-width]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 5 : 4"
             [attr.marker-end]="selectedEdge()?.sourceId === edge.sourceId && selectedEdge()?.index === edge.index ? 'url(#edge-arrow-selected)' : 'url(#edge-arrow)'"
             stroke-linecap="round"
             class="pointer-events-none"
@@ -122,7 +138,7 @@
             [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'"
           >
             <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" stroke="#e7e5e4" />
-            <text y="3" class="fill-stone-500 text-[8px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
+            <text y="3" class="fill-stone-500 text-[10px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
           </g>
         }
 
@@ -131,7 +147,7 @@
             [attr.d]="pendingConnectionPath()"
             fill="none"
             stroke="#047857"
-            stroke-width="3"
+            stroke-width="5"
             stroke-dasharray="7 6"
             stroke-linecap="round"
             marker-end="url(#edge-arrow-selected)"
@@ -156,36 +172,34 @@
                 [attr.width]="node.width"
                 [attr.height]="node.height"
                 rx="24"
-                fill="transparent"
+                fill="none"
                 [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#d97706' : '#f59e0b'"
-                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
-                stroke-dasharray="6 4"
-                pointer-events="stroke"
-                class="drop-shadow-sm"
+                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 3 : 2"
+                class="pointer-events-none drop-shadow-sm"
               />
-              <circle cx="0" [attr.cy]="node.height / 2" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+              <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
               <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
-              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[8px]">LOOP-CONTAINER</text>
-              <circle cx="0" [attr.cy]="node.height / 2 - 28" r="9" fill="#059669" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
+              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
+              <circle cx="0" [attr.cy]="node.height / 2 - 28" r="11" fill="#059669" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
               <text x="14" [attr.y]="node.height / 2 - 25" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
-              <circle cx="0" [attr.cy]="-node.height / 2 + 28" r="9" fill="#f59e0b" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerup)="finishLoopEnd($event, node.id)" />
+              <circle cx="0" [attr.cy]="-node.height / 2 + 28" r="11" fill="#f59e0b" stroke="#ffffff" stroke-width="2" class="cursor-crosshair" (pointerup)="finishLoopEnd($event, node.id)" />
               <text x="14" [attr.y]="-node.height / 2 + 31" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
-              <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
+              <circle cx="0" [attr.cy]="-node.height / 2" r="12" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
             } @else {
               <rect
-                x="-80" y="-36" width="160" height="72" rx="17"
+                [attr.x]="-node.width / 2" [attr.y]="-node.height / 2" [attr.width]="node.width" [attr.height]="node.height" rx="20"
                 [attr.fill]="selectedNodeId() === node.id && !selectedEdge() ? '#ecfdf5' : node.loopMember ? '#fffbeb' : '#ffffff'"
                 [attr.stroke]="selectedNodeId() === node.id && !selectedEdge() ? '#047857' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
-                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 2.5 : 1.5"
+                [attr.stroke-width]="selectedNodeId() === node.id && !selectedEdge() ? 3 : 2"
                 class="drop-shadow-sm"
               />
-              <circle cx="0" cy="36" r="7" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
-              <text x="-59" y="-6" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
-              <text x="-59" y="13" class="pointer-events-none fill-stone-400 text-[8px]">
+              <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+              <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
+              <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
                 {{ node.root ? 'BASIS' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}{{ node.draggable ? '  ·  DRAG' : '' }}
               </text>
-              <circle cx="0" cy="-36" r="10" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
-              <path d="M-3 -32 0 -38 3 -32" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
+              <circle cx="0" [attr.cy]="-node.height / 2" r="12" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
+              <path [attr.d]="'M-4 ' + (-node.height / 2 + 6) + ' 0 ' + (-node.height / 2 - 2) + ' 4 ' + (-node.height / 2 + 6)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
             }
           </g>
         }
@@ -298,9 +312,9 @@
 
           @if (node.loop) {
             <div class="rounded-xl bg-amber-50 p-3">
-              <app-interval-slider label="Loop-Durchläufe" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
+              <app-interval-slider label="Wiederholungen" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
               <p class="mb-0 mt-2 text-[9px] leading-relaxed text-amber-900/70">
-                Grünen inneren Start zum ersten Knoten ziehen. Vom letzten Knoten zum gelben inneren Ende ziehen.
+                Grünen Start zum ersten Knoten ziehen. Vom letzten Knoten zum gelben Ende ziehen. Bei einem Hauptstängel dürfen Start und Ende derselbe Knoten sein.
               </p>
             </div>
           } @else {

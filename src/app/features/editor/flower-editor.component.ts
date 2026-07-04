@@ -142,6 +142,36 @@ export class FlowerEditorComponent {
     this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
   }
 
+
+  createNewDefinition(): void {
+    const id = this.uniqueDefinitionId('neue-blume');
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id,
+      name: 'Neue Blume',
+      rootNodeId: 'base',
+      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72},
+      nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
+      editor: {nodePositions: {base: {x: 500, y: 840}}},
+    };
+    this.store.replaceDefinition(definition);
+    this.loadDefinition(definition);
+    this.message.set('Neue Blume angelegt.');
+  }
+
+  duplicateDefinition(): void {
+    const source = this.definitionWithEditorState();
+    const id = this.uniqueDefinitionId(`${source.id}-kopie`);
+    const definition: FlowerDefinition = {
+      ...structuredClone(source),
+      id,
+      name: `${source.name} Kopie`,
+    };
+    this.store.replaceDefinition(definition);
+    this.loadDefinition(definition);
+    this.message.set('Blumentyp dupliziert.');
+  }
+
   selectNode(id: string): void {
     this.selectedNodeId.set(id);
     this.selectedEdge.set(null);
@@ -183,7 +213,7 @@ export class FlowerEditorComponent {
     while (existing.has(`loop-${index}`)) index++;
     const node: FlowerNodeDefinition = {
       id: `loop-${index}`,
-      name: `Loop ${index}`,
+      name: `Wiederholung ${index}`,
       draggable: false,
       graphic: null,
       connections: [],
@@ -208,7 +238,7 @@ export class FlowerEditorComponent {
     ));
     this.graphCenter.set({x: 500, y: 500});
     this.graphZoom.set(1);
-    this.message.set('Tree automatisch angeordnet.');
+    this.message.set('Graph automatisch angeordnet.');
   }
 
   regeneratePreview(): void {
@@ -416,7 +446,7 @@ export class FlowerEditorComponent {
     const source = this.graphLayout().nodes.find((node) => node.id === sourceId);
     if (!source) return;
     this.selectNode(sourceId);
-    const start = {x: source.x, y: source.y - (source.loop ? source.height / 2 : 36)};
+    const start = {x: source.x, y: source.y - source.height / 2};
     this.connectionDrag.set({sourceId, start, end: start});
   }
 
@@ -471,15 +501,15 @@ export class FlowerEditorComponent {
       const dragged = this.graphLayout().nodes.find((node) => node.id === this.nodeDrag!.nodeId);
       if (!dragged) return;
       const target = {
-          x: clamp(
-            point.x - this.nodeDrag.offset.x,
-            dragged.loop ? dragged.width / 2 + 20 : 90,
-            dragged.loop ? 980 - dragged.width / 2 : 910,
+        x: clamp(
+          point.x - this.nodeDrag.offset.x,
+          dragged.width / 2 + 20,
+          980 - dragged.width / 2,
         ),
-          y: clamp(
-            point.y - this.nodeDrag.offset.y,
-            dragged.loop ? dragged.height / 2 + 20 : 55,
-            dragged.loop ? 980 - dragged.height / 2 : 945,
+        y: clamp(
+          point.y - this.nodeDrag.offset.y,
+          dragged.height / 2 + 20,
+          980 - dragged.height / 2,
         ),
       };
       if (dragged.loop) {
@@ -600,6 +630,16 @@ export class FlowerEditorComponent {
     if (target.matches('input, textarea, select') || target.isContentEditable) return;
     event.preventDefault();
     this.removeSelectedConnection();
+  }
+
+
+  private uniqueDefinitionId(seed: string): string {
+    const existing = new Set(this.store.definitions().map((definition) => definition.id));
+    const base = slugify(seed) || 'blume';
+    let id = base;
+    let suffix = 2;
+    while (existing.has(id)) id = `${base}-${suffix++}`;
+    return id;
   }
 
   private loadDefinition(definition: FlowerDefinition): void {
@@ -750,8 +790,8 @@ export class FlowerEditorComponent {
             candidate.id === node.loop?.endNodeId)?.name ?? 'Ende wählen',
           loopMember: false,
           memberIds: [],
-          width: node.loop ? 220 : 160,
-          height: node.loop ? 140 : 72,
+          width: node.loop ? 260 : 172,
+          height: node.loop ? 170 : 78,
         });
       });
     }
@@ -791,13 +831,13 @@ export class FlowerEditorComponent {
       }
       const paddingX = 42;
       const paddingY = 68;
-      const left = Math.min(...members.map((member) => member.x - 80)) - paddingX;
-      const right = Math.max(...members.map((member) => member.x + 80)) + paddingX;
-      const top = Math.min(...members.map((member) => member.y - 36)) - paddingY;
-      const bottom = Math.max(...members.map((member) => member.y + 36)) + paddingY;
+      const left = Math.min(...members.map((member) => member.x - member.width / 2)) - paddingX;
+      const right = Math.max(...members.map((member) => member.x + member.width / 2)) + paddingX;
+      const top = Math.min(...members.map((member) => member.y - member.height / 2)) - paddingY;
+      const bottom = Math.max(...members.map((member) => member.y + member.height / 2)) + paddingY;
       loopNode.x = (left + right) / 2;
       loopNode.y = (top + bottom) / 2;
-      loopNode.width = Math.max(240, right - left);
+      loopNode.width = Math.max(260, right - left);
       loopNode.height = Math.max(180, bottom - top);
       loopNode.memberIds = memberIds;
       for (const member of members) {
@@ -813,7 +853,7 @@ export class FlowerEditorComponent {
       const endNode = node.loop?.endNodeId ? positions.get(node.loop.endNodeId) : null;
       if (loopNode && startNode) {
         const start = {x: loopNode.x, y: loopNode.y + loopNode.height / 2 - 28};
-        const end = {x: startNode.x, y: startNode.y + (startNode.loop ? 56 : 36)};
+        const end = {x: startNode.x, y: startNode.y + startNode.height / 2};
         edges.push({
           key: `${node.id}-loop-start`,
           sourceId: node.id,
@@ -827,7 +867,7 @@ export class FlowerEditorComponent {
         });
       }
       if (loopNode && endNode) {
-        const start = {x: endNode.x, y: endNode.y - (endNode.loop ? 56 : 36)};
+        const start = {x: endNode.x, y: endNode.y - endNode.height / 2};
         const end = {x: loopNode.x, y: loopNode.y - loopNode.height / 2 + 28};
         edges.push({
           key: `${node.id}-loop-end`,
@@ -848,8 +888,8 @@ export class FlowerEditorComponent {
       node.connections.forEach((connection, index) => {
         const to = positions.get(connection.childId);
         if (!to) return;
-        const start = {x: from.x, y: from.y - (from.loop ? from.height / 2 : 36)};
-        const end = {x: to.x, y: to.y + (to.loop ? to.height / 2 : 36)};
+        const start = {x: from.x, y: from.y - from.height / 2};
+        const end = {x: to.x, y: to.y + to.height / 2};
         edges.push({
           key: `${node.id}-${connection.childId}-${index}`,
           sourceId: node.id,
@@ -893,6 +933,18 @@ export class FlowerEditorComponent {
     const direction = end.y <= start.y ? -1 : 1;
     return `M ${start.x} ${start.y} C ${start.x} ${start.y + direction * curve}, ${end.x} ${end.y - direction * curve}, ${end.x} ${end.y}`;
   }
+}
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

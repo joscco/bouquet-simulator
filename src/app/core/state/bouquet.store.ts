@@ -18,21 +18,21 @@ export class BouquetStore {
   readonly flowerCount = computed(() => this.state().flowers.length);
 
   addFlower(definitionId: string): void {
-    const index = this.state().flowers.length;
-    const angle = index * 2.399;
-    const radius = 25 + Math.sqrt(index) * 18;
-    const flower = this.createPlacement(
-      definitionId,
-      Math.cos(angle) * radius,
-      (index % 3 - 1) * 9,
-      Math.sin(angle) * radius,
-      0.9 + (index % 4) * 0.04,
-    );
-    this.state.update((state) => ({...state, flowers: [...state.flowers, flower]}));
+    this.state.update((state) => this.withArrangedFlowers({
+      ...state,
+      flowers: [...state.flowers, this.createPlacement(definitionId, 0, 0, 0, 1)],
+    }));
+  }
+
+  shuffleBouquet(): void {
+    this.state.update((state) => this.withArrangedFlowers({
+      ...state,
+      flowers: state.flowers.map((flower) => ({...flower, seed: Math.random()})),
+    }));
   }
 
   removeFlower(instanceId: string): void {
-    this.state.update((state) => ({
+    this.state.update((state) => this.withArrangedFlowers({
       ...state,
       flowers: state.flowers.filter((flower) => flower.instanceId !== instanceId),
     }));
@@ -111,6 +111,27 @@ export class BouquetStore {
 
   resetBouquet(): void {
     this.state.set({schemaVersion: 2, rotation: 0, flowers: []});
+  }
+
+  private withArrangedFlowers(state: BouquetState): BouquetState {
+    const count = state.flowers.length;
+    if (!count) return state;
+    return {
+      ...state,
+      flowers: state.flowers.map((flower, index) => {
+        const centered = count === 1 ? 0 : index / (count - 1) - 0.5;
+        const seedWave = Math.sin((flower.seed + index) * 31.7);
+        const depthWave = Math.cos((flower.seed + index) * 17.3);
+        const spread = Math.min(150, 48 + count * 16);
+        return {
+          ...flower,
+          x: centered * spread + seedWave * 10,
+          y: -Math.abs(centered) * 10 + depthWave * 5,
+          z: centered * 34 + depthWave * 18,
+          scale: 0.92 + (1 - Math.abs(centered)) * 0.12 + seedWave * 0.025,
+        };
+      }),
+    };
   }
 
   private createPlacement(
