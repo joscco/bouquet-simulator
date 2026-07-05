@@ -8,14 +8,25 @@ export interface GraphicPoint {
   y: number;
 }
 
-export type NodeRepeatMode = 'chain' | 'branches';
+export type GraphicPrimitive =
+  | 'leaf-pointed'
+  | 'leaf-round'
+  | 'petal-pointed'
+  | 'petal-round'
+  | 'sphere'
+  | 'rod'
+  | 'png';
 
 export interface FlowerNodeConnection {
   childId: string;
   repeat: NumberRange;
-  mode: NodeRepeatMode;
   length: NumberRange;
+  /** Neigung relativ zur Wachstumsrichtung des Elternknotens, in Grad. */
   angle: NumberRange;
+  /** Drehung um die Wachstumsrichtung des Elternknotens, in Grad. */
+  azimuth?: NumberRange;
+  /** 0 verteilt Wiederholungen gleichmäßig, 1 vollständig zufällig. */
+  randomness?: number;
   stem?: {
     color: string;
     width: number;
@@ -23,9 +34,13 @@ export interface FlowerNodeConnection {
 }
 
 export interface FlowerNodeGraphic {
-  png: string;
+  primitive?: GraphicPrimitive;
+  color?: string;
+  accentColor?: string;
+  png?: string;
   width: number;
   height: number;
+  depth?: number;
   rotation: NumberRange;
   start: GraphicPoint;
   end: GraphicPoint;

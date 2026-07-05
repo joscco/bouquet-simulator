@@ -9,6 +9,10 @@ import {
   signal,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {MatButtonModule} from '@angular/material/button';
+import {MatIconModule} from '@angular/material/icon';
+import {MatSliderModule} from '@angular/material/slider';
+import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {
   BouquetState,
@@ -16,56 +20,45 @@ import {
   FlowerNodeConnection,
   FlowerNodeDefinition,
   FlowerNodeGraphic,
-  GraphicPoint,
+  GraphicPrimitive,
   NumberRange,
-  NodeRepeatMode,
 } from '../../core/models/flower.models';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
-import {DrawingCanvasComponent} from '../../shared/drawing-canvas/drawing-canvas.component';
 import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface GraphNode extends Point {
-  id: string;
-  name: string;
-  root: boolean;
-  draggable: boolean;
-  hasGraphic: boolean;
-  loop: boolean;
-  loopStartName: string;
-  loopEndName: string;
-  loopMember: boolean;
-  memberIds: string[];
-  width: number;
-  height: number;
-}
-
-interface GraphEdge {
-  key: string;
-  sourceId: string;
-  index: number;
-  path: string;
-  labelX: number;
-  labelY: number;
-  label: string;
-  selectable: boolean;
-  color: string;
-}
+import {
+  Point,
+  createGraphLayout,
+  curvedConnectionPath,
+  materializePositions,
+} from './flower-editor-graph';
 
 @Component({
   selector: 'app-flower-editor',
-  imports: [FormsModule, BouquetCanvasComponent, DrawingCanvasComponent, IntervalSliderComponent],
+  imports: [
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MatSliderModule,
+    MatSnackBarModule,
+    BouquetCanvasComponent,
+    IntervalSliderComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
 })
 export class FlowerEditorComponent {
+  readonly graphicPrimitives: ReadonlyArray<{value: GraphicPrimitive; label: string}> = [
+    {value: 'leaf-pointed', label: 'Spitzes Blatt'},
+    {value: 'leaf-round', label: 'Rundes Blatt'},
+    {value: 'petal-pointed', label: 'Spitzes Blütenblatt'},
+    {value: 'petal-round', label: 'Rundes Blütenblatt'},
+    {value: 'sphere', label: 'Kugel'},
+    {value: 'rod', label: 'Stäbchen'},
+  ];
   readonly store = inject(BouquetStore);
+  private readonly snackBar = inject(MatSnackBar);
   readonly draft = signal<FlowerDefinition>(structuredClone(this.store.definitions()[0]));
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly selectedEdge = signal<{sourceId: string; index: number} | null>(null);
@@ -73,6 +66,8 @@ export class FlowerEditorComponent {
   readonly graphCenter = signal<Point>({x: 500, y: 500});
   readonly previewZoom = signal(1);
   readonly previewSeed = signal(0.42);
+  readonly previewRotation = signal(0);
+  readonly previewPitch = signal(0);
   readonly graphPositions = signal<Record<string, Point>>(
     structuredClone(this.draft().editor?.nodePositions ?? {}),
   );
@@ -82,7 +77,6 @@ export class FlowerEditorComponent {
     end: Point;
     loopStartId?: string;
   } | null>(null);
-  readonly message = signal('');
 
   readonly selectedNode = computed(() =>
     this.draft().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
@@ -94,7 +88,7 @@ export class FlowerEditorComponent {
     return source && connection ? {...selected, source, connection} : null;
   });
   readonly validationIssues = computed(() => validateFlowerDefinition(this.draft()));
-  readonly graphLayout = computed(() => this.createGraphLayout(this.draft(), this.graphPositions()));
+  readonly graphLayout = computed(() => createGraphLayout(this.draft(), this.graphPositions()));
   readonly graphViewBox = computed(() => {
     const width = 1000 / this.graphZoom();
     const height = 1000 / this.graphZoom();
@@ -103,12 +97,10 @@ export class FlowerEditorComponent {
   });
   readonly pendingConnectionPath = computed(() => {
     const pending = this.connectionDrag();
-    return pending ? this.curvedConnectionPath(pending.start, pending.end) : '';
+    return pending ? curvedConnectionPath(pending.start, pending.end) : '';
   });
-  readonly previewState = computed<BouquetState>(() => ({
-    schemaVersion: 2,
-    rotation: 0,
-    flowers: [{
+  readonly previewDefinitions = computed(() => [this.draft()]);
+  readonly previewFlowers = computed<BouquetState['flowers']>(() => [{
       instanceId: 'editor-preview',
       definitionId: this.draft().id,
       x: 0,
@@ -117,7 +109,11 @@ export class FlowerEditorComponent {
       scale: 1,
       seed: this.previewSeed(),
       nodeOffsets: {},
-    }],
+  }]);
+  readonly previewState = computed<BouquetState>(() => ({
+    schemaVersion: 2,
+    rotation: this.previewRotation(),
+    flowers: this.previewFlowers(),
   }));
 
   @ViewChild('graphCanvas', {static: false}) private graphCanvas?: ElementRef<SVGSVGElement>;
@@ -131,7 +127,7 @@ export class FlowerEditorComponent {
   } | null = null;
 
   constructor() {
-    this.graphPositions.set(this.materializePositions(this.draft()));
+    this.graphPositions.set(materializePositions(this.draft()));
   }
 
   updateRoot(key: 'id' | 'name', value: string): void {
@@ -156,7 +152,7 @@ export class FlowerEditorComponent {
     };
     this.store.replaceDefinition(definition);
     this.loadDefinition(definition);
-    this.message.set('Neue Blume angelegt.');
+    this.notify('Neue Blume angelegt.');
   }
 
   duplicateDefinition(): void {
@@ -169,7 +165,7 @@ export class FlowerEditorComponent {
     };
     this.store.replaceDefinition(definition);
     this.loadDefinition(definition);
-    this.message.set('Blumentyp dupliziert.');
+    this.notify('Blumentyp dupliziert.');
   }
 
   selectNode(id: string): void {
@@ -232,17 +228,27 @@ export class FlowerEditorComponent {
   }
 
   autoLayout(): void {
-    const layout = this.createGraphLayout(this.draft(), {});
+    const layout = createGraphLayout(this.draft(), {});
     this.graphPositions.set(Object.fromEntries(
       layout.nodes.map((node) => [node.id, {x: node.x, y: node.y}]),
     ));
     this.graphCenter.set({x: 500, y: 500});
     this.graphZoom.set(1);
-    this.message.set('Graph automatisch angeordnet.');
+    this.notify('Graph automatisch angeordnet.');
   }
 
   regeneratePreview(): void {
     this.previewSeed.set(Math.random());
+  }
+
+  rotatePreview(delta: number): void {
+    this.previewRotation.update((rotation) => rotation + delta);
+  }
+
+  orbitPreview(delta: {yaw: number; pitch: number}): void {
+    this.previewRotation.update((rotation) => rotation + delta.yaw);
+    this.previewPitch.update((pitch) =>
+      Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, pitch + delta.pitch)));
   }
 
   graphPointerDown(event: PointerEvent): void {
@@ -310,7 +316,7 @@ export class FlowerEditorComponent {
   removeSelectedNode(): void {
     const id = this.selectedNodeId();
     if (id === this.draft().rootNodeId) {
-      this.message.set('Der Basisknoten bleibt erhalten.');
+      this.notify('Der Basisknoten bleibt erhalten.');
       return;
     }
     this.draft.update((draft) => ({
@@ -345,9 +351,11 @@ export class FlowerEditorComponent {
 
   setHasGraphic(value: boolean): void {
     const defaultGraphic: FlowerNodeGraphic = {
-      png: '/flower-graphics/rose-center.png',
+      primitive: 'leaf-pointed',
+      color: '#5b8d53',
       width: 50,
       height: 50,
+      depth: 8,
       rotation: {min: 0, max: 0},
       start: {x: 0.5, y: 0.9},
       end: {x: 0.5, y: 0.1},
@@ -355,21 +363,21 @@ export class FlowerEditorComponent {
     this.updateSelectedNode((node) => ({...node, graphic: value ? node.graphic ?? defaultGraphic : null}));
   }
 
-  updateGraphic(key: 'width' | 'height', value: number): void {
+  updateGraphic(key: 'width' | 'height' | 'depth', value: number): void {
     this.updateSelectedNode((node) => node.graphic
       ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
       : node);
   }
 
-  updateGraphicImage(image: string): void {
+  updateGraphicPrimitive(primitive: GraphicPrimitive): void {
     this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, png: image}}
+      ? {...node, graphic: {...node.graphic, primitive}}
       : node);
   }
 
-  updateGraphicPoint(key: 'start' | 'end', point: GraphicPoint): void {
+  updateGraphicColor(color: string): void {
     this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, [key]: point}}
+      ? {...node, graphic: {...node.graphic, color}}
       : node);
   }
 
@@ -381,7 +389,7 @@ export class FlowerEditorComponent {
 
   updateConnectionRange(
     index: number,
-    group: 'repeat' | 'length' | 'angle',
+    group: 'repeat' | 'length' | 'angle' | 'azimuth',
     value: NumberRange,
   ): void {
     this.updateConnection(index, (connection) => ({
@@ -390,8 +398,15 @@ export class FlowerEditorComponent {
     }));
   }
 
-  updateConnectionMode(index: number, mode: NodeRepeatMode): void {
-    this.updateConnection(index, (connection) => ({...connection, mode}));
+  connectionRandomness(connection: FlowerNodeConnection): number {
+    return Math.round((connection.randomness ?? 0.35) * 100);
+  }
+
+  updateConnectionRandomness(index: number, percentage: number): void {
+    this.updateConnection(index, (connection) => ({
+      ...connection,
+      randomness: Math.max(0, Math.min(1, Number(percentage) / 100)),
+    }));
   }
 
   updateLoopRepeat(repeat: NumberRange): void {
@@ -455,7 +470,7 @@ export class FlowerEditorComponent {
     const source = this.graphLayout().nodes.find((node) => node.id === loopId);
     if (!source) return;
     this.selectNode(loopId);
-    const start = {x: source.x, y: source.y + source.height / 2 - 28};
+    const start = {x: source.x, y: source.y + source.height / 2};
     this.connectionDrag.set({sourceId: loopId, start, end: start, loopStartId: loopId});
   }
 
@@ -561,15 +576,16 @@ export class FlowerEditorComponent {
       return;
     }
     if (this.wouldCreateCycle(pending.sourceId, targetId)) {
-      this.message.set('Diese Verbindung würde einen Zyklus erzeugen.');
+      this.notify('Diese Verbindung würde einen Zyklus erzeugen.');
       return;
     }
     const connection: FlowerNodeConnection = {
       childId: targetId,
-      mode: 'branches',
       repeat: {min: 1, max: 1},
       length: {min: 50, max: 70},
-      angle: {min: -10, max: 10},
+      angle: {min: 0, max: 10},
+      azimuth: {min: 0, max: 360},
+      randomness: 0.25,
     };
     let newIndex = 0;
     this.updateConnectionForSource(pending.sourceId, (connections) => {
@@ -580,16 +596,36 @@ export class FlowerEditorComponent {
     this.selectedEdge.set({sourceId: pending.sourceId, index: newIndex});
   }
 
-  saveToCatalog(): void {
+  async saveToCatalog(): Promise<void> {
     const definition = this.definitionWithEditorState();
     const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
     if (error) {
-      this.message.set(`Speichern nicht möglich: ${error.message}`);
+      this.notify(`Speichern nicht möglich: ${error.message}`);
       return;
     }
-    this.draft.set(definition);
-    this.store.replaceDefinition(definition);
-    this.message.set('Gespeichert.');
+    const definitions = this.store.definitions().some((candidate) => candidate.id === definition.id)
+      ? this.store.definitions().map((candidate) => candidate.id === definition.id ? definition : candidate)
+      : [...this.store.definitions(), definition];
+    try {
+      const response = await fetch('/api/defaults', {
+        method: 'PUT',
+        headers: {'content-type': 'application/json'},
+        body: JSON.stringify(definitions),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as {error?: string} | null;
+        throw new Error(body?.error ?? `Defaults-Server antwortet mit ${response.status}.`);
+      }
+      this.draft.set(definition);
+      this.store.replaceDefinition(definition);
+      this.notify('In src/app/core/data/default-flowers.ts gespeichert.');
+    } catch (saveError: unknown) {
+      this.notify(
+        saveError instanceof Error
+          ? `Lokales Speichern fehlgeschlagen: ${saveError.message}`
+          : 'Lokales Speichern fehlgeschlagen.',
+      );
+    }
   }
 
   exportFlower(): void {
@@ -609,9 +645,9 @@ export class FlowerEditorComponent {
       const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
       if (error) throw new Error(error.message);
       this.loadDefinition(definition);
-      this.message.set('Geladen.');
+      this.notify('Geladen.');
     } catch (error: unknown) {
-      this.message.set(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
+      this.notify(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
     } finally {
       input.value = '';
     }
@@ -642,10 +678,14 @@ export class FlowerEditorComponent {
     return id;
   }
 
+  private notify(message: string): void {
+    this.snackBar.open(message);
+  }
+
   private loadDefinition(definition: FlowerDefinition): void {
     const clone = structuredClone(definition);
     this.draft.set(clone);
-    this.graphPositions.set(this.materializePositions(clone));
+    this.graphPositions.set(materializePositions(clone));
     this.selectNode(clone.rootNodeId);
   }
 
@@ -720,219 +760,6 @@ export class FlowerEditorComponent {
     return false;
   }
 
-  private materializePositions(definition: FlowerDefinition): Record<string, Point> {
-    const layout = this.createGraphLayout(definition, definition.editor?.nodePositions ?? {});
-    return Object.fromEntries(layout.nodes.map((node) => [node.id, {x: node.x, y: node.y}]));
-  }
-
-  private createGraphLayout(
-    definition: FlowerDefinition,
-    storedPositions: Record<string, Point>,
-  ): {nodes: GraphNode[]; edges: GraphEdge[]; width: number; height: number} {
-    const width = 1000;
-    const height = 1000;
-    const levels = new Map<string, number>([[definition.rootNodeId, 0]]);
-    for (let pass = 0; pass < definition.nodes.length; pass++) {
-      for (const node of definition.nodes) {
-        const level = levels.get(node.id);
-        if (level === undefined) continue;
-        if (node.loop?.startNodeId && !levels.has(node.loop.startNodeId)) {
-          levels.set(node.loop.startNodeId, level + 1);
-        }
-        for (const connection of node.connections) {
-          if (!levels.has(connection.childId)) levels.set(connection.childId, level + 1);
-        }
-      }
-    }
-    const connectedMax = Math.max(0, ...levels.values());
-    for (const node of definition.nodes) {
-      if (!levels.has(node.id)) levels.set(node.id, connectedMax + 1);
-    }
-    const maxLevel = Math.max(1, ...levels.values());
-    const groups = new Map<number, FlowerNodeDefinition[]>();
-    for (const node of definition.nodes) {
-      const level = levels.get(node.id)!;
-      groups.set(level, [...(groups.get(level) ?? []), node]);
-    }
-    const internalNodeIds = new Set(definition.nodes
-      .filter((node) => node.loop?.startNodeId && node.loop.endNodeId)
-      .flatMap((node) => this.templatePath(
-        definition,
-        node.loop!.startNodeId!,
-        node.loop!.endNodeId!,
-      )));
-    const graphNodes: GraphNode[] = [];
-    for (const [level, nodes] of groups) {
-      const outerNodes = nodes.filter((node) => !internalNodeIds.has(node.id));
-      const gap = width / (outerNodes.length + 1);
-      let outerIndex = 0;
-      nodes.forEach((node) => {
-        const fallbackX = internalNodeIds.has(node.id)
-          ? width / 2
-          : gap * (++outerIndex);
-        const fallback = {
-          x: fallbackX,
-          y: 920 - level * (840 / maxLevel),
-        };
-        const position = storedPositions[node.id] ?? fallback;
-        graphNodes.push({
-          id: node.id,
-          name: node.name,
-          x: position.x,
-          y: position.y,
-          root: node.id === definition.rootNodeId,
-          draggable: node.draggable,
-          hasGraphic: !!node.graphic,
-          loop: !!node.loop,
-          loopStartName: definition.nodes.find((candidate) =>
-            candidate.id === node.loop?.startNodeId)?.name ?? 'Start wählen',
-          loopEndName: definition.nodes.find((candidate) =>
-            candidate.id === node.loop?.endNodeId)?.name ?? 'Ende wählen',
-          loopMember: false,
-          memberIds: [],
-          width: node.loop ? 260 : 172,
-          height: node.loop ? 170 : 78,
-        });
-      });
-    }
-    for (const definitionNode of definition.nodes.filter((node) => node.loop)) {
-      const loopNode = graphNodes.find((node) => node.id === definitionNode.id);
-      if (!loopNode || !definitionNode.loop?.startNodeId || !definitionNode.loop.endNodeId) continue;
-      const memberIds = this.templatePath(
-        definition,
-        definitionNode.loop.startNodeId,
-        definitionNode.loop.endNodeId,
-      );
-      if (!memberIds.length) continue;
-      const members = memberIds
-        .map((id) => graphNodes.find((node) => node.id === id))
-        .filter((node): node is GraphNode => !!node);
-      if (!members.length) continue;
-      const hasStoredMembers = members.every((member) => !!storedPositions[member.id]);
-      if (!hasStoredMembers) {
-        const spacing = 108;
-        const estimatedHeight = Math.max(180, (members.length - 1) * spacing + 208);
-        const incomingNodes = definition.nodes
-          .filter((node) => node.connections.some((connection) => connection.childId === definitionNode.id))
-          .map((node) => graphNodes.find((candidate) => candidate.id === node.id))
-          .filter((node): node is GraphNode => !!node);
-        const nearestIncomingY = incomingNodes.length
-          ? Math.min(...incomingNodes.map((node) => node.y))
-          : height - 20;
-        const memberCenterY = clamp(
-          Math.min(loopNode.y, nearestIncomingY - estimatedHeight / 2 - 50),
-          estimatedHeight / 2 + 20,
-          height - estimatedHeight / 2 - 20,
-        );
-        members.forEach((member, index) => {
-          member.x = loopNode.x;
-          member.y = memberCenterY + (members.length - 1) * spacing / 2 - index * spacing;
-        });
-      }
-      const paddingX = 42;
-      const paddingY = 68;
-      const left = Math.min(...members.map((member) => member.x - member.width / 2)) - paddingX;
-      const right = Math.max(...members.map((member) => member.x + member.width / 2)) + paddingX;
-      const top = Math.min(...members.map((member) => member.y - member.height / 2)) - paddingY;
-      const bottom = Math.max(...members.map((member) => member.y + member.height / 2)) + paddingY;
-      loopNode.x = (left + right) / 2;
-      loopNode.y = (top + bottom) / 2;
-      loopNode.width = Math.max(260, right - left);
-      loopNode.height = Math.max(180, bottom - top);
-      loopNode.memberIds = memberIds;
-      for (const member of members) {
-        member.loopMember = true;
-      }
-    }
-    graphNodes.sort((first, second) => Number(second.loop) - Number(first.loop));
-    const positions = new Map(graphNodes.map((node) => [node.id, node]));
-    const edges: GraphEdge[] = [];
-    for (const node of definition.nodes.filter((candidate) => candidate.loop)) {
-      const loopNode = positions.get(node.id);
-      const startNode = node.loop?.startNodeId ? positions.get(node.loop.startNodeId) : null;
-      const endNode = node.loop?.endNodeId ? positions.get(node.loop.endNodeId) : null;
-      if (loopNode && startNode) {
-        const start = {x: loopNode.x, y: loopNode.y + loopNode.height / 2 - 28};
-        const end = {x: startNode.x, y: startNode.y + startNode.height / 2};
-        edges.push({
-          key: `${node.id}-loop-start`,
-          sourceId: node.id,
-          index: -1,
-          path: this.curvedConnectionPath(start, end),
-          labelX: (start.x + end.x) / 2,
-          labelY: (start.y + end.y) / 2,
-          label: 'START',
-          selectable: false,
-          color: '#059669',
-        });
-      }
-      if (loopNode && endNode) {
-        const start = {x: endNode.x, y: endNode.y - endNode.height / 2};
-        const end = {x: loopNode.x, y: loopNode.y - loopNode.height / 2 + 28};
-        edges.push({
-          key: `${node.id}-loop-end`,
-          sourceId: node.id,
-          index: -2,
-          path: this.curvedConnectionPath(start, end),
-          labelX: (start.x + end.x) / 2,
-          labelY: (start.y + end.y) / 2,
-          label: 'ENDE',
-          selectable: false,
-          color: '#d97706',
-        });
-      }
-    }
-    for (const node of definition.nodes) {
-      const from = positions.get(node.id);
-      if (!from) continue;
-      node.connections.forEach((connection, index) => {
-        const to = positions.get(connection.childId);
-        if (!to) return;
-        const start = {x: from.x, y: from.y - from.height / 2};
-        const end = {x: to.x, y: to.y + to.height / 2};
-        edges.push({
-          key: `${node.id}-${connection.childId}-${index}`,
-          sourceId: node.id,
-          index,
-          path: this.curvedConnectionPath(start, end),
-          labelX: (start.x + end.x) / 2,
-          labelY: (start.y + end.y) / 2,
-          label: `${connection.mode === 'chain' ? '↻ ' : ''}${connection.repeat.min}–${connection.repeat.max}`,
-          selectable: true,
-          color: '#a8a29e',
-        });
-      });
-    }
-    return {nodes: graphNodes, edges, width, height};
-  }
-
-  private templatePath(
-    definition: FlowerDefinition,
-    startNodeId: string,
-    endNodeId: string,
-  ): string[] {
-    if (startNodeId === endNodeId) return [startNodeId];
-    const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
-    const visited = new Set<string>();
-    const visit = (id: string): string[] | null => {
-      if (visited.has(id)) return null;
-      visited.add(id);
-      for (const connection of nodes.get(id)?.connections ?? []) {
-        if (connection.childId === endNodeId) return [id, endNodeId];
-        const remainder = visit(connection.childId);
-        if (remainder) return [id, ...remainder];
-      }
-      return null;
-    };
-    return visit(startNodeId) ?? [];
-  }
-
-  private curvedConnectionPath(start: Point, end: Point): string {
-    const distance = Math.abs(end.y - start.y);
-    const curve = Math.max(48, distance * 0.46);
-    const direction = end.y <= start.y ? -1 : 1;
-    return `M ${start.x} ${start.y} C ${start.x} ${start.y + direction * curve}, ${end.x} ${end.y - direction * curve}, ${end.x} ${end.y}`;
-  }
 }
 
 function slugify(value: string): string {

@@ -12,7 +12,9 @@ export interface FlowerTreeNode {
   parentId: string | null;
   x: number;
   y: number;
+  z: number;
   angle: number;
+  azimuth: number;
   depth: number;
   draggable: boolean;
 }
@@ -55,7 +57,9 @@ export function generateFlowerTree(
     parentId: null,
     x: rootOffset.x,
     y: rootOffset.y,
+    z: 0,
     angle: 0,
+    azimuth: 0,
     depth: 0,
     draggable: rootTemplate.draggable,
   }];
@@ -95,45 +99,22 @@ export function generateFlowerTree(
         }
         continue;
       }
-      if (connection.mode === 'chain') {
-        let attachment = parent;
-        for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
-          attachment = addNode(
-            attachment,
-            childTemplate.id,
-            connection,
-            template.id,
-            connectionIndex,
-            index,
-            count,
-          );
-        }
-        if (count > 0) {
-          expandChildren(
-            attachment,
-            childTemplate.id,
-            new Set([...ancestors, childTemplate.id]),
-            expansionDepth + 1,
-          );
-        }
-      } else {
-        for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
-          const child = addNode(
-            parent,
-            childTemplate.id,
-            connection,
-            template.id,
-            connectionIndex,
-            index,
-            count,
-          );
-          expandChildren(
-            child,
-            childTemplate.id,
-            new Set([...ancestors, childTemplate.id]),
-            expansionDepth + 1,
-          );
-        }
+      for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
+        const child = addNode(
+          parent,
+          childTemplate.id,
+          connection,
+          template.id,
+          connectionIndex,
+          index,
+          count,
+        );
+        expandChildren(
+          child,
+          childTemplate.id,
+          new Set([...ancestors, childTemplate.id]),
+          expansionDepth + 1,
+        );
       }
     }
   }
@@ -245,30 +226,44 @@ export function generateFlowerTree(
     counters.set(templateId, serial);
     const id = `${templateId}-${serial}`;
     const template = templates.get(templateId)!;
-    const baseAngle = randomRange(connection.angle, random);
-    const fanOffset = connection.mode === 'branches' && repeatCount > 1
-      ? (repeatIndex / (repeatCount - 1) - 0.5) * Math.min(70, Math.abs(connection.angle.max - connection.angle.min))
-      : 0;
-    // Stems should feel like plants, not like a pure random walk:
-    // every new growth step keeps some inherited direction, but softly bends
-    // back towards the vertical axis. Loop restarts get the strongest pull so
-    // side leaves do not accidentally become the next main-stem direction.
-    const uprightness = forceUpright
-      ? 0.68
-      : connection.mode === 'chain'
-        ? 0.42
-        : clamp(parent.depth * 0.045, 0.08, 0.28);
-    const inheritedAngle = parent.angle * (1 - uprightness);
-    const angle = inheritedAngle + (baseAngle + fanOffset) * Math.PI / 180;
+    const randomness = clamp(connection.randomness ?? 0.35, 0, 1);
+    const evenLinearUnit = repeatCount > 1 ? repeatIndex / (repeatCount - 1) : 0.5;
+    const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
+    const inclination = clamp(Math.abs(rangeValue(connection.angle, inclinationUnit)), 0, 180) * Math.PI / 180;
+    const azimuthRange = connection.azimuth ?? {min: 0, max: 360};
+    const evenCircularUnit = repeatCount > 1 ? repeatIndex / repeatCount : 0.5;
+    const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
+    const aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
+    const parentDirection = sphericalDirection(parent.angle, parent.azimuth);
+    const reference = Math.abs(parentDirection.y) > 0.98
+      ? {x: 1, y: 0, z: 0}
+      : {x: 0, y: 1, z: 0};
+    const tangent = normalize(cross(reference, parentDirection));
+    const bitangent = cross(parentDirection, tangent);
+    let direction = normalize({
+      x: parentDirection.x * Math.cos(inclination)
+        + (tangent.x * Math.cos(aroundParent) + bitangent.x * Math.sin(aroundParent)) * Math.sin(inclination),
+      y: parentDirection.y * Math.cos(inclination)
+        + (tangent.y * Math.cos(aroundParent) + bitangent.y * Math.sin(aroundParent)) * Math.sin(inclination),
+      z: parentDirection.z * Math.cos(inclination)
+        + (tangent.z * Math.cos(aroundParent) + bitangent.z * Math.sin(aroundParent)) * Math.sin(inclination),
+    });
+    if (forceUpright) {
+      direction = normalize({x: direction.x * 0.32, y: direction.y * 0.32 + 0.68, z: direction.z * 0.32});
+    }
+    const angle = Math.acos(clamp(direction.y, -1, 1));
+    const azimuth = Math.atan2(direction.z, direction.x);
     const length = Math.max(0, randomRange(connection.length, random));
     const offset = offsets[id] ?? {x: 0, y: 0};
     const node: FlowerTreeNode = {
       id,
       templateId,
       parentId: parent.id,
-      x: parent.x + Math.sin(angle) * length + offset.x,
-      y: parent.y - Math.cos(angle) * length + offset.y,
+      x: parent.x + direction.x * length + offset.x,
+      y: parent.y - direction.y * length + offset.y,
+      z: parent.z + direction.z * length,
       angle,
+      azimuth,
       depth: parent.depth + 1,
       draggable: template.draggable,
     };
@@ -279,9 +274,13 @@ export function generateFlowerTree(
 }
 
 function randomRange(range: NumberRange, random: () => number): number {
+  return rangeValue(range, random());
+}
+
+function rangeValue(range: NumberRange, unit: number): number {
   const minimum = Math.min(Number(range.min) || 0, Number(range.max) || 0);
   const maximum = Math.max(Number(range.min) || 0, Number(range.max) || 0);
-  return minimum + random() * (maximum - minimum);
+  return minimum + clamp(unit, 0, 1) * (maximum - minimum);
 }
 
 function randomInteger(range: NumberRange, random: () => number): number {
@@ -292,6 +291,34 @@ function randomInteger(range: NumberRange, random: () => number): number {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function lerp(start: number, end: number, amount: number): number {
+  return start + (end - start) * amount;
+}
+
+function sphericalDirection(angle: number, azimuth: number): {x: number; y: number; z: number} {
+  return {
+    x: Math.sin(angle) * Math.cos(azimuth),
+    y: Math.cos(angle),
+    z: Math.sin(angle) * Math.sin(azimuth),
+  };
+}
+
+function cross(
+  first: {x: number; y: number; z: number},
+  second: {x: number; y: number; z: number},
+): {x: number; y: number; z: number} {
+  return {
+    x: first.y * second.z - first.z * second.y,
+    y: first.z * second.x - first.x * second.z,
+    z: first.x * second.y - first.y * second.x,
+  };
+}
+
+function normalize(vector: {x: number; y: number; z: number}): {x: number; y: number; z: number} {
+  const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
+  return {x: vector.x / length, y: vector.y / length, z: vector.z / length};
 }
 
 function mulberry32(seed: number): () => number {

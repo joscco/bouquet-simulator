@@ -48,12 +48,16 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
     }
     if (
       node.graphic
+      && (node.graphic.primitive ?? 'png') === 'png'
       && !node.graphic.png?.startsWith('data:image/png')
       && !node.graphic.png?.toLowerCase().endsWith('.png')
     ) {
       issues.push({severity: 'error', message: `„${node.name}“ verwendet keine PNG-Grafik.`});
     }
     if (node.graphic) {
+      if (node.graphic.width <= 0 || node.graphic.height <= 0 || (node.graphic.depth ?? 1) <= 0) {
+        issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Größe.`});
+      }
       const points = [node.graphic.start, node.graphic.end];
       if (points.some((point) =>
         !point
@@ -71,6 +75,9 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       }
     }
     for (const connection of node.connections) {
+      if ((connection.randomness ?? 0.35) < 0 || (connection.randomness ?? 0.35) > 1) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Zufallsverteilung.`});
+      }
       if (!ids.has(connection.childId)) {
         issues.push({
           severity: 'error',

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@angular/material/prebuilt-themes/azure-blue.css";
+@import "@fontsource/material-icons";
 
 @theme {
   --font-sans: Inter, Avenir, ui-sans-serif, system-ui, sans-serif;
@@ -10,6 +12,11 @@
   background: #f5f5f4;
   font-family: var(--font-sans);
   font-synthesis: none;
+  --mat-sys-primary: #047857;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #d1fae5;
+  --mat-sys-on-primary-container: #064e3b;
+  --mat-sys-inverse-primary: #6ee7b7;
 }
 
 html,
@@ -33,6 +40,23 @@ select {
 button,
 label {
   -webkit-tap-highlight-color: transparent;
+}
+
+.material-icons,
+.mat-icon.material-icons {
+  font-family: "Material Icons" !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
 }
 
 .bouquet-canvas-host,

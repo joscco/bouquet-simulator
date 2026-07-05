@@ -13,7 +13,6 @@ describe('flower definition validation', () => {
     const definition = structuredClone(DEFAULT_FLOWERS[0]);
     definition.nodes.find((node) => node.id === 'petal')!.connections.push({
       childId: 'bloom',
-      mode: 'branches',
       repeat: {min: 1, max: 1},
       length: {min: 1, max: 1},
       angle: {min: 0, max: 0},
@@ -41,7 +40,9 @@ describe('flower definition validation', () => {
 
   it('rejects non-PNG node graphics', () => {
     const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    definition.nodes.find((node) => node.graphic)!.graphic!.png = 'data:image/svg+xml,<svg></svg>';
+    const graphic = definition.nodes.find((node) => node.graphic)!.graphic!;
+    graphic.primitive = 'png';
+    graphic.png = 'data:image/svg+xml,<svg></svg>';
 
     expect(validateFlowerDefinition(definition)).toContainEqual({
       severity: 'error',

@@ -11,27 +11,54 @@ import {
   input,
 } from '@angular/core';
 import {
-  Application,
-  Assets,
-  ColorMatrixFilter,
-  Container,
-  FederatedPointerEvent,
-  Graphics,
-  Rectangle,
-  Sprite,
-  Texture,
-} from 'pixi.js';
-import {BouquetState, FlowerDefinition, FlowerNodeDefinition} from '../../core/models/flower.models';
+  AmbientLight,
+  Box3,
+  Box3Helper,
+  BufferGeometry,
+  CircleGeometry,
+  Color,
+  CylinderGeometry,
+  DirectionalLight,
+  DoubleSide,
+  EdgesGeometry,
+  ExtrudeGeometry,
+  Group,
+  LineBasicMaterial,
+  LineSegments,
+  Mesh,
+  MeshStandardMaterial,
+  Object3D,
+  OrthographicCamera,
+  PlaneGeometry,
+  Quaternion,
+  Raycaster,
+  Scene,
+  Shape,
+  SphereGeometry,
+  SRGBColorSpace,
+  TextureLoader,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from 'three';
+import {
+  BouquetFlower,
+  BouquetState,
+  FlowerDefinition,
+  FlowerNodeDefinition,
+  FlowerNodeGraphic,
+} from '../../core/models/flower.models';
 import {FlowerTreeNode, generateFlowerTree} from '../../core/rendering/flower-tree';
-import {projectFlower, projectLocalAngle, projectLocalPoint, viewDeltaToLocalOffset} from '../../core/rendering/projection';
+import {viewDeltaToLocalOffset} from '../../core/rendering/projection';
 
-interface StemPoint {
-  x: number;
-  y: number;
-}
+const UP = new Vector3(0, 1, 0);
+const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 
-interface RenderedTreeNode extends FlowerTreeNode {
-  renderDepth: number;
+interface PickData {
+  instanceId: string;
+  nodeId?: string;
+  draggable?: boolean;
+  scale?: number;
 }
 
 @Component({
@@ -42,7 +69,7 @@ interface RenderedTreeNode extends FlowerTreeNode {
     <div
       #canvasHost
       class="canvas-mount"
-      aria-label="Interaktive Straußansicht"
+      aria-label="Interaktive 3D-Straußansicht"
       (wheel)="zoomWithWheel($event)"
       (pointerdown)="startZoomGesture($event)"
       (pointermove)="moveZoomGesture($event)"
@@ -57,72 +84,113 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly selectedId = input<string | null>(null);
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
+  readonly orbitEnabled = input(false);
+  readonly orbitPitch = input(0);
   readonly highlightedNodeId = input<string | null>(null);
   readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
 
   @Output() readonly nodeDrag = new EventEmitter<{instanceId: string; nodeId: string; dx: number; dy: number}>();
   @Output() readonly rotateDrag = new EventEmitter<number>();
+  @Output() readonly orbitDrag = new EventEmitter<{yaw: number; pitch: number}>();
   @Output() readonly selectionChange = new EventEmitter<string | null>();
   @Output() readonly zoomChange = new EventEmitter<number>();
 
   @ViewChild('canvasHost', {static: true}) private readonly canvasHost!: ElementRef<HTMLDivElement>;
 
-  private app: Application | null = null;
-  private renderVersion = 0;
-  private readonly textureCache = new Map<string, Promise<Texture>>();
-  private backgroundDrag: {pointerId: number; x: number} | null = null;
+  private renderer: WebGLRenderer | null = null;
+  private readonly scene = new Scene();
+  private readonly camera = new OrthographicCamera();
+  private readonly bouquet = new Group();
+  private readonly raycaster = new Raycaster();
+  private readonly pointer = new Vector2();
+  private resizeObserver: ResizeObserver | null = null;
+  private rebuildFrame: number | null = null;
+  private renderFrame: number | null = null;
+  private lastFlowers: BouquetFlower[] | null = null;
+  private lastDefinitions: FlowerDefinition[] | null = null;
+  private lastSelectedId: string | null = null;
+  private lastHighlightedNodeId: string | null = null;
+  private lastHighlightedConnection: {sourceId: string; index: number} | null = null;
+  private backgroundDrag: {pointerId: number; x: number; y: number} | null = null;
   private nodeDragState: {
     pointerId: number;
     instanceId: string;
     nodeId: string;
     x: number;
     y: number;
-    localScale: number;
+    scale: number;
     rotation: number;
   } | null = null;
-  private resizeObserver: ResizeObserver | null = null;
   private readonly zoomTouches = new Map<number, {x: number; y: number}>();
   private zoomPinchDistance: number | null = null;
 
   constructor() {
     effect(() => {
-      this.state();
-      this.definitions();
-      this.selectedId();
-      this.zoom();
-      this.highlightedNodeId();
-      this.highlightedConnection();
-      void this.rebuildScene();
+      const state = this.state();
+      const definitions = this.definitions();
+      const selectedId = this.selectedId();
+      const highlightedNodeId = this.highlightedNodeId();
+      const highlightedConnection = this.highlightedConnection();
+      const structureChanged = state.flowers !== this.lastFlowers
+        || definitions !== this.lastDefinitions
+        || selectedId !== this.lastSelectedId
+        || highlightedNodeId !== this.lastHighlightedNodeId
+        || highlightedConnection?.sourceId !== this.lastHighlightedConnection?.sourceId
+        || highlightedConnection?.index !== this.lastHighlightedConnection?.index;
+
+      this.lastFlowers = state.flowers;
+      this.lastDefinitions = definitions;
+      this.lastSelectedId = selectedId;
+      this.lastHighlightedNodeId = highlightedNodeId;
+      this.lastHighlightedConnection = highlightedConnection;
+      if (structureChanged) this.requestRebuild();
+      this.updateView();
     });
   }
 
-  async ngAfterViewInit(): Promise<void> {
-    const app = new Application();
-    await app.init({
-      backgroundAlpha: 0,
-      antialias: true,
-      autoDensity: true,
-      resolution: Math.min(devicePixelRatio, 2),
-      resizeTo: this.canvasHost.nativeElement,
+  ngAfterViewInit(): void {
+    const renderer = new WebGLRenderer({alpha: true, antialias: true, powerPreference: 'high-performance'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.outputColorSpace = SRGBColorSpace;
+    renderer.setClearColor(0x000000, 0);
+    renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
+    renderer.domElement.addEventListener('pointermove', this.onPointerMove);
+    renderer.domElement.addEventListener('pointerup', this.onPointerUp);
+    renderer.domElement.addEventListener('pointercancel', this.onPointerUp);
+    this.renderer = renderer;
+    this.canvasHost.nativeElement.appendChild(renderer.domElement);
+
+    this.scene.add(new AmbientLight(0xffffff, 1.65));
+    const light = new DirectionalLight(0xffffff, 1.8);
+    light.position.set(-180, 320, 500);
+    this.scene.add(light, this.bouquet);
+    this.camera.position.set(0, 0, 1000);
+    this.camera.lookAt(0, 0, 0);
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.resize();
+      this.requestRender();
     });
-    this.app = app;
-    this.canvasHost.nativeElement.appendChild(app.canvas);
-    app.stage.eventMode = 'static';
-    app.stage.hitArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
-    app.stage.on('pointerdown', this.onBackgroundPointerDown);
-    app.stage.on('globalpointermove', this.onBackgroundPointerMove);
-    app.stage.on('pointerup', this.onBackgroundPointerUp);
-    app.stage.on('pointerupoutside', this.onBackgroundPointerUp);
-    this.resizeObserver = new ResizeObserver(() => void this.rebuildScene());
     this.resizeObserver.observe(this.canvasHost.nativeElement);
-    await this.rebuildScene();
+    this.resize();
+    this.rebuildScene();
   }
 
   ngOnDestroy(): void {
-    this.renderVersion++;
+    if (this.rebuildFrame !== null) cancelAnimationFrame(this.rebuildFrame);
+    if (this.renderFrame !== null) cancelAnimationFrame(this.renderFrame);
     this.resizeObserver?.disconnect();
-    this.app?.destroy(true, {children: true, texture: false});
-    this.app = null;
+    const renderer = this.renderer;
+    if (renderer) {
+      renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
+      renderer.domElement.removeEventListener('pointermove', this.onPointerMove);
+      renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
+      renderer.domElement.removeEventListener('pointercancel', this.onPointerUp);
+    }
+    this.disposeChildren(this.bouquet);
+    renderer?.dispose();
+    renderer?.domElement.remove();
+    this.renderer = null;
   }
 
   zoomWithWheel(event: WheelEvent): void {
@@ -156,435 +224,381 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.zoomTouches.size < 2) this.zoomPinchDistance = null;
   }
 
-  private readonly onBackgroundPointerDown = (event: FederatedPointerEvent): void => {
-    this.backgroundDrag = {pointerId: event.pointerId, x: event.global.x};
-    this.selectionChange.emit(null);
-  };
+  private requestRebuild(): void {
+    if (!this.renderer || this.rebuildFrame !== null) return;
+    this.rebuildFrame = requestAnimationFrame(() => {
+      this.rebuildFrame = null;
+      this.rebuildScene();
+    });
+  }
 
-  private readonly onBackgroundPointerMove = (event: FederatedPointerEvent): void => {
-    const nodeDrag = this.nodeDragState;
-    if (nodeDrag?.pointerId === event.pointerId) {
-      const viewDx = (event.global.x - nodeDrag.x) / nodeDrag.localScale;
-      const viewDy = (event.global.y - nodeDrag.y) / nodeDrag.localScale;
-      const localDelta = viewDeltaToLocalOffset(viewDx, viewDy, nodeDrag.rotation);
-      nodeDrag.x = event.global.x;
-      nodeDrag.y = event.global.y;
-      this.nodeDrag.emit({
-        instanceId: nodeDrag.instanceId,
-        nodeId: nodeDrag.nodeId,
-        dx: localDelta.x,
-        dy: localDelta.y,
-      });
-      return;
-    }
-    if (!this.backgroundDrag || event.pointerId !== this.backgroundDrag.pointerId) return;
-    const dx = event.global.x - this.backgroundDrag.x;
-    this.backgroundDrag.x = event.global.x;
-    this.rotateDrag.emit(dx * 0.008);
-  };
-
-  private readonly onBackgroundPointerUp = (event: FederatedPointerEvent): void => {
-    if (this.backgroundDrag?.pointerId === event.pointerId) this.backgroundDrag = null;
-    if (this.nodeDragState?.pointerId === event.pointerId) this.nodeDragState = null;
-  };
-
-  private async rebuildScene(): Promise<void> {
-    const app = this.app;
-    if (!app) return;
-    const version = ++this.renderVersion;
+  private rebuildScene(): void {
+    if (!this.renderer) return;
+    this.disposeChildren(this.bouquet);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
-    const projected = this.state().flowers
-      .map((flower) => projectFlower(flower, this.state().rotation))
-      .sort((first, second) => first.depth - second.depth);
 
-    const scene = new Container();
-    const ground = this.createGround(app.screen.width, app.screen.height);
-    scene.addChild(ground);
+    const ground = new Mesh(
+      new CircleGeometry(1, 48),
+      new MeshStandardMaterial({color: 0x725d45, transparent: true, opacity: 0.09, depthWrite: false}),
+    );
+    ground.scale.set(280, 30, 1);
+    ground.position.set(0, 5, -160);
+    this.bouquet.add(ground);
 
-    for (const flower of projected) {
+    for (const flower of this.state().flowers) {
       const definition = definitions.get(flower.definitionId);
       if (!definition) continue;
-      const localScale = flower.scale * flower.perspective;
-      const displayScale = localScale * this.zoom();
-      const sourceFlower = this.state().flowers.find((candidate) => candidate.instanceId === flower.instanceId);
-      const node = await this.createFlower(
-        definition,
-        flower.instanceId,
-        flower.seed,
-        sourceFlower?.nodeOffsets ?? {},
-        this.state().rotation,
-        displayScale,
-      );
-      if (version !== this.renderVersion) {
-        scene.destroy({children: true});
-        return;
-      }
-      node.x = app.screen.width / 2 + flower.viewX;
-      node.y = app.screen.height - 76 + flower.viewY;
-      node.scale.set(displayScale);
-      node.alpha = 0.96 + flower.perspective * 0.03;
-      scene.addChild(node);
+      this.bouquet.add(this.createFlower(definition, flower));
     }
-
-    if (version !== this.renderVersion) {
-      scene.destroy({children: true});
-      return;
-    }
-    app.stage.removeChildren().forEach((child) => child.destroy({children: true}));
-    app.stage.addChild(scene);
-    app.stage.hitArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
+    this.updateView();
   }
 
-  private createGround(width: number, height: number): Graphics {
-    const centerX = width / 2;
-    const centerY = height - 60;
-    return new Graphics()
-      .ellipse(centerX, centerY, Math.min(width * 0.34, 280), 28)
-      .fill({color: '#725d45', alpha: 0.09});
-  }
+  private createFlower(definition: FlowerDefinition, flower: BouquetFlower): Group {
+    const group = new Group();
+    group.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
+    const templates = new Map(definition.nodes.map((node) => [node.id, node]));
+    const tree = generateFlowerTree(definition, flower.seed, flower.nodeOffsets ?? EMPTY_OFFSETS);
+    const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
+    const graphicPrototypes = new Map<string, Mesh>();
 
-  private async createFlower(
-    definition: FlowerDefinition,
-    instanceId: string,
-    seed: number,
-    nodeOffsets: Record<string, {x: number; y: number}>,
-    rotation: number,
-    localScale: number,
-  ): Promise<Container> {
-    const node = new Container();
-    const stem = definition.stem;
-    const templates = new Map(definition.nodes.map((template) => [template.id, template]));
-    const textureEntries = await Promise.all(definition.nodes
-      .filter((template) => template.graphic)
-      .map(async (template) => [template.id, await this.loadPng(template.graphic!.png)] as const));
-    const textures = new Map(textureEntries);
-    const tree = generateFlowerTree(definition, seed, nodeOffsets);
-    const renderedTree = this.projectTreeNodes(tree.nodes, rotation);
-    const treeNodes = new Map(renderedTree.map((treeNode) => [treeNode.id, treeNode]));
-
-    const graphicOutlines = new Container();
-    const nodeOutlines = new Graphics();
-    const outlineOffsets = [
-      [-2, 0], [2, 0], [0, -2], [0, 2],
-      [-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4],
-    ] as const;
-    for (const treeNode of renderedTree) {
-      if (treeNode.templateId !== this.highlightedNodeId()) continue;
-      const template = templates.get(treeNode.templateId);
-      const graphic = template?.graphic ?? null;
-      const texture = textures.get(treeNode.templateId);
-      if (template && graphic && texture) {
-        const rotation = this.graphicRotation(template, treeNode.angle, treeNode.id, seed);
-        for (const [offsetX, offsetY] of outlineOffsets) {
-          const outline = new Sprite(texture);
-          outline.anchor.set(graphic.start.x, graphic.start.y);
-          outline.width = graphic.width;
-          outline.height = graphic.height;
-          outline.position.set(treeNode.x + offsetX, treeNode.y + offsetY);
-          outline.rotation = rotation;
-          graphicOutlines.addChild(outline);
-        }
-      } else {
-        nodeOutlines
-          .circle(treeNode.x, treeNode.y, 11)
-          .stroke({color: '#eab308', width: 2, alpha: 0.72});
-      }
-    }
-    if (graphicOutlines.children.length) {
-      const yellowSilhouette = new ColorMatrixFilter();
-      yellowSilhouette.matrix = [
-        0, 0, 0, 0, 0.92,
-        0, 0, 0, 0, 0.72,
-        0, 0, 0, 0, 0.08,
-        0, 0, 0, 1, 0,
-      ];
-      graphicOutlines.filters = [yellowSilhouette];
-      graphicOutlines.alpha = 0.72;
-      node.addChild(graphicOutlines);
-    }
-    node.addChild(nodeOutlines);
-
-    const skeleton = new Graphics();
-    const highlightedConnection = this.highlightedConnection();
     for (const edge of tree.edges) {
-      const from = this.requiredTreeNode(treeNodes, edge.from);
-      const to = this.requiredTreeNode(treeNodes, edge.to);
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      if (!from || !to) continue;
       const connection = templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex];
-      const edgeStem = connection?.stem;
-      const baseWidth = edgeStem?.width ?? stem.width;
-      const startWidth = Math.max(1.1, baseWidth * Math.max(0.18, Math.pow(stem.taper, from.depth)));
-      const endWidth = Math.max(1.1, baseWidth * Math.max(0.18, Math.pow(stem.taper, to.depth)));
-      const isHighlighted = highlightedConnection?.sourceId === edge.connectionSourceId
-        && highlightedConnection.index === edge.connectionIndex;
-      if (isHighlighted) {
-        this.drawTaperedCurve(
-          skeleton,
-          from,
-          to,
-          startWidth + 3,
-          endWidth + 3,
-          '#eab308',
-          0.72,
-        );
+      const baseWidth = connection?.stem?.width ?? definition.stem.width;
+      const startWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** from.depth));
+      const endWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** to.depth));
+      const highlighted = this.highlightedConnection()?.sourceId === edge.connectionSourceId
+        && this.highlightedConnection()?.index === edge.connectionIndex;
+      if (highlighted) {
+        group.add(this.createStem(from, to, startWidth + 3, endWidth + 3, '#eab308', 0.72));
       }
-      this.drawTaperedCurve(
-        skeleton,
+      const stem = this.createStem(
         from,
         to,
         startWidth,
         endWidth,
-        edgeStem?.color ?? stem.color,
+        connection?.stem?.color ?? definition.stem.color,
+        1,
       );
-      this.drawStemHighlight(
-        skeleton,
-        from,
-        to,
-        startWidth,
-        endWidth,
-        edgeStem ? '#ffffff' : stem.highlightColor,
-        edgeStem ? 0.3 : 0.65,
-      );
-    }
-    node.addChild(skeleton);
-
-    for (const treeNode of [...renderedTree].sort((first, second) => first.renderDepth - second.renderDepth || second.depth - first.depth)) {
-      const template = templates.get(treeNode.templateId);
-      const texture = textures.get(treeNode.templateId);
-      if (!template?.graphic || !texture) continue;
-      const sprite = new Sprite(texture);
-      sprite.anchor.set(template.graphic.start.x, template.graphic.start.y);
-      sprite.width = template.graphic.width;
-      sprite.height = template.graphic.height;
-      sprite.position.set(treeNode.x, treeNode.y);
-      sprite.rotation = this.graphicRotation(template, treeNode.angle, treeNode.id, seed);
-      node.addChild(sprite);
+      stem.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
+      group.add(stem);
     }
 
-    const graphicMargin = Math.max(20, ...definition.nodes.map((template) =>
-      template.graphic ? Math.max(template.graphic.width, template.graphic.height) * 0.55 : 0));
-    const minimumX = Math.min(...renderedTree.map((treeNode) => treeNode.x)) - graphicMargin;
-    const maximumX = Math.max(...renderedTree.map((treeNode) => treeNode.x)) + graphicMargin;
-    const minimumY = Math.min(...renderedTree.map((treeNode) => treeNode.y)) - graphicMargin;
-    const maximumY = Math.max(...renderedTree.map((treeNode) => treeNode.y), 8) + graphicMargin;
-    if (this.selectedId() === instanceId) {
-      node.addChild(
-        new Graphics()
-          .roundRect(minimumX, minimumY, maximumX - minimumX, maximumY - minimumY, 30)
-          .stroke({color: '#2f6251', width: 2, alpha: 0.7}),
-      );
+    for (const node of tree.nodes) {
+      const template = templates.get(node.templateId);
+      if (!template?.graphic) continue;
+      let prototype = graphicPrototypes.get(node.templateId);
+      if (!prototype) {
+        prototype = this.createGraphic(template.graphic);
+        graphicPrototypes.set(node.templateId, prototype);
+      }
+      const graphic = prototype.clone();
+      graphic.position.copy(treePosition(node));
+      graphic.quaternion.copy(this.graphicQuaternion(node, template, flower.seed));
+      graphic.userData['pick'] = {
+        instanceId: flower.instanceId,
+        nodeId: node.id,
+        draggable: template.draggable,
+        scale: flower.scale,
+      } satisfies PickData;
+      group.add(graphic);
+      if (node.templateId === this.highlightedNodeId()) this.addGraphicOutline(group, graphic);
     }
 
-    node.eventMode = 'static';
-    node.hitArea = new Rectangle(minimumX, minimumY, maximumX - minimumX, maximumY - minimumY);
-    node.on('pointerdown', (event: FederatedPointerEvent) => {
-      event.stopPropagation();
-      this.selectionChange.emit(instanceId);
+    for (const node of tree.nodes.filter((candidate) => candidate.draggable)) {
+      const material = new MeshStandardMaterial({
+        color: 0xfffdf8,
+        emissive: 0x164e3f,
+        emissiveIntensity: this.selectedId() === flower.instanceId ? 0.28 : 0.12,
+      });
+      const handle = new Mesh(new SphereGeometry(this.selectedId() === flower.instanceId ? 8 : 5.5, 12, 8), material);
+      handle.position.copy(treePosition(node));
+      handle.userData['pick'] = {
+        instanceId: flower.instanceId,
+        nodeId: node.id,
+        draggable: true,
+        scale: flower.scale,
+      } satisfies PickData;
+      group.add(handle);
+    }
+
+    if (this.selectedId() === flower.instanceId) {
+      const bounds = new Box3().setFromObject(group);
+      const helper = new Box3Helper(bounds, new Color('#2f6251'));
+      const helperMaterial = helper.material as LineBasicMaterial;
+      helperMaterial.transparent = true;
+      helperMaterial.opacity = 0.58;
+      group.add(helper);
+    }
+    group.position.set(flower.x, -flower.y, flower.z);
+    group.scale.setScalar(flower.scale);
+    return group;
+  }
+
+  private createStem(
+    from: FlowerTreeNode,
+    to: FlowerTreeNode,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    opacity: number,
+  ): Mesh {
+    const start = treePosition(from);
+    const end = treePosition(to);
+    const direction = end.clone().sub(start);
+    const length = Math.max(0.01, direction.length());
+    const geometry = new CylinderGeometry(endWidth / 2, startWidth / 2, length, 7, 1, false);
+    const material = new MeshStandardMaterial({
+      color,
+      roughness: 0.78,
+      transparent: opacity < 1,
+      opacity,
+      side: DoubleSide,
     });
+    const stem = new Mesh(geometry, material);
+    stem.position.copy(start).add(end).multiplyScalar(0.5);
+    stem.quaternion.setFromUnitVectors(UP, direction.normalize());
+    return stem;
+  }
 
-    for (const treeNode of renderedTree.filter((candidate) => candidate.draggable)) {
-      const handle = new Graphics()
-        .circle(treeNode.x, treeNode.y, this.selectedId() === instanceId ? 10 : 7)
-        .fill({color: '#fffdf8', alpha: this.selectedId() === instanceId ? 0.92 : 0.62})
-        .stroke({color: '#2f6251', width: 2, alpha: this.selectedId() === instanceId ? 0.9 : 0.42});
-      handle.eventMode = 'static';
-      handle.cursor = 'move';
-      handle.on('pointerdown', (event: FederatedPointerEvent) => {
-        event.stopPropagation();
+  private createGraphic(graphic: FlowerNodeGraphic): Mesh {
+    const width = Math.max(1, graphic.width);
+    const height = Math.max(1, graphic.height);
+    const depth = Math.max(0.5, graphic.depth ?? Math.min(width, height) * 0.12);
+    const primitive = graphic.primitive ?? 'png';
+    let geometry: BufferGeometry;
+
+    if (primitive === 'sphere') {
+      geometry = new SphereGeometry(0.5, 16, 10);
+      geometry.scale(width, height, depth);
+    } else if (primitive === 'rod') {
+      geometry = new CylinderGeometry(0.5, 0.5, 1, 10);
+      geometry.translate(0, 0.5, 0);
+      geometry.scale(width, height, depth);
+    } else if (primitive === 'png' && graphic.png) {
+      geometry = new PlaneGeometry(width, height);
+      geometry.translate((0.5 - graphic.start.x) * width, (graphic.start.y - 0.5) * height, 0);
+      const axis = new Vector2(
+        (graphic.end.x - graphic.start.x) * width,
+        (graphic.start.y - graphic.end.y) * height,
+      );
+      geometry.rotateZ(Math.PI / 2 - Math.atan2(axis.y, axis.x));
+      const material = new MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        alphaTest: 0.06,
+        side: DoubleSide,
+      });
+      new TextureLoader().load(graphic.png, (texture) => {
+        texture.colorSpace = SRGBColorSpace;
+        material.map = texture;
+        material.needsUpdate = true;
+        this.requestRender();
+      });
+      return new Mesh(geometry, material);
+    } else {
+      geometry = this.createOrganicGeometry(primitive, width, height, depth);
+    }
+
+    return new Mesh(geometry, new MeshStandardMaterial({
+      color: graphic.color ?? '#5b8d53',
+      roughness: 0.72,
+      side: DoubleSide,
+    }));
+  }
+
+  private createOrganicGeometry(primitive: string, width: number, height: number, depth: number): BufferGeometry {
+    const half = width / 2;
+    const shape = new Shape();
+    shape.moveTo(0, 0);
+    if (primitive === 'leaf-round') {
+      shape.bezierCurveTo(-half * 1.05, height * 0.18, -half, height * 0.78, 0, height);
+      shape.bezierCurveTo(half, height * 0.78, half * 1.05, height * 0.18, 0, 0);
+    } else if (primitive === 'petal-round') {
+      shape.bezierCurveTo(-half, height * 0.14, -half * 0.9, height * 0.84, 0, height);
+      shape.bezierCurveTo(half * 0.9, height * 0.84, half, height * 0.14, 0, 0);
+    } else {
+      const shoulder = primitive === 'petal-pointed' ? 0.62 : 0.48;
+      shape.bezierCurveTo(-half, height * 0.18, -half, height * shoulder, 0, height);
+      shape.bezierCurveTo(half, height * shoulder, half, height * 0.18, 0, 0);
+    }
+    const bevel = Math.min(depth * 0.42, 1.8);
+    const geometry = new ExtrudeGeometry(shape, {
+      depth,
+      steps: 1,
+      curveSegments: 8,
+      bevelEnabled: true,
+      bevelSegments: 1,
+      bevelSize: bevel,
+      bevelThickness: bevel,
+    });
+    geometry.translate(0, 0, -depth / 2);
+    return geometry;
+  }
+
+  private graphicQuaternion(node: FlowerTreeNode, template: FlowerNodeDefinition, seed: number): Quaternion {
+    const parentDirection = new Vector3(
+      Math.sin(node.angle) * Math.cos(node.azimuth),
+      Math.cos(node.angle),
+      Math.sin(node.angle) * Math.sin(node.azimuth),
+    ).normalize();
+    const align = new Quaternion().setFromUnitVectors(UP, parentDirection);
+    const range = template.graphic!.rotation;
+    const hash = [...node.id].reduce((value, character) => ((value * 31) + character.charCodeAt(0)) | 0, 17);
+    const unit = Math.abs(Math.sin(hash + seed * 9973) * 43758.5453) % 1;
+    const twist = (range.min + unit * (range.max - range.min)) * Math.PI / 180;
+    return align.multiply(new Quaternion().setFromAxisAngle(UP, twist));
+  }
+
+  private addGraphicOutline(group: Group, graphic: Mesh): void {
+    const outline = new LineSegments(
+      new EdgesGeometry(graphic.geometry, 28),
+      new LineBasicMaterial({color: 0xeab308, transparent: true, opacity: 0.75}),
+    );
+    outline.position.copy(graphic.position);
+    outline.quaternion.copy(graphic.quaternion);
+    outline.scale.setScalar(1.045);
+    group.add(outline);
+  }
+
+  private updateView(): void {
+    this.bouquet.rotation.order = 'YXZ';
+    this.bouquet.rotation.y = this.state().rotation;
+    this.bouquet.rotation.x = this.orbitPitch();
+    this.resizeCamera();
+    this.requestRender();
+  }
+
+  private resize(): void {
+    const renderer = this.renderer;
+    if (!renderer) return;
+    const host = this.canvasHost.nativeElement;
+    renderer.setSize(Math.max(1, host.clientWidth), Math.max(1, host.clientHeight), false);
+    this.resizeCamera();
+  }
+
+  private resizeCamera(): void {
+    if (!this.renderer) return;
+    const host = this.canvasHost.nativeElement;
+    const zoom = Math.max(0.01, this.zoom());
+    this.camera.left = -host.clientWidth / 2 / zoom;
+    this.camera.right = host.clientWidth / 2 / zoom;
+    this.camera.top = host.clientHeight / 2 / zoom;
+    this.camera.bottom = -host.clientHeight / 2 / zoom;
+    this.camera.near = 0.1;
+    this.camera.far = 2400;
+    this.camera.updateProjectionMatrix();
+    this.bouquet.position.y = -host.clientHeight / 2 / zoom + 72;
+  }
+
+  private requestRender(): void {
+    if (!this.renderer || this.renderFrame !== null) return;
+    this.renderFrame = requestAnimationFrame(() => {
+      this.renderFrame = null;
+      this.renderer?.render(this.scene, this.camera);
+    });
+  }
+
+  private readonly onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    const pick = this.pick(event);
+    const data = pick?.userData['pick'] as PickData | undefined;
+    if (data) {
+      event.stopPropagation();
+      this.selectionChange.emit(data.instanceId);
+      if (data.draggable && data.nodeId) {
         this.nodeDragState = {
           pointerId: event.pointerId,
-          instanceId,
-          nodeId: treeNode.id,
-          x: event.global.x,
-          y: event.global.y,
-          localScale: Math.max(0.01, localScale),
-          rotation,
+          instanceId: data.instanceId,
+          nodeId: data.nodeId,
+          x: event.clientX,
+          y: event.clientY,
+          scale: Math.max(0.01, (data.scale ?? 1) * this.zoom()),
+          rotation: this.state().rotation,
         };
-        this.selectionChange.emit(instanceId);
-      });
-      node.addChild(handle);
+      } else {
+        this.backgroundDrag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY};
+      }
+    } else {
+      this.selectionChange.emit(null);
+      this.backgroundDrag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY};
     }
-    return node;
-  }
+    this.renderer?.domElement.setPointerCapture(event.pointerId);
+  };
 
-  private projectTreeNodes(nodes: FlowerTreeNode[], rotation: number): RenderedTreeNode[] {
-    return nodes.map((node) => {
-      const projectedPoint = projectLocalPoint(node.x, node.y, rotation);
-      return {
-        ...node,
-        x: projectedPoint.x,
-        y: projectedPoint.y,
-        angle: projectLocalAngle(node.angle, rotation),
-        renderDepth: projectedPoint.depth,
-      };
-    });
-  }
-
-  private drawTaperedCurve(
-    graphics: Graphics,
-    from: FlowerTreeNode,
-    to: FlowerTreeNode,
-    startWidth: number,
-    endWidth: number,
-    color: string,
-    alpha = 1,
-  ): void {
-    const points = this.sampleStemCurve(from, to);
-    for (let index = 0; index < points.length - 1; index++) {
-      const start = points[index]!;
-      const end = points[index + 1]!;
-      const amount = index / Math.max(1, points.length - 2);
-      this.drawTaperedSegment(
-        graphics,
-        start,
-        end,
-        lerp(startWidth, endWidth, amount),
-        lerp(startWidth, endWidth, Math.min(1, amount + 1 / Math.max(1, points.length - 2))),
-        color,
-        alpha,
+  private readonly onPointerMove = (event: PointerEvent): void => {
+    if (this.nodeDragState?.pointerId === event.pointerId) {
+      const drag = this.nodeDragState;
+      const local = viewDeltaToLocalOffset(
+        (event.clientX - drag.x) / drag.scale,
+        (event.clientY - drag.y) / drag.scale,
+        drag.rotation,
       );
-    }
-  }
-
-  private drawStemHighlight(
-    graphics: Graphics,
-    from: FlowerTreeNode,
-    to: FlowerTreeNode,
-    startWidth: number,
-    endWidth: number,
-    color: string,
-    alpha: number,
-  ): void {
-    const points = this.sampleStemCurve(from, to, 8);
-    for (let index = 0; index < points.length - 1; index++) {
-      const start = points[index]!;
-      const end = points[index + 1]!;
-      const amount = index / Math.max(1, points.length - 2);
-      const offset = -lerp(startWidth, endWidth, amount) * 0.14;
-      graphics
-        .moveTo(start.x + offset, start.y)
-        .lineTo(end.x + offset, end.y)
-        .stroke({
-          color,
-          width: Math.max(0.7, lerp(startWidth, endWidth, amount) * 0.16),
-          alpha,
-          cap: 'round',
-        });
-    }
-  }
-
-  private sampleStemCurve(from: FlowerTreeNode, to: FlowerTreeNode, segments = 12): StemPoint[] {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const distance = Math.hypot(dx, dy);
-    if (distance < 0.001) return [{x: from.x, y: from.y}, {x: to.x, y: to.y}];
-
-    const startHandle = Math.min(58, Math.max(14, distance * 0.34));
-    const endHandle = Math.min(48, Math.max(12, distance * 0.26));
-    const control1 = {
-      x: from.x + Math.sin(from.angle) * startHandle,
-      y: from.y - Math.cos(from.angle) * startHandle,
-    };
-    const control2 = {
-      x: to.x - Math.sin(to.angle) * endHandle,
-      y: to.y + Math.cos(to.angle) * endHandle,
-    };
-
-    return Array.from({length: segments + 1}, (_, index) => {
-      const t = index / segments;
-      const inverse = 1 - t;
-      return {
-        x: inverse ** 3 * from.x
-          + 3 * inverse ** 2 * t * control1.x
-          + 3 * inverse * t ** 2 * control2.x
-          + t ** 3 * to.x,
-        y: inverse ** 3 * from.y
-          + 3 * inverse ** 2 * t * control1.y
-          + 3 * inverse * t ** 2 * control2.y
-          + t ** 3 * to.y,
-      };
-    });
-  }
-
-  private drawTaperedSegment(
-    graphics: Graphics,
-    from: StemPoint,
-    to: StemPoint,
-    startWidth: number,
-    endWidth: number,
-    color: string,
-    alpha = 1,
-  ): void {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.hypot(dx, dy);
-    if (length < 0.001) {
-      graphics.circle(from.x, from.y, Math.max(startWidth, endWidth) / 2).fill({color, alpha});
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      this.nodeDrag.emit({instanceId: drag.instanceId, nodeId: drag.nodeId, dx: local.x, dy: local.y});
       return;
     }
-    const perpendicularX = -dy / length;
-    const perpendicularY = dx / length;
-    graphics
-      .poly([
-        from.x + perpendicularX * startWidth / 2,
-        from.y + perpendicularY * startWidth / 2,
-        to.x + perpendicularX * endWidth / 2,
-        to.y + perpendicularY * endWidth / 2,
-        to.x - perpendicularX * endWidth / 2,
-        to.y - perpendicularY * endWidth / 2,
-        from.x - perpendicularX * startWidth / 2,
-        from.y - perpendicularY * startWidth / 2,
-      ])
-      .fill({color, alpha});
-    graphics.circle(from.x, from.y, startWidth / 2).fill({color, alpha});
-    graphics.circle(to.x, to.y, endWidth / 2).fill({color, alpha});
-  }
-
-  private requiredTreeNode(nodes: Map<string, FlowerTreeNode>, id: string): FlowerTreeNode {
-    const node = nodes.get(id);
-    if (!node) throw new Error(`Flower tree node "${id}" does not exist.`);
-    return node;
-  }
-
-  private graphicRotation(
-    template: FlowerNodeDefinition,
-    connectionAngle: number,
-    generatedId: string,
-    seed: number,
-  ): number {
-    const graphic = template.graphic!;
-    const range = graphic.rotation;
-    const hash = [...generatedId].reduce((value, character) => ((value * 31) + character.charCodeAt(0)) | 0, 17);
-    const unit = Math.abs(Math.sin(hash + seed * 9973) * 43758.5453) % 1;
-    const randomOffset = (range.min + unit * (range.max - range.min)) * Math.PI / 180;
-    const imageAxis = Math.atan2(
-      (graphic.end.y - graphic.start.y) * graphic.height,
-      (graphic.end.x - graphic.start.x) * graphic.width,
-    );
-    const connectionAxis = connectionAngle - Math.PI / 2;
-    return connectionAxis - imageAxis + randomOffset;
-  }
-
-  private loadPng(png: string): Promise<Texture> {
-    let texture = this.textureCache.get(png);
-    if (!texture) {
-      texture = Assets.load<Texture>(png);
-      this.textureCache.set(png, texture);
+    if (!this.backgroundDrag || this.backgroundDrag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - this.backgroundDrag.x;
+    const dy = event.clientY - this.backgroundDrag.y;
+    this.backgroundDrag.x = event.clientX;
+    this.backgroundDrag.y = event.clientY;
+    if (this.orbitEnabled()) {
+      this.orbitDrag.emit({yaw: dx * 0.008, pitch: dy * 0.008});
+    } else {
+      this.rotateDrag.emit(dx * 0.008);
     }
-    return texture;
+  };
+
+  private readonly onPointerUp = (event: PointerEvent): void => {
+    if (this.nodeDragState?.pointerId === event.pointerId) this.nodeDragState = null;
+    if (this.backgroundDrag?.pointerId === event.pointerId) this.backgroundDrag = null;
+  };
+
+  private pick(event: PointerEvent): Object3D | null {
+    const canvas = this.renderer?.domElement;
+    if (!canvas) return null;
+    const bounds = canvas.getBoundingClientRect();
+    this.pointer.set(
+      (event.clientX - bounds.left) / bounds.width * 2 - 1,
+      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const intersections = this.raycaster.intersectObject(this.bouquet, true);
+    return intersections.find((intersection) => intersection.object.userData['pick'])?.object ?? null;
   }
+
+  private disposeChildren(group: Group): void {
+    const geometries = new Set<BufferGeometry>();
+    const materials = new Set<MeshStandardMaterial | LineBasicMaterial>();
+    group.traverse((object) => {
+      if (object instanceof Mesh || object instanceof LineSegments) {
+        geometries.add(object.geometry);
+        const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of objectMaterials) materials.add(material as MeshStandardMaterial | LineBasicMaterial);
+      }
+    });
+    group.clear();
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) {
+      if (material instanceof MeshStandardMaterial) material.map?.dispose();
+      material.dispose();
+    }
+  }
+}
+
+function treePosition(node: FlowerTreeNode): Vector3 {
+  return new Vector3(node.x, -node.y, node.z);
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
-function lerp(start: number, end: number, amount: number): number {
-  return start + (end - start) * amount;
-}
-
 function touchDistance(touches: Map<number, {x: number; y: number}>): number {
-  const points = [...touches.values()];
-  const first = points[0]!;
-  const second = points[1]!;
-  return Math.hypot(second.x - first.x, second.y - first.y);
+  const [first, second] = [...touches.values()];
+  return Math.hypot(second!.x - first!.x, second!.y - first!.y);
 }

@@ -100,6 +100,38 @@ describe('procedural flower tree generator', () => {
       .toEqual(generateFlowerTree(DEFAULT_FLOWERS[1], 0.31));
   });
 
+  it('distributes repeated branches in three dimensions', () => {
+    const tree = generateFlowerTree(DEFAULT_FLOWERS[1], 0.31);
+    const petals = tree.nodes.filter((node) => node.templateId === 'petal');
+
+    expect(petals.some((node) => Math.abs(node.z) > 0.1)).toBe(true);
+    expect(new Set(petals.map((node) => node.parentId)).size).toBeGreaterThan(0);
+  });
+
+  it('makes a fully uniform distribution independent of the seed', () => {
+    const definition = structuredClone(DEFAULT_FLOWERS[0]);
+    definition.nodes = [
+      {
+        id: 'base',
+        name: 'Basis',
+        draggable: false,
+        graphic: null,
+        connections: [{
+          childId: 'branch',
+          repeat: {min: 4, max: 4},
+          length: {min: 10, max: 10},
+          angle: {min: 90, max: 90},
+          azimuth: {min: 0, max: 360},
+          randomness: 0,
+        }],
+      },
+      {id: 'branch', name: 'Ast', draggable: false, graphic: null, connections: []},
+    ];
+    definition.rootNodeId = 'base';
+
+    expect(generateFlowerTree(definition, 0.1)).toEqual(generateFlowerTree(definition, 0.9));
+  });
+
   it('keeps the source connection on every generated edge', () => {
     const definition = DEFAULT_FLOWERS[0];
     const tree = generateFlowerTree(definition, 0.31);
