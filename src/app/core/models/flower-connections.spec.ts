@@ -9,11 +9,12 @@ import {validateFlowerDefinition} from './flower-validation';
 
 describe('node-owned incoming connections', () => {
   it('migrates legacy edge settings onto their target node', () => {
-    const legacy = DEFAULT_FLOWERS[1];
+    const legacy = structuredClone(DEFAULT_FLOWERS[1]);
     const source = legacy.nodes.find((node) =>
       node.connections.some((connection) => connection.childId === 'petal'))!;
     const legacyConnection = source.connections.find((connection) =>
       connection.childId === 'petal')!;
+    delete legacy.nodes.find((node) => node.id === 'petal')!.incoming;
     const migrated = migrateIncomingConnections(legacy);
     const petal = migrated.nodes.find((node) => node.id === 'petal')!;
 

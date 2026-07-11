@@ -11,8 +11,8 @@ describe('flower definition validation', () => {
 
   it('reports cycles in reachable connections', () => {
     const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    definition.nodes.find((node) => node.id === 'petal')!.connections.push({
-      childId: 'bloom',
+    definition.nodes.find((node) => node.id === 'leaf')!.connections.push({
+      childId: 'growth-loop',
       repeat: {min: 1, max: 1},
       length: {min: 1, max: 1},
       angle: {min: 0, max: 0},

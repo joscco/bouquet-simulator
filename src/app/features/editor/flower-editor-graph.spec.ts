@@ -9,7 +9,7 @@ describe('flower editor graph layout', () => {
 
     expect(nodes.get('base')?.x).toBe(500);
     expect(nodes.get('growth-loop')?.x).toBe(500);
-    expect(nodes.get('bloom')?.x).toBe(500);
+    expect(nodes.get('pfingstrosenbluete')?.x).toBe(500);
   });
 
   it('places the complete internal path inside its loop bounds', () => {

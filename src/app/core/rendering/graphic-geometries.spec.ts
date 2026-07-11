@@ -14,8 +14,6 @@ describe('built-in graphic geometries', () => {
       'sphere',
       'rod',
     ]);
-    expect(canonicalGraphicPrimitive('petal-pointed')).toBe('leaf-pointed');
-    expect(canonicalGraphicPrimitive('petal-round')).toBe('leaf-round');
   });
 
   it('creates UV mapped, curved leaf geometry', () => {

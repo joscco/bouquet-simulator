@@ -36,6 +36,7 @@ import {
   SRGBColorSpace,
   TextureLoader,
   TorusGeometry,
+  Quaternion,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -50,31 +51,36 @@ import {effectiveConnection} from '../../core/models/flower-connections';
 import {createBuiltInGeometry} from '../../core/rendering/graphic-geometries';
 import {createGraphicPaintTexture} from '../../core/rendering/graphic-paint';
 import {graphicOrientationQuaternion} from '../../core/rendering/graphic-orientation';
-import {FlowerTreeNode, generateFlowerTree} from '../../core/rendering/flower-tree';
-import {viewDeltaToWorld} from '../../core/rendering/projection';
+import {FlowerTree, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
 
 const UP = new Vector3(0, 1, 0);
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
+const FIT_PADDING = 48;
+const FIT_MARGIN = 1.08;
+const ORBIT_LIMIT = Math.PI * 0.46;
 
 interface PickData {
   instanceId: string;
   scale?: number;
 }
 
+export type BouquetCanvasViewMode = 'pan' | 'rotate';
+
 @Component({
   selector: 'app-bouquet-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {'class': 'bouquet-canvas-host'},
+  host: {'class': 'relative block w-full h-full min-h-0'},
   template: `
     <div
       #canvasHost
-      class="canvas-mount"
+      class="relative block w-full h-full min-h-0 touch-none select-none"
       aria-label="Interaktive 3D-Straußansicht"
       (wheel)="zoomWithWheel($event)"
       (pointerdown)="startZoomGesture($event)"
       (pointermove)="moveZoomGesture($event)"
       (pointerup)="endZoomGesture($event)"
       (pointercancel)="endZoomGesture($event)"
+      (contextmenu)="$event.preventDefault()"
     ></div>
   `,
 })
@@ -84,8 +90,17 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly selectedId = input<string | null>(null);
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
+  readonly fitToContent = input(false);
+  readonly viewportInsets = input<{left: number; right: number; top: number; bottom: number}>({
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  });
   readonly orbitEnabled = input(false);
   readonly orbitPitch = input(0);
+  readonly viewMode = input<BouquetCanvasViewMode>('rotate');
+  readonly viewOffset = input<{x: number; y: number}>({x: 0, y: 0});
   readonly flowerMoveEnabled = input(false);
   readonly vaseEnabled = input(false);
   readonly highlightedNodeId = input<string | null>(null);
@@ -99,6 +114,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }>();
   @Output() readonly rotateDrag = new EventEmitter<number>();
   @Output() readonly orbitDrag = new EventEmitter<{yaw: number; pitch: number}>();
+  @Output() readonly viewPan = new EventEmitter<{dx: number; dy: number}>();
   @Output() readonly selectionChange = new EventEmitter<string | null>();
   @Output() readonly zoomChange = new EventEmitter<number>();
 
@@ -115,18 +131,27 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private renderFrame: number | null = null;
   private lastFlowers: BouquetFlower[] | null = null;
   private lastDefinitions: FlowerDefinition[] | null = null;
+  private lastFlowerCount: number | null = null;
   private lastSelectedId: string | null = null;
   private lastHighlightedNodeId: string | null = null;
   private lastHighlightedConnection: {sourceId: string; index: number} | null = null;
   private lastVaseEnabled: boolean | null = null;
-  private backgroundDrag: {pointerId: number; x: number; y: number} | null = null;
+  private lastGeometrySignature: string | null = null;
+  private backgroundDrag: {
+    pointerId: number;
+    x: number;
+    y: number;
+    mode: BouquetCanvasViewMode;
+  } | null = null;
+  private sceneCenter = new Vector3();
+  private fitBounds = new Box3();
+  private recenterOnNextRebuild = true;
   private flowerDragState: {
     pointerId: number;
     instanceId: string;
     x: number;
     y: number;
     scale: number;
-    rotation: number;
   } | null = null;
   private readonly zoomTouches = new Map<number, {x: number; y: number}>();
   private zoomPinchDistance: number | null = null;
@@ -139,6 +164,24 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const highlightedNodeId = this.highlightedNodeId();
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
+      this.zoom();
+      this.fitToContent();
+      this.viewportInsets();
+      this.orbitPitch();
+      this.viewOffset();
+      const geometrySignature = state.flowers
+        .map((flower) => [
+          flower.instanceId,
+          flower.definitionId,
+          flower.scale,
+          flower.seed,
+          flower.cutRatio ?? 0,
+        ].join(':'))
+        .join('|');
+      const shouldRecenter = definitions !== this.lastDefinitions
+        || state.flowers.length !== this.lastFlowerCount
+        || geometrySignature !== this.lastGeometrySignature
+        || vaseEnabled !== this.lastVaseEnabled;
       const structureChanged = state.flowers !== this.lastFlowers
         || definitions !== this.lastDefinitions
         || selectedId !== this.lastSelectedId
@@ -149,11 +192,16 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
       this.lastFlowers = state.flowers;
       this.lastDefinitions = definitions;
+      this.lastFlowerCount = state.flowers.length;
       this.lastSelectedId = selectedId;
       this.lastHighlightedNodeId = highlightedNodeId;
       this.lastHighlightedConnection = highlightedConnection;
       this.lastVaseEnabled = vaseEnabled;
-      if (structureChanged) this.requestRebuild();
+      this.lastGeometrySignature = geometrySignature;
+      if (structureChanged) {
+        this.recenterOnNextRebuild ||= shouldRecenter;
+        this.requestRebuild();
+      }
       this.updateView();
     });
   }
@@ -167,6 +215,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFSoftShadowMap;
     renderer.setClearColor(0x000000, 0);
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
     renderer.domElement.addEventListener('pointermove', this.onPointerMove);
     renderer.domElement.addEventListener('pointerup', this.onPointerUp);
@@ -224,7 +275,12 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   zoomWithWheel(event: WheelEvent): void {
     if (!this.zoomEnabled()) return;
     event.preventDefault();
-    this.zoomChange.emit(clamp(this.zoom() * Math.exp(-event.deltaY * 0.0015), 0.6, 1.8));
+    if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      const zoom = this.effectiveZoom();
+      this.viewPan.emit({dx: -event.deltaX / zoom, dy: event.deltaY / zoom});
+      return;
+    }
+    this.zoomAround(event.clientX, event.clientY, clamp(this.zoom() * Math.exp(-event.deltaY * 0.0015), 0.35, 3.5));
   }
 
   startZoomGesture(event: PointerEvent): void {
@@ -242,7 +298,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.zoomTouches.size !== 2) return;
     const distance = touchDistance(this.zoomTouches);
     if (this.zoomPinchDistance) {
-      this.zoomChange.emit(clamp(this.zoom() * distance / this.zoomPinchDistance, 0.6, 1.8));
+      const center = touchCenter(this.zoomTouches);
+      this.zoomAround(center.x, center.y, clamp(this.zoom() * distance / this.zoomPinchDistance, 0.35, 3.5));
     }
     this.zoomPinchDistance = distance;
   }
@@ -263,21 +320,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private rebuildScene(): void {
     if (!this.renderer) return;
     this.disposeChildren(this.bouquet);
+    this.bouquet.position.set(0, 0, 0);
+    this.bouquet.rotation.set(0, 0, 0);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
 
-    const ground = new Mesh(
-      new PlaneGeometry(720, 520),
-      new MeshStandardMaterial({
-        color: 0xe4e0d7,
-        roughness: 1,
-        transparent: true,
-        opacity: 0.42,
-      }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, this.vaseEnabled() ? -61 : -2, -50);
-    ground.receiveShadow = true;
-    this.bouquet.add(ground);
     if (this.vaseEnabled()) this.bouquet.add(this.createVase());
 
     for (const flower of this.state().flowers) {
@@ -285,14 +331,24 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       if (!definition) continue;
       this.bouquet.add(this.createFlower(definition, flower));
     }
+    this.bouquet.updateMatrixWorld(true);
+    const bounds = this.contentBounds();
+    if (this.recenterOnNextRebuild) {
+      this.sceneCenter = bounds.getCenter(new Vector3());
+      this.fitBounds.copy(bounds);
+      this.recenterOnNextRebuild = false;
+    }
     this.updateView();
   }
 
   private createFlower(definition: FlowerDefinition, flower: BouquetFlower): Group {
     const group = new Group();
     group.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
-    const templates = new Map(definition.nodes.map((node) => [node.id, node]));
-    const tree = generateFlowerTree(definition, flower.seed, flower.nodeOffsets ?? EMPTY_OFFSETS);
+    const templates = flattenFlowerTemplates(definition);
+    const tree = cutFlowerTree(
+      generateFlowerTree(definition, flower.seed, flower.nodeOffsets ?? EMPTY_OFFSETS),
+      flower.cutRatio ?? 0,
+    );
     const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
     const graphicPrototypes = new Map<string, Mesh>();
 
@@ -351,7 +407,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         scale: flower.scale,
       } satisfies PickData;
       group.add(graphic);
-      if (node.templateId === this.highlightedNodeId()) this.addGraphicOutline(group, graphic);
+      if (isHighlightedTemplate(node.templateId, this.highlightedNodeId())) {
+        this.addGraphicOutline(group, graphic);
+      }
     }
 
     if (this.selectedId() === flower.instanceId) {
@@ -516,27 +574,125 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     const renderer = this.renderer;
     if (!renderer) return;
     const host = this.canvasHost.nativeElement;
-    renderer.setSize(Math.max(1, host.clientWidth), Math.max(1, host.clientHeight), false);
+    renderer.setSize(Math.max(1, host.clientWidth), Math.max(1, host.clientHeight));
     this.resizeCamera();
   }
 
   private resizeCamera(): void {
     if (!this.renderer) return;
     const host = this.canvasHost.nativeElement;
-    const zoom = Math.max(0.01, this.zoom());
-    this.camera.left = -host.clientWidth / 2 / zoom;
-    this.camera.right = host.clientWidth / 2 / zoom;
-    this.camera.top = host.clientHeight / 2 / zoom;
-    this.camera.bottom = -host.clientHeight / 2 / zoom;
     this.camera.near = 0.1;
     this.camera.far = 2400;
-    const elevation = clamp(0.08 + this.orbitPitch(), -0.34, 0.58);
+    const elevation = clamp(0.08 + this.orbitPitch(), -ORBIT_LIMIT, ORBIT_LIMIT);
     const distance = 1000;
     this.camera.position.set(0, Math.sin(elevation) * distance, Math.cos(elevation) * distance);
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(0, 0, 0);
+    this.camera.updateMatrixWorld();
+
+    const zoom = this.effectiveZoom();
+    this.camera.left = -host.clientWidth / 2 / zoom;
+    this.camera.right = host.clientWidth / 2 / zoom;
+    this.camera.top = host.clientHeight / 2 / zoom;
+    this.camera.bottom = -host.clientHeight / 2 / zoom;
     this.camera.updateProjectionMatrix();
-    this.bouquet.position.y = -host.clientHeight / 2 / zoom + 72;
+    const offset = this.viewOffset();
+    const center = this.sceneCenter.clone().applyQuaternion(this.bouquet.quaternion);
+    const insets = this.resolvedInsets();
+    const viewportCenter = this.screenOffset(
+      (insets.left - insets.right) / 2 / zoom,
+      (insets.bottom - insets.top) / 2 / zoom,
+    );
+    this.bouquet.position
+      .copy(center.negate())
+      .add(viewportCenter)
+      .add(this.screenOffset(offset.x, offset.y));
+  }
+
+  private effectiveZoom(userZoom = this.zoom()): number {
+    return Math.max(0.01, this.fitZoom() * userZoom);
+  }
+
+  private fitZoom(): number {
+    const host = this.canvasHost.nativeElement;
+    if (!this.fitToContent() || this.fitBounds.isEmpty() || !host.clientWidth || !host.clientHeight) return 1;
+
+    const projectedSize = this.projectedFitSize();
+    const insets = this.resolvedInsets();
+    const visibleWidth = Math.max(1, host.clientWidth - insets.left - insets.right);
+    const visibleHeight = Math.max(1, host.clientHeight - insets.top - insets.bottom);
+    const horizontalPadding = Math.min(FIT_PADDING, visibleWidth * 0.08);
+    const verticalPadding = Math.min(FIT_PADDING, visibleHeight * 0.08);
+    const availableWidth = Math.max(120, visibleWidth - horizontalPadding * 2);
+    const availableHeight = Math.max(120, visibleHeight - verticalPadding * 2);
+    return clamp(Math.min(
+      availableWidth / Math.max(1, projectedSize.width * FIT_MARGIN),
+      availableHeight / Math.max(1, projectedSize.height * FIT_MARGIN),
+    ), 0.08, 4);
+  }
+
+  private projectedFitSize(): {width: number; height: number} {
+    const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const up = new Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+    const point = new Vector3();
+    let minimumX = Number.POSITIVE_INFINITY;
+    let maximumX = Number.NEGATIVE_INFINITY;
+    let minimumY = Number.POSITIVE_INFINITY;
+    let maximumY = Number.NEGATIVE_INFINITY;
+
+    for (const x of [this.fitBounds.min.x, this.fitBounds.max.x]) {
+      for (const y of [this.fitBounds.min.y, this.fitBounds.max.y]) {
+        for (const z of [this.fitBounds.min.z, this.fitBounds.max.z]) {
+          point.set(x, y, z).applyQuaternion(this.bouquet.quaternion);
+          const projectedX = point.dot(right);
+          const projectedY = point.dot(up);
+          minimumX = Math.min(minimumX, projectedX);
+          maximumX = Math.max(maximumX, projectedX);
+          minimumY = Math.min(minimumY, projectedY);
+          maximumY = Math.max(maximumY, projectedY);
+        }
+      }
+    }
+
+    return {
+      width: maximumX - minimumX,
+      height: maximumY - minimumY,
+    };
+  }
+
+  private resolvedInsets(): {left: number; right: number; top: number; bottom: number} {
+    const host = this.canvasHost.nativeElement;
+    const insets = this.viewportInsets();
+    return {
+      left: clamp(insets.left, 0, Math.max(0, host.clientWidth - 1)),
+      right: clamp(insets.right, 0, Math.max(0, host.clientWidth - 1)),
+      top: clamp(insets.top, 0, Math.max(0, host.clientHeight - 1)),
+      bottom: clamp(insets.bottom, 0, Math.max(0, host.clientHeight - 1)),
+    };
+  }
+
+  private screenOffset(x: number, y: number): Vector3 {
+    const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion).multiplyScalar(x);
+    const up = new Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).multiplyScalar(y);
+    return right.add(up);
+  }
+
+  private zoomAround(clientX: number, clientY: number, nextUserZoom: number): void {
+    const previousEffectiveZoom = this.effectiveZoom();
+    const nextEffectiveZoom = this.effectiveZoom(nextUserZoom);
+    if (Math.abs(nextUserZoom - this.zoom()) < 0.0001) return;
+
+    const host = this.canvasHost.nativeElement.getBoundingClientRect();
+    const insets = this.resolvedInsets();
+    const visibleCenterX = host.left + (insets.left + host.width - insets.right) / 2;
+    const visibleCenterY = host.top + (insets.top + host.height - insets.bottom) / 2;
+    const anchorX = clientX - visibleCenterX;
+    const anchorY = visibleCenterY - clientY;
+    this.viewPan.emit({
+      dx: anchorX * (1 / nextEffectiveZoom - 1 / previousEffectiveZoom),
+      dy: anchorY * (1 / nextEffectiveZoom - 1 / previousEffectiveZoom),
+    });
+    this.zoomChange.emit(nextUserZoom);
   }
 
   private requestRender(): void {
@@ -548,10 +704,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    if (![0, 1, 2].includes(event.button) && event.pointerType !== 'touch') return;
     const pick = this.pick(event);
     const data = pick?.userData['pick'] as PickData | undefined;
-    if (data) {
+    if (data && event.button === 0 && !event.shiftKey) {
       event.stopPropagation();
       this.selectionChange.emit(data.instanceId);
       if (this.flowerMoveEnabled()) {
@@ -560,15 +716,24 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
           instanceId: data.instanceId,
           x: event.clientX,
           y: event.clientY,
-          scale: Math.max(0.01, (data.scale ?? 1) * this.zoom()),
-          rotation: this.state().rotation,
+          scale: this.effectiveZoom(),
         };
       } else {
-        this.backgroundDrag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY};
+        this.backgroundDrag = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          mode: this.dragMode(event),
+        };
       }
     } else {
-      this.selectionChange.emit(null);
-      this.backgroundDrag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY};
+      if (!data) this.selectionChange.emit(null);
+      this.backgroundDrag = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        mode: this.dragMode(event),
+      };
     }
     this.renderer?.domElement.setPointerCapture(event.pointerId);
   };
@@ -578,14 +743,14 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const drag = this.flowerDragState;
       const dx = (event.clientX - drag.x) / drag.scale;
       const dy = (event.clientY - drag.y) / drag.scale;
-      const world = viewDeltaToWorld(dx, drag.rotation);
+      const local = this.screenHorizontalDeltaToBouquet(dx);
       drag.x = event.clientX;
       drag.y = event.clientY;
       this.flowerDrag.emit({
         instanceId: drag.instanceId,
-        dx: world.x,
+        dx: local.x,
         dy,
-        dz: world.z,
+        dz: local.z,
       });
       return;
     }
@@ -594,10 +759,15 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     const dy = event.clientY - this.backgroundDrag.y;
     this.backgroundDrag.x = event.clientX;
     this.backgroundDrag.y = event.clientY;
+    if (this.backgroundDrag.mode === 'pan') {
+      const zoom = this.effectiveZoom();
+      this.viewPan.emit({dx: dx / zoom, dy: -dy / zoom});
+      return;
+    }
     if (this.orbitEnabled()) {
-      this.orbitDrag.emit({yaw: dx * 0.008, pitch: dy * 0.008});
+      this.orbitDrag.emit({yaw: -dx * 0.008, pitch: dy * 0.008});
     } else {
-      this.rotateDrag.emit(dx * 0.008);
+      this.rotateDrag.emit(-dx * 0.008);
     }
   };
 
@@ -617,6 +787,24 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const intersections = this.raycaster.intersectObject(this.bouquet, true);
     return intersections.find((intersection) => intersection.object.userData['pick'])?.object ?? null;
+  }
+
+  private dragMode(event: PointerEvent): BouquetCanvasViewMode {
+    if (event.shiftKey || event.button === 1 || event.button === 2) return 'pan';
+    return this.viewMode();
+  }
+
+  private screenHorizontalDeltaToBouquet(deltaX: number): Vector3 {
+    const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const inverseBouquetRotation = new Quaternion().copy(this.bouquet.quaternion).invert();
+    return right.applyQuaternion(inverseBouquetRotation).multiplyScalar(deltaX);
+  }
+
+  private contentBounds(): Box3 {
+    const bounds = new Box3().setFromObject(this.bouquet);
+    if (bounds.isEmpty()) bounds.setFromCenterAndSize(new Vector3(), new Vector3(1, 1, 1));
+    bounds.expandByScalar(this.vaseEnabled() ? 24 : 12);
+    return bounds;
   }
 
   private disposeChildren(group: Group): void {
@@ -642,11 +830,133 @@ function treePosition(node: FlowerTreeNode): Vector3 {
   return new Vector3(node.x, -node.y, node.z);
 }
 
+function isHighlightedTemplate(templateId: string, highlightedNodeId: string | null): boolean {
+  return !!highlightedNodeId
+    && (templateId === highlightedNodeId || templateId.startsWith(`${highlightedNodeId}::`));
+}
+
+function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
+  const ratio = clamp(cutRatio, 0, 0.98);
+  if (ratio <= 0.001) return tree;
+
+  const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
+  const childEdges = new Map<string, typeof tree.edges>();
+  for (const edge of tree.edges) {
+    const edges = childEdges.get(edge.from) ?? [];
+    edges.push(edge);
+    childEdges.set(edge.from, edges);
+  }
+
+  const longestCache = new Map<string, number>();
+  const longestFrom = (nodeId: string): number => {
+    const cached = longestCache.get(nodeId);
+    if (cached !== undefined) return cached;
+    const length = Math.max(0, ...(childEdges.get(nodeId) ?? []).map((edge) => {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      return from && to ? nodeDistance(from, to) + longestFrom(edge.to) : 0;
+    }));
+    longestCache.set(nodeId, length);
+    return length;
+  };
+
+  const totalLength = longestFrom(tree.rootId);
+  if (totalLength <= 0) return tree;
+
+  let remaining = totalLength * ratio;
+  let currentId = tree.rootId;
+  let cutEdge = longestChildEdge(currentId);
+  while (cutEdge) {
+    const from = nodes.get(cutEdge.from);
+    const to = nodes.get(cutEdge.to);
+    if (!from || !to) break;
+    const length = nodeDistance(from, to);
+    if (remaining <= length) break;
+    remaining -= length;
+    currentId = cutEdge.to;
+    cutEdge = longestChildEdge(currentId);
+  }
+  if (!cutEdge) return tree;
+
+  const from = nodes.get(cutEdge.from);
+  const to = nodes.get(cutEdge.to);
+  if (!from || !to) return tree;
+  const amount = nodeDistance(from, to) > 0 ? clamp(remaining / nodeDistance(from, to), 0, 1) : 1;
+  const cutPoint = {
+    x: lerp(from.x, to.x, amount),
+    y: lerp(from.y, to.y, amount),
+    z: lerp(from.z, to.z, amount),
+  };
+  const keptIds = collectDescendants(cutEdge.to);
+  const depthOffset = Math.max(0, to.depth - 1);
+  const root = {...tree.nodes.find((node) => node.id === tree.rootId)!, x: 0, y: 0, z: 0, depth: 0};
+  const cutNodes = tree.nodes
+    .filter((node) => keptIds.has(node.id))
+    .map((node) => ({
+      ...node,
+      parentId: node.id === cutEdge.to ? tree.rootId : node.parentId,
+      x: node.x - cutPoint.x,
+      y: node.y - cutPoint.y,
+      z: node.z - cutPoint.z,
+      depth: Math.max(1, node.depth - depthOffset),
+    }));
+
+  return {
+    rootId: tree.rootId,
+    nodes: [root, ...cutNodes],
+    edges: [
+      {from: tree.rootId, to: cutEdge.to, connectionSourceId: cutEdge.connectionSourceId, connectionIndex: cutEdge.connectionIndex},
+      ...tree.edges.filter((edge) => keptIds.has(edge.from) && keptIds.has(edge.to)),
+    ],
+  };
+
+  function longestChildEdge(nodeId: string): FlowerTree['edges'][number] | null {
+    const candidates = childEdges.get(nodeId) ?? [];
+    let best: FlowerTree['edges'][number] | null = null;
+    let bestLength = -1;
+    for (const edge of candidates) {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      if (!from || !to) continue;
+      const length = nodeDistance(from, to) + longestFrom(edge.to);
+      if (length > bestLength) {
+        best = edge;
+        bestLength = length;
+      }
+    }
+    return best;
+  }
+
+  function collectDescendants(nodeId: string): Set<string> {
+    const ids = new Set<string>([nodeId]);
+    for (const edge of childEdges.get(nodeId) ?? []) {
+      for (const childId of collectDescendants(edge.to)) ids.add(childId);
+    }
+    return ids;
+  }
+}
+
+function nodeDistance(from: FlowerTreeNode, to: FlowerTreeNode): number {
+  return Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+}
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function lerp(start: number, end: number, amount: number): number {
+  return start + (end - start) * amount;
 }
 
 function touchDistance(touches: Map<number, {x: number; y: number}>): number {
   const [first, second] = [...touches.values()];
   return Math.hypot(second!.x - first!.x, second!.y - first!.y);
+}
+
+function touchCenter(touches: Map<number, {x: number; y: number}>): {x: number; y: number} {
+  const [first, second] = [...touches.values()];
+  return {
+    x: (first!.x + second!.x) / 2,
+    y: (first!.y + second!.y) / 2,
+  };
 }

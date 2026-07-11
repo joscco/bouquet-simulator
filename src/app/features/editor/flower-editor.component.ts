@@ -8,14 +8,18 @@ import {
   signal,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {RouterLink} from '@angular/router';
 import {MatButtonModule} from '@angular/material/button';
+import {MatCheckboxModule} from '@angular/material/checkbox';
 import {MatIconModule} from '@angular/material/icon';
 import {MatSliderModule} from '@angular/material/slider';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
+import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {
   BouquetState,
   FlowerDefinition,
+  FlowerNodeComponent,
   FlowerNodeConnection,
   FlowerNodeDefinition,
   FlowerNodeGraphic,
@@ -40,6 +44,16 @@ import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas
 import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {GraphicPainterComponent} from './graphic-painter.component';
+import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
+import {
+  FlowerSubtreeDefinition,
+  createFlowerDefinitionComponent,
+  createFlowerSubtree,
+  extractFlowerSubtreeComponent,
+  insertFlowerSubtree,
+  isFlowerSubtreeDefinition,
+  resolveFlowerSubtreeSelection,
+} from '../../core/models/flower-subtree';
 import {
   Point,
   createGraphLayout,
@@ -47,14 +61,24 @@ import {
   materializePositions,
 } from './flower-editor-graph';
 
+interface FlowerComponentCatalogEntry {
+  key: string;
+  source: 'definition' | 'saved';
+  role: 'flower' | 'component';
+  tree: FlowerSubtreeDefinition;
+}
+
 @Component({
   selector: 'app-flower-editor',
   imports: [
     FormsModule,
+    RouterLink,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatSliderModule,
     MatSnackBarModule,
+    MatTooltipModule,
     BouquetCanvasComponent,
     IntervalSliderComponent,
     GraphicPainterComponent,
@@ -66,13 +90,47 @@ export class FlowerEditorComponent {
   readonly graphicPrimitives = BUILT_IN_GRAPHICS;
   readonly store = inject(BouquetStore);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
   readonly draft = signal<FlowerDefinition>(
     migrateIncomingConnections(this.store.definitions()[0]),
   );
+  readonly selectedCatalogKey = signal(`definition:${this.draft().id}`);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
+  readonly addMenuOpen = signal(false);
+  readonly componentSearch = signal('');
+  readonly subtreeAnchorIds = signal<Set<string>>(new Set());
+  readonly subtreeName = signal('');
+  readonly savedTrees = this.subtreeLibrary.trees;
+  readonly componentCatalog = computed<FlowerComponentCatalogEntry[]>(() => [
+    ...this.store.definitions().map((definition) => ({
+      key: `definition:${definition.id}`,
+      source: 'definition' as const,
+      role: (definition.catalogRole ?? 'flower') as 'flower' | 'component',
+      tree: createFlowerDefinitionComponent(migrateIncomingConnections(definition)),
+    })),
+    ...this.savedTrees().map((tree) => ({
+      key: `saved:${tree.id}`,
+      source: 'saved' as const,
+      role: 'component' as const,
+      tree,
+    })),
+  ]);
+  readonly selectedCatalogEntry = computed(() =>
+    this.componentCatalog().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
+  readonly canDeleteSelectedCatalogEntry = computed(() => {
+    const entry = this.selectedCatalogEntry();
+    return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
+  });
+  readonly filteredComponentCatalog = computed(() => {
+    const query = normalizeSearch(this.componentSearch());
+    if (!query) return this.componentCatalog();
+    return this.componentCatalog().filter((entry) =>
+      normalizeSearch(`${entry.tree.name} ${entry.role} ${entry.source}`).includes(query));
+  });
   readonly graphZoom = signal(1);
   readonly graphCenter = signal<Point>({x: 500, y: 500});
   readonly previewZoom = signal(1);
+  readonly previewViewOffset = signal<Point>({x: 0, y: 0});
   readonly previewSeed = signal(0.42);
   readonly previewRotation = signal(0);
   readonly previewPitch = signal(0);
@@ -86,6 +144,9 @@ export class FlowerEditorComponent {
     loopStartId?: string;
   } | null>(null);
 
+  readonly subtreeSelection = computed(() =>
+    resolveFlowerSubtreeSelection(this.draft(), this.subtreeAnchorIds()));
+  readonly subtreeNodeIds = computed(() => this.subtreeSelection()?.nodeIds ?? new Set<string>());
   readonly selectedNode = computed(() =>
     this.draft().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
   readonly selectedIncoming = computed(() =>
@@ -141,6 +202,34 @@ export class FlowerEditorComponent {
     this.draft.update((draft) => ({...draft, [key]: value}));
   }
 
+  updateCatalogRole(isFlower: boolean): void {
+    this.draft.update((draft) => ({
+      ...draft,
+      catalogRole: isFlower ? 'flower' : 'component',
+    }));
+  }
+
+  updateCatalogIconSymbol(value: string): void {
+    const symbol = [...value.trim()][0] ?? '✿';
+    this.draft.update((draft) => ({
+      ...draft,
+      catalogIcon: {
+        symbol,
+        color: draft.catalogIcon?.color ?? this.previewColorFromDefinition(draft),
+      },
+    }));
+  }
+
+  updateCatalogIconColor(color: string): void {
+    this.draft.update((draft) => ({
+      ...draft,
+      catalogIcon: {
+        symbol: draft.catalogIcon?.symbol ?? '✿',
+        color,
+      },
+    }));
+  }
+
   updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
     this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
   }
@@ -152,6 +241,8 @@ export class FlowerEditorComponent {
       schemaVersion: 2,
       id,
       name: 'Neue Blume',
+      catalogRole: 'flower',
+      catalogIcon: {symbol: '✿', color: '#5b8d53'},
       rootNodeId: 'base',
       stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72},
       nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
@@ -177,6 +268,50 @@ export class FlowerEditorComponent {
 
   selectNode(id: string): void {
     this.selectedNodeId.set(id);
+    this.subtreeAnchorIds.set(new Set());
+  }
+
+  clearSubtreeSelection(): void {
+    this.subtreeAnchorIds.set(new Set());
+  }
+
+  isSubtreeNodeSelected(id: string): boolean {
+    return this.subtreeNodeIds().has(id);
+  }
+
+  isSubtreeAnchor(id: string): boolean {
+    return this.subtreeAnchorIds().has(id);
+  }
+
+  isSubtreeEdge(sourceId: string, targetId: string): boolean {
+    const selected = this.subtreeNodeIds();
+    return selected.has(sourceId) && selected.has(targetId);
+  }
+
+  componentOutputCount(tree: FlowerNodeComponent): number {
+    const ids = new Set(tree.nodes.map((node) => node.id));
+    const preferred = (tree.outputNodeIds ?? []).filter((id) => ids.has(id));
+    if (preferred.length) return preferred.length;
+    const parents = new Set(tree.nodes.flatMap((node) =>
+      node.connections
+        .filter((connection) => ids.has(connection.childId))
+        .map(() => node.id)));
+    return tree.nodes.filter((node) => !parents.has(node.id)).length;
+  }
+
+  toggleSubtreeAnchor(id: string): void {
+    this.selectedNodeId.set(id);
+    const wasEmpty = this.subtreeAnchorIds().size === 0;
+    this.subtreeAnchorIds.update((anchors) => {
+      const next = new Set(anchors);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    if (wasEmpty && !this.subtreeName().trim()) {
+      const selectedName = this.selectedNode()?.name ?? 'Komponente';
+      this.subtreeName.set(`${selectedName} Komponente`);
+    }
   }
 
   selectConnection(event: PointerEvent, targetId: string): void {
@@ -185,6 +320,7 @@ export class FlowerEditorComponent {
   }
 
   addNode(): void {
+    this.addMenuOpen.set(false);
     const existing = new Set(this.draft().nodes.map((node) => node.id));
     let index = this.draft().nodes.length + 1;
     while (existing.has(`node-${index}`)) index++;
@@ -205,7 +341,19 @@ export class FlowerEditorComponent {
     this.selectNode(node.id);
   }
 
+  toggleAddMenu(): void {
+    this.addMenuOpen.update((open) => !open);
+    if (!this.addMenuOpen()) this.componentSearch.set('');
+  }
+
+  insertComponentFromAddMenu(tree: FlowerSubtreeDefinition): void {
+    this.insertSavedTree(tree);
+    this.addMenuOpen.set(false);
+    this.componentSearch.set('');
+  }
+
   addLoop(): void {
+    this.addMenuOpen.set(false);
     const existing = new Set(this.draft().nodes.map((node) => node.id));
     let index = 1;
     while (existing.has(`loop-${index}`)) index++;
@@ -252,6 +400,20 @@ export class FlowerEditorComponent {
     this.previewRotation.update((rotation) => rotation + delta.yaw);
     this.previewPitch.update((pitch) =>
       Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, pitch + delta.pitch)));
+  }
+
+  panPreview(delta: {dx: number; dy: number}): void {
+    this.previewViewOffset.update((offset) => ({
+      x: offset.x + delta.dx,
+      y: offset.y + delta.dy,
+    }));
+  }
+
+  resetPreviewView(): void {
+    this.previewViewOffset.set({x: 0, y: 0});
+    this.previewPitch.set(0);
+    this.previewRotation.set(0);
+    this.previewZoom.set(1);
   }
 
   graphPointerDown(event: PointerEvent): void {
@@ -516,6 +678,10 @@ export class FlowerEditorComponent {
   startNodeDrag(event: PointerEvent, nodeId: string): void {
     if (event.button !== 0) return;
     event.stopPropagation();
+    if (event.shiftKey) {
+      this.toggleSubtreeAnchor(nodeId);
+      return;
+    }
     const point = this.graphPoint(event);
     const node = this.graphLayout().nodes.find((candidate) => candidate.id === nodeId);
     if (!node) return;
@@ -530,6 +696,10 @@ export class FlowerEditorComponent {
 
   startConnection(event: PointerEvent, sourceId: string): void {
     event.stopPropagation();
+    if (event.shiftKey) {
+      this.toggleSubtreeAnchor(sourceId);
+      return;
+    }
     const source = this.graphLayout().nodes.find((node) => node.id === sourceId);
     if (!source) return;
     this.selectNode(sourceId);
@@ -539,6 +709,10 @@ export class FlowerEditorComponent {
 
   startLoopPath(event: PointerEvent, loopId: string): void {
     event.stopPropagation();
+    if (event.shiftKey) {
+      this.toggleSubtreeAnchor(loopId);
+      return;
+    }
     const source = this.graphLayout().nodes.find((node) => node.id === loopId);
     if (!source) return;
     this.selectNode(loopId);
@@ -673,6 +847,120 @@ export class FlowerEditorComponent {
     this.selectNode(targetId);
   }
 
+  exportSelectedSubtree(): void {
+    const selection = this.subtreeSelection();
+    if (!selection) {
+      this.notify('Markiere mindestens einen zusammenhängenden Knoten.');
+      return;
+    }
+    const name = this.subtreeName().trim()
+      || this.draft().nodes.find((node) => node.id === selection.rootNodeId)?.name
+      || 'Komponente';
+    const id = this.uniqueSubtreeId(name);
+    const tree = createFlowerSubtree(
+      this.draft(),
+      this.graphPositions(),
+      selection,
+      {id, name},
+    );
+    this.subtreeLibrary.save(tree);
+    downloadJson(tree, `${tree.id}.tree.json`);
+    this.notify(`„${tree.name}“ wurde als Komponente gespeichert und exportiert.`);
+  }
+
+  extractSelectedSubtree(): void {
+    const selection = this.subtreeSelection();
+    if (!selection) {
+      this.notify('Markiere mit Shift mindestens einen Knoten.');
+      return;
+    }
+    const name = this.subtreeName().trim()
+      || this.draft().nodes.find((node) => node.id === selection.rootNodeId)?.name
+      || 'Komponente';
+    const id = this.uniqueSubtreeId(name);
+    try {
+      const extracted = extractFlowerSubtreeComponent(
+        this.draft(),
+        this.graphPositions(),
+        selection,
+        {id, name},
+      );
+      this.subtreeLibrary.save(extracted.subtree);
+      this.draft.set(extracted.definition);
+      this.graphPositions.set(extracted.nodePositions);
+      this.subtreeAnchorIds.set(new Set());
+      this.subtreeName.set('');
+      this.selectNode(extracted.insertedNodeId);
+      this.notify(`„${name}“ wurde als ein Komponentenknoten extrahiert.`);
+    } catch (error: unknown) {
+      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht extrahiert werden.');
+    }
+  }
+
+  insertSavedTree(tree: FlowerSubtreeDefinition): void {
+    const parentId = this.selectedNodeId();
+    try {
+      const inserted = insertFlowerSubtree(
+        this.draft(),
+        this.graphPositions(),
+        tree,
+        parentId,
+      );
+      this.draft.set(inserted.definition);
+      this.graphPositions.set(inserted.nodePositions);
+      this.subtreeAnchorIds.set(new Set());
+      this.selectNode(inserted.insertedNodeId);
+      this.notify(`„${tree.name}“ wurde als Komponentenknoten angehängt.`);
+    } catch (error: unknown) {
+      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
+    }
+  }
+
+  selectCatalogEntry(key: string): void {
+    const entry = this.componentCatalog().find((candidate) => candidate.key === key);
+    if (!entry) return;
+    if (entry.source === 'definition') {
+      const definition = this.store.definitions().find((candidate) => candidate.id === entry.tree.id);
+      if (definition) this.loadDefinition(definition, key);
+      return;
+    }
+    this.loadDefinition(this.definitionFromComponent(entry.tree, 'component'), key);
+  }
+
+  downloadSavedTree(tree: FlowerSubtreeDefinition): void {
+    downloadJson(tree, `${tree.id}.tree.json`);
+  }
+
+  removeSavedTree(id: string): void {
+    this.subtreeLibrary.remove(id);
+    this.notify('Komponente aus der Bibliothek entfernt.');
+  }
+
+  saveComponentAsFlower(tree: FlowerSubtreeDefinition): void {
+    const definition = {
+      ...this.definitionFromComponent(tree, 'flower'),
+      id: this.uniqueDefinitionId(tree.id || tree.name),
+    };
+    this.store.replaceDefinition(definition);
+    this.notify(`„${definition.name}“ ist jetzt als fertige Blume verfügbar.`);
+  }
+
+  async importTree(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const tree = await readJsonFile<unknown>(file);
+      if (!isFlowerSubtreeDefinition(tree)) throw new Error('Keine gültige Komponenten-Datei.');
+      const imported = this.subtreeLibrary.import(tree);
+      this.notify(`„${imported.name}“ wurde zu den Komponenten hinzugefügt.`);
+    } catch (error: unknown) {
+      this.notify(error instanceof Error ? error.message : 'Komponenten-Import fehlgeschlagen.');
+    } finally {
+      input.value = '';
+    }
+  }
+
   async saveToCatalog(): Promise<void> {
     const definition = this.definitionWithEditorState();
     const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
@@ -684,15 +972,7 @@ export class FlowerEditorComponent {
       ? this.store.definitions().map((candidate) => candidate.id === definition.id ? definition : candidate)
       : [...this.store.definitions(), definition];
     try {
-      const response = await fetch('/api/defaults', {
-        method: 'PUT',
-        headers: {'content-type': 'application/json'},
-        body: JSON.stringify(definitions),
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null) as {error?: string} | null;
-        throw new Error(body?.error ?? `Defaults-Server antwortet mit ${response.status}.`);
-      }
+      await this.writeDefinitionsToDefaults(definitions);
       this.draft.set(definition);
       this.store.replaceDefinition(definition);
       this.notify('In src/app/core/data/default-flowers.ts gespeichert.');
@@ -701,6 +981,57 @@ export class FlowerEditorComponent {
         saveError instanceof Error
           ? `Lokales Speichern fehlgeschlagen: ${saveError.message}`
           : 'Lokales Speichern fehlgeschlagen.',
+      );
+    }
+  }
+
+  async deleteSelectedCatalogEntry(): Promise<void> {
+    const entry = this.selectedCatalogEntry();
+    if (!entry) return;
+    if (entry.source === 'saved') {
+      this.deleteSavedCatalogEntry(entry);
+      return;
+    }
+    if (this.store.definitions().length <= 1) {
+      this.notify('Mindestens eine Definition muss erhalten bleiben.');
+      return;
+    }
+
+    const definition = this.store.definitions().find((candidate) => candidate.id === entry.tree.id);
+    if (!definition) return;
+    const usage = this.store.definitionUsage(definition.id);
+    const usageLines: string[] = [];
+    if (usage.bouquetInstances > 0) {
+      usageLines.push(
+        `${usage.bouquetInstances} ${usage.bouquetInstances === 1 ? 'Blume im aktuellen Strauß wird' : 'Blumen im aktuellen Strauß werden'} ebenfalls entfernt.`,
+      );
+    }
+    if (usage.componentDefinitions.length > 0) {
+      usageLines.push(
+        `Als Teilkomponente verwendet in: ${usage.componentDefinitions.map((entry) => entry.name).join(', ')}. Die dort eingebetteten Kopien bleiben erhalten.`,
+      );
+    }
+
+    const warning = usageLines.length
+      ? `„${definition.name}“ wird aktuell verwendet.\n\n${usageLines.join('\n')}\n\nDefinition trotzdem löschen?`
+      : `Definition „${definition.name}“ wirklich löschen?`;
+    if (!globalThis.confirm(warning)) return;
+    if (usageLines.length && !globalThis.confirm(
+      `„${definition.name}“ ist in Benutzung. Das Löschen jetzt endgültig bestätigen.`,
+    )) return;
+
+    const definitions = this.store.definitions().filter((candidate) => candidate.id !== definition.id);
+    try {
+      await this.writeDefinitionsToDefaults(definitions);
+      this.store.removeDefinition(definition.id);
+      const nextDefinition = definitions[0];
+      if (nextDefinition) this.loadDefinition(nextDefinition);
+      this.notify(`„${definition.name}“ wurde gelöscht.`);
+    } catch (deleteError: unknown) {
+      this.notify(
+        deleteError instanceof Error
+          ? `Löschen fehlgeschlagen: ${deleteError.message}`
+          : 'Löschen fehlgeschlagen.',
       );
     }
   }
@@ -744,14 +1075,53 @@ export class FlowerEditorComponent {
     return id;
   }
 
+  private uniqueSubtreeId(seed: string): string {
+    const existing = new Set(this.savedTrees().map((tree) => tree.id));
+    const base = slugify(seed) || 'tree';
+    let id = base;
+    let suffix = 2;
+    while (existing.has(id)) id = `${base}-${suffix++}`;
+    return id;
+  }
+
   private notify(message: string): void {
     this.snackBar.open(message);
   }
 
-  private loadDefinition(definition: FlowerDefinition): void {
+  private async writeDefinitionsToDefaults(definitions: FlowerDefinition[]): Promise<void> {
+    const response = await fetch('/api/defaults', {
+      method: 'PUT',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify(definitions),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as {error?: string} | null;
+      throw new Error(body?.error ?? `Defaults-Server antwortet mit ${response.status}.`);
+    }
+  }
+
+  private deleteSavedCatalogEntry(entry: FlowerComponentCatalogEntry): void {
+    const usage = this.store.componentUsage(entry.tree.id);
+    const warning = usage.length
+      ? `„${entry.tree.name}“ wird als Teilkomponente verwendet in: ${usage.map((definition) => definition.name).join(', ')}.\n\nDie eingebetteten Kopien bleiben erhalten. Bibliothekseintrag trotzdem löschen?`
+      : `Bibliothekseintrag „${entry.tree.name}“ wirklich löschen?`;
+    if (!globalThis.confirm(warning)) return;
+    if (usage.length && !globalThis.confirm(
+      `„${entry.tree.name}“ ist in Benutzung. Das Löschen jetzt endgültig bestätigen.`,
+    )) return;
+
+    this.subtreeLibrary.remove(entry.tree.id);
+    const nextDefinition = this.store.definitions()[0];
+    if (nextDefinition) this.loadDefinition(nextDefinition);
+    this.notify(`„${entry.tree.name}“ wurde aus der Komponentenbibliothek gelöscht.`);
+  }
+
+  private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
     const clone = migrateIncomingConnections(definition);
     this.draft.set(clone);
+    this.selectedCatalogKey.set(catalogKey);
     this.graphPositions.set(materializePositions(clone));
+    this.subtreeAnchorIds.set(new Set());
     this.selectNode(clone.rootNodeId);
   }
 
@@ -760,6 +1130,34 @@ export class FlowerEditorComponent {
       ...this.draft(),
       editor: {nodePositions: structuredClone(this.graphPositions())},
     };
+  }
+
+  private definitionFromComponent(tree: FlowerSubtreeDefinition, role: 'flower' | 'component'): FlowerDefinition {
+    const rootPosition = {x: 500, y: 840};
+    const relativePositions = tree.editor?.nodePositions ?? {};
+    return {
+      schemaVersion: 2,
+      id: tree.id,
+      name: tree.name,
+      catalogRole: role,
+      catalogIcon: {symbol: '✿', color: this.draft().catalogIcon?.color ?? '#5b8d53'},
+      rootNodeId: tree.rootNodeId,
+      stem: structuredClone(this.draft().stem),
+      nodes: structuredClone(tree.nodes),
+      editor: {
+        nodePositions: Object.fromEntries(tree.nodes.map((node) => {
+          const relative = relativePositions[node.id] ?? {x: 0, y: 0};
+          return [node.id, {
+            x: rootPosition.x + relative.x,
+            y: rootPosition.y + relative.y,
+          }];
+        })),
+      },
+    };
+  }
+
+  private previewColorFromDefinition(definition: FlowerDefinition): string {
+    return [...definition.nodes].reverse().find((node) => node.graphic)?.graphic?.color ?? '#5b8d53';
   }
 
   private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {
@@ -835,6 +1233,16 @@ function slugify(value: string): string {
     .replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function normalizeSearch(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss');
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

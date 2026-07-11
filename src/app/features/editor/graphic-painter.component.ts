@@ -168,11 +168,10 @@ export class GraphicPainterComponent implements AfterViewInit {
   }
 }
 
-function leafPath(context: CanvasRenderingContext2D, primitive: FlowerNodeGraphic['primitive']): void {
-  const canonical = canonicalGraphicPrimitive(primitive ?? 'leaf-pointed');
+function leafPath(context: CanvasRenderingContext2D, primitive: FlowerNodeGraphic['primitive'] = 'leaf-pointed'): void {
   context.beginPath();
   context.moveTo(0.5, 1);
-  if (canonical === 'leaf-serrated') {
+  if (primitive === 'leaf-serrated') {
     context.lineTo(0.23, 0.84);
     context.lineTo(0.3, 0.75);
     context.lineTo(0.14, 0.62);
@@ -187,7 +186,7 @@ function leafPath(context: CanvasRenderingContext2D, primitive: FlowerNodeGraphi
     context.lineTo(0.7, 0.75);
     context.lineTo(0.77, 0.84);
   } else {
-    const shoulder = canonical === 'leaf-round' ? 0.12 : 0.3;
+    const shoulder = primitive === 'leaf-round' ? 0.12 : 0.3;
     context.bezierCurveTo(0.12, 0.82, 0.08, shoulder, 0.5, 0);
     context.bezierCurveTo(0.92, shoulder, 0.88, 0.82, 0.5, 1);
   }

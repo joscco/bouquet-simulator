@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
-import {generateFlowerTree} from './flower-tree';
+import {flattenFlowerTemplates, generateFlowerTree} from './flower-tree';
 
 describe('procedural flower tree generator', () => {
   it('connects every generated node to the base node', () => {
@@ -25,7 +25,7 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
     const stemNodes = tree.nodes.filter((node) => node.templateId === 'stem');
     const leafNodes = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const petalNodes = tree.nodes.filter((node) => node.templateId === 'petal');
+    const petalNodes = tree.nodes.filter((node) => isTemplate(node.templateId, 'petal'));
 
     expect(stemNodes.length).toBeGreaterThanOrEqual(2);
     expect(new Set(leafNodes.map((node) => node.parentId))).toEqual(new Set(stemNodes.map((node) => node.id)));
@@ -40,7 +40,7 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const blooms = tree.nodes.filter((node) => node.templateId === 'bloom');
+    const blooms = tree.nodes.filter((node) => isTemplate(node.templateId, 'bloom'));
 
     expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
     expect(stems.slice(1).map((node) => node.parentId)).toEqual(stems.slice(0, -1).map((node) => node.id));
@@ -56,7 +56,7 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(definition, 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const bloom = tree.nodes.find((node) => node.templateId === 'bloom');
+    const bloom = tree.nodes.find((node) => isTemplate(node.templateId, 'bloom'));
 
     expect(stems).toHaveLength(2);
     expect(leaves).toHaveLength(2);
@@ -73,7 +73,7 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(definition, 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const bloom = tree.nodes.find((node) => node.templateId === 'bloom');
+    const bloom = tree.nodes.find((node) => isTemplate(node.templateId, 'bloom'));
 
     expect(stems).toHaveLength(3);
     expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
@@ -83,10 +83,10 @@ describe('procedural flower tree generator', () => {
 
   it('applies a node offset before positioning its descendants', () => {
     const baseTree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
-    const bloom = baseTree.nodes.find((node) => node.templateId === 'bloom')!;
+    const bloom = baseTree.nodes.find((node) => isTemplate(node.templateId, 'bloom'))!;
     const movedTree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31, {[bloom.id]: {x: 20, y: -15}});
     const movedBloom = movedTree.nodes.find((node) => node.id === bloom.id)!;
-    const basePetal = baseTree.nodes.find((node) => node.templateId === 'petal')!;
+    const basePetal = baseTree.nodes.find((node) => isTemplate(node.templateId, 'petal'))!;
     const movedPetal = movedTree.nodes.find((node) => node.id === basePetal.id)!;
 
     expect(movedBloom.x - bloom.x).toBeCloseTo(20);
@@ -135,15 +135,21 @@ describe('procedural flower tree generator', () => {
   it('keeps the source connection on every generated edge', () => {
     const definition = DEFAULT_FLOWERS[0];
     const tree = generateFlowerTree(definition, 0.31);
-    const templates = new Map(definition.nodes.map((node) => [node.id, node]));
+    const templates = flattenFlowerTemplates(definition);
     const generatedNodes = new Map(tree.nodes.map((node) => [node.id, node]));
 
     for (const edge of tree.edges) {
       const connection = templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex];
       expect(connection).toBeDefined();
       const target = connection ? templates.get(connection.childId) : null;
-      const expectedTemplateId = target?.loop?.startNodeId ?? connection?.childId;
+      const expectedTemplateId = target?.component
+        ? `${target.id}::${target.component.rootNodeId}`
+        : target?.loop?.startNodeId ?? connection?.childId;
       expect(generatedNodes.get(edge.to)?.templateId).toBe(expectedTemplateId);
     }
   });
 });
+
+function isTemplate(actual: string, expected: string): boolean {
+  return actual === expected || actual.endsWith(`::${expected}`);
+}

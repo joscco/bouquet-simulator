@@ -35,6 +35,16 @@ export interface FlowerTree {
 
 const MAX_GENERATED_NODES = 600;
 const MAX_EXPANSION_DEPTH = 24;
+const COMPONENT_SEPARATOR = '::';
+
+export function flattenFlowerTemplates(definition: FlowerDefinition): Map<string, FlowerNodeDefinition> {
+  const templates = new Map<string, FlowerNodeDefinition>();
+  for (const node of definition.nodes) {
+    templates.set(node.id, node);
+    if (node.component) addComponentTemplates(templates, node.id, node.component.nodes);
+  }
+  return templates;
+}
 
 /**
  * Expands a procedural node-template graph into a concrete, deterministic tree.
@@ -47,7 +57,7 @@ export function generateFlowerTree(
   offsets: Record<string, NodeOffset> = {},
 ): FlowerTree {
   const random = mulberry32(Math.floor(seed * 0xffffffff) || 1);
-  const templates = new Map(definition.nodes.map((node) => [node.id, node]));
+  const templates = flattenFlowerTemplates(definition);
   const rootTemplate = templates.get(definition.rootNodeId);
   if (!rootTemplate) throw new Error(`Basisknoten "${definition.rootNodeId}" fehlt.`);
 
@@ -87,6 +97,20 @@ export function generateFlowerTree(
       const childTemplate = templates.get(connection.childId);
       if (!childTemplate || ancestors.has(childTemplate.id)) continue;
       const count = randomInteger(connection.repeat, random);
+      if (childTemplate.component) {
+        for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
+          expandComponent(
+            parent,
+            childTemplate,
+            connection,
+            template.id,
+            connectionIndex,
+            new Set([...ancestors, childTemplate.id]),
+            expansionDepth + 1,
+          );
+        }
+        continue;
+      }
       if (childTemplate.loop) {
         for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
           expandLoop(
@@ -117,6 +141,90 @@ export function generateFlowerTree(
           new Set([...ancestors, childTemplate.id]),
           expansionDepth + 1,
         );
+      }
+    }
+  }
+
+  function expandComponent(
+    parent: FlowerTreeNode,
+    componentTemplate: FlowerNodeDefinition,
+    entryConnection: FlowerNodeConnection,
+    entrySourceId: string,
+    entryConnectionIndex: number,
+    ancestors: Set<string>,
+    expansionDepth: number,
+  ): void {
+    const component = componentTemplate.component;
+    if (!component || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
+    const rootKey = componentTemplateKey(componentTemplate.id, component.rootNodeId);
+    if (!templates.has(rootKey)) return;
+    const firstInternalIndex = nodes.length;
+    const root = addNode(
+      parent,
+      rootKey,
+      entryConnection,
+      entrySourceId,
+      entryConnectionIndex,
+      0,
+      1,
+    );
+    expandChildren(root, rootKey, new Set([...ancestors, rootKey]), expansionDepth + 1);
+    const outputKeys = new Set(componentOutputNodeIds(componentTemplate).map((id) =>
+      componentTemplateKey(componentTemplate.id, id)));
+    const outputNodes = nodes
+      .slice(firstInternalIndex)
+      .filter((node) => outputKeys.has(node.templateId));
+    expandComponentExternalChildren(
+      outputNodes.length ? outputNodes : [root],
+      componentTemplate.id,
+      ancestors,
+      expansionDepth + 1,
+    );
+  }
+
+  function expandComponentExternalChildren(
+    parents: FlowerTreeNode[],
+    componentTemplateId: string,
+    ancestors: Set<string>,
+    expansionDepth: number,
+  ): void {
+    const template = templates.get(componentTemplateId);
+    if (!template) return;
+    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
+      const connection = effectiveConnection(definition, legacyConnection);
+      const childTemplate = templates.get(connection.childId);
+      if (!childTemplate || ancestors.has(childTemplate.id)) continue;
+      const count = randomInteger(connection.repeat, random);
+      for (const parent of parents) {
+        for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
+          if (childTemplate.component) {
+            expandComponent(
+              parent,
+              childTemplate,
+              connection,
+              template.id,
+              connectionIndex,
+              new Set([...ancestors, childTemplate.id]),
+              expansionDepth + 1,
+            );
+            continue;
+          }
+          const child = addNode(
+            parent,
+            childTemplate.id,
+            connection,
+            template.id,
+            connectionIndex,
+            index,
+            count,
+          );
+          expandChildren(
+            child,
+            childTemplate.id,
+            new Set([...ancestors, childTemplate.id]),
+            expansionDepth + 1,
+          );
+        }
       }
     }
   }
@@ -274,6 +382,57 @@ export function generateFlowerTree(
     edges.push({from: parent.id, to: id, connectionSourceId, connectionIndex});
     return node;
   }
+}
+
+function addComponentTemplates(
+  templates: Map<string, FlowerNodeDefinition>,
+  ownerId: string,
+  nodes: FlowerNodeDefinition[],
+): void {
+  const internalIds = new Set(nodes.map((node) => node.id));
+  for (const node of nodes) {
+    const key = componentTemplateKey(ownerId, node.id);
+    const clone: FlowerNodeDefinition = {
+      ...structuredClone(node),
+      id: key,
+      connections: node.connections
+        .filter((connection) => internalIds.has(connection.childId))
+        .map((connection) => ({
+          ...connection,
+          childId: componentTemplateKey(ownerId, connection.childId),
+        })),
+      loop: node.loop ? {
+        ...node.loop,
+        startNodeId: node.loop.startNodeId && internalIds.has(node.loop.startNodeId)
+          ? componentTemplateKey(ownerId, node.loop.startNodeId)
+          : null,
+        endNodeId: node.loop.endNodeId && internalIds.has(node.loop.endNodeId)
+          ? componentTemplateKey(ownerId, node.loop.endNodeId)
+          : null,
+      } : undefined,
+    };
+    templates.set(key, clone);
+    if (node.component) addComponentTemplates(templates, key, node.component.nodes);
+  }
+}
+
+function componentTemplateKey(ownerId: string, nodeId: string): string {
+  return `${ownerId}${COMPONENT_SEPARATOR}${nodeId}`;
+}
+
+function componentOutputNodeIds(componentTemplate: FlowerNodeDefinition): string[] {
+  const component = componentTemplate.component;
+  if (!component) return [];
+  const ids = new Set(component.nodes.map((node) => node.id));
+  const preferred = [...new Set(component.outputNodeIds ?? [])].filter((id) => ids.has(id));
+  if (preferred.length) return preferred;
+  const parents = new Set(component.nodes.flatMap((node) =>
+    node.connections
+      .filter((connection) => ids.has(connection.childId))
+      .map(() => node.id)));
+  return component.nodes
+    .filter((node) => !parents.has(node.id))
+    .map((node) => node.id);
 }
 
 function randomRange(range: NumberRange, random: () => number): number {

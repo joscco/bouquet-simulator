@@ -25,8 +25,6 @@ export const BUILT_IN_GRAPHICS: ReadonlyArray<{
 ];
 
 export function canonicalGraphicPrimitive(primitive: GraphicPrimitive): GraphicPrimitive {
-  if (primitive === 'petal-pointed') return 'leaf-pointed';
-  if (primitive === 'petal-round') return 'leaf-round';
   return primitive;
 }
 
@@ -38,19 +36,18 @@ export function createBuiltInGeometry(
   bendMain = 0,
   bendCross = 0,
 ): BufferGeometry {
-  const canonical = canonicalGraphicPrimitive(primitive);
-  if (canonical === 'sphere') {
+  if (primitive === 'sphere') {
     const geometry = new SphereGeometry(0.5, 20, 14);
     geometry.scale(width, height, depth);
     return geometry;
   }
-  if (canonical === 'rod') {
+  if (primitive === 'rod') {
     const geometry = new CylinderGeometry(0.5, 0.5, 1, 12);
     geometry.translate(0, 0.5, 0);
     geometry.scale(width, height, depth);
     return geometry;
   }
-  return createLeafGeometry(canonical, width, height, depth, bendMain, bendCross);
+  return createLeafGeometry(primitive, width, height, depth, bendMain, bendCross);
 }
 
 function createLeafGeometry(

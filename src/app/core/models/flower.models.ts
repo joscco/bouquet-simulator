@@ -12,10 +12,6 @@ export type GraphicPrimitive =
   | 'leaf-pointed'
   | 'leaf-round'
   | 'leaf-serrated'
-  /** @deprecated Alte Dateien werden weiterhin geladen; entspricht leaf-pointed. */
-  | 'petal-pointed'
-  /** @deprecated Alte Dateien werden weiterhin geladen; entspricht leaf-round. */
-  | 'petal-round'
   | 'sphere'
   | 'rod'
   | 'png';
@@ -76,6 +72,21 @@ export interface FlowerNodeGraphic {
   end: GraphicPoint;
 }
 
+export interface FlowerNodeComponent {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  rootNodeId: string;
+  /** Interne Knoten, an denen externe Nachfolger einer Komponente weiterwachsen. */
+  outputNodeIds?: string[];
+  createdAt?: string;
+  sourceDefinitionId?: string;
+  nodes: FlowerNodeDefinition[];
+  editor?: {
+    nodePositions: Record<string, {x: number; y: number}>;
+  };
+}
+
 export interface FlowerNodeDefinition {
   id: string;
   name: string;
@@ -89,12 +100,19 @@ export interface FlowerNodeDefinition {
     startNodeId: string | null;
     endNodeId: string | null;
   };
+  component?: FlowerNodeComponent;
 }
 
 export interface FlowerDefinition {
   schemaVersion: 2;
   id: string;
   name: string;
+  /** Nur fertige Blumen erscheinen im Strauß-Editor; Komponenten bleiben im Flower-Editor wiederverwendbar. */
+  catalogRole?: 'flower' | 'component';
+  catalogIcon?: {
+    symbol: string;
+    color: string;
+  };
   rootNodeId: string;
   stem: {
     color: string;
@@ -124,6 +142,8 @@ export interface BouquetFlower {
   leanX?: number;
   leanZ?: number;
   seed: number;
+  /** 0 = vollständig, 1 = von unten maximal gekürzt. */
+  cutRatio?: number;
   nodeOffsets?: Record<string, NodeOffset>;
 }
 

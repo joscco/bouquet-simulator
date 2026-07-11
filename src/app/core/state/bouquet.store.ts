@@ -1,7 +1,18 @@
 import {computed, Injectable, signal} from '@angular/core';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
-import {BouquetFlower, BouquetState, FlowerDefinition, ProjectExport} from '../models/flower.models';
+import {
+  BouquetFlower,
+  BouquetState,
+  FlowerDefinition,
+  FlowerNodeComponent,
+  ProjectExport,
+} from '../models/flower.models';
 import {validateFlowerDefinition} from '../models/flower-validation';
+
+export interface DefinitionUsage {
+  bouquetInstances: number;
+  componentDefinitions: Array<{id: string; name: string}>;
+}
 
 @Injectable({providedIn: 'root'})
 export class BouquetStore {
@@ -38,6 +49,30 @@ export class BouquetStore {
     }));
   }
 
+  copyFlower(instanceId: string): void {
+    this.state.update((state) => {
+      const source = state.flowers.find((flower) => flower.instanceId === instanceId);
+      if (!source) return state;
+      const copy: BouquetFlower = {
+        ...structuredClone(source),
+        instanceId: this.createInstanceId(),
+        x: clamp(source.x + 4, -30, 30),
+        z: clamp(source.z + 4, -30, 30),
+      };
+      return {...state, flowers: [...state.flowers, copy]};
+    });
+  }
+
+  setFlowerCut(instanceId: string, cutRatio: number): void {
+    this.state.update((state) => ({
+      ...state,
+      flowers: state.flowers.map((flower) =>
+        flower.instanceId === instanceId
+          ? {...flower, cutRatio: clamp(cutRatio, 0, 0.98)}
+          : flower),
+    }));
+  }
+
   setRotation(rotation: number): void {
     this.state.update((state) => ({...state, rotation}));
   }
@@ -62,6 +97,35 @@ export class BouquetStore {
       if (existing < 0) return [...definitions, structuredClone(definition)];
       return definitions.map((candidate, index) => index === existing ? structuredClone(definition) : candidate);
     });
+  }
+
+  definitionUsage(definitionId: string): DefinitionUsage {
+    const componentDefinitions = this.definitions()
+      .filter((definition) => definition.id !== definitionId)
+      .filter((definition) => definition.nodes.some((node) =>
+        componentMatches(node.component, definitionId, true)))
+      .map((definition) => ({id: definition.id, name: definition.name}));
+
+    return {
+      bouquetInstances: this.state().flowers.filter((flower) => flower.definitionId === definitionId).length,
+      componentDefinitions,
+    };
+  }
+
+  componentUsage(componentId: string): Array<{id: string; name: string}> {
+    return this.definitions()
+      .filter((definition) => definition.nodes.some((node) =>
+        componentMatches(node.component, componentId, false)))
+      .map((definition) => ({id: definition.id, name: definition.name}));
+  }
+
+  removeDefinition(definitionId: string): void {
+    this.definitions.update((definitions) =>
+      definitions.filter((definition) => definition.id !== definitionId));
+    this.state.update((state) => ({
+      ...state,
+      flowers: state.flowers.filter((flower) => flower.definitionId !== definitionId),
+    }));
   }
 
   exportProject(): ProjectExport {
@@ -132,7 +196,7 @@ export class BouquetStore {
     leanZ = 0,
   ): BouquetFlower {
     return {
-      instanceId: globalThis.crypto?.randomUUID?.() ?? `flower-${Date.now()}-${Math.random()}`,
+      instanceId: this.createInstanceId(),
       definitionId,
       x,
       y,
@@ -144,6 +208,10 @@ export class BouquetStore {
       nodeOffsets: {},
     };
   }
+
+  private createInstanceId(): string {
+    return globalThis.crypto?.randomUUID?.() ?? `flower-${Date.now()}-${Math.random()}`;
+  }
 }
 
 export function moveFlowerInsideVase(
@@ -154,8 +222,8 @@ export function moveFlowerInsideVase(
   bouquetRotation: number,
 ): BouquetFlower {
   const insertionRadius = 30;
-  let x = flower.x + deltaX * 0.16;
-  let z = flower.z + deltaZ * 0.16;
+  let x = flower.x + deltaX * 0.32;
+  let z = flower.z + deltaZ * 0.32;
   const radius = Math.hypot(x, z);
   if (radius > insertionRadius) {
     x = x / radius * insertionRadius;
@@ -177,7 +245,7 @@ export function moveFlowerInsideVase(
   return {
     ...flower,
     x,
-    y: clamp(flower.y + deltaY * 0.015, -18, -14),
+    y: clamp(flower.y + deltaY * 0.03, -18, -14),
     z,
     leanX,
     leanZ,
@@ -186,4 +254,14 @@ export function moveFlowerInsideVase(
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function componentMatches(
+  component: FlowerNodeComponent | undefined,
+  id: string,
+  matchSourceDefinition: boolean,
+): boolean {
+  if (!component) return false;
+  if (component.id === id || (matchSourceDefinition && component.sourceDefinitionId === id)) return true;
+  return component.nodes.some((node) => componentMatches(node.component, id, matchSourceDefinition));
 }

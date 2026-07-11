@@ -11,6 +11,9 @@ export interface GraphNode extends Point {
   name: string;
   root: boolean;
   hasGraphic: boolean;
+  component: boolean;
+  componentNodeCount: number;
+  componentOutputCount: number;
   loop: boolean;
   loopStartName: string;
   loopEndName: string;
@@ -55,19 +58,25 @@ export function createGraphLayout(
   for (let pass = 0; pass < definition.nodes.length; pass++) {
     for (const node of definition.nodes) {
       const level = levels.get(node.id);
-      if (level === undefined) continue;
+      if (level === undefined) {
+        continue;
+      }
       if (node.loop?.startNodeId && !levels.has(node.loop.startNodeId)) {
         levels.set(node.loop.startNodeId, level + 1);
       }
       for (const legacyConnection of node.connections) {
         const connection = effectiveConnection(definition, legacyConnection);
-        if (!levels.has(connection.childId)) levels.set(connection.childId, level + 1);
+        if (!levels.has(connection.childId)) {
+          levels.set(connection.childId, level + 1);
+        }
       }
     }
   }
   const connectedMax = Math.max(0, ...levels.values());
   for (const node of definition.nodes) {
-    if (!levels.has(node.id)) levels.set(node.id, connectedMax + 1);
+    if (!levels.has(node.id)) {
+      levels.set(node.id, connectedMax + 1);
+    }
   }
   const maxLevel = Math.max(1, ...levels.values());
   const groups = new Map<number, FlowerNodeDefinition[]>();
@@ -98,6 +107,9 @@ export function createGraphLayout(
         y: position.y,
         root: node.id === definition.rootNodeId,
         hasGraphic: !!node.graphic,
+        component: !!node.component,
+        componentNodeCount: node.component?.nodes.length ?? 0,
+        componentOutputCount: node.component ? componentOutputCount(node.component.nodes, node.component.outputNodeIds) : 0,
         loop: !!node.loop,
         loopStartName: definition.nodes.find((candidate) =>
           candidate.id === node.loop?.startNodeId)?.name ?? 'Start wählen',
@@ -105,14 +117,16 @@ export function createGraphLayout(
           candidate.id === node.loop?.endNodeId)?.name ?? 'Ende wählen',
         loopMember: false,
         memberIds: [],
-        width: node.loop ? 260 : 172,
-        height: node.loop ? 170 : 78,
+        width: node.loop ? 260 : node.component ? 196 : 172,
+        height: node.loop ? 170 : node.component ? 88 : 78,
       });
     });
   }
   for (const definitionNode of definition.nodes.filter((node) => node.loop)) {
     const loopNode = graphNodes.find((node) => node.id === definitionNode.id);
-    if (!loopNode || !definitionNode.loop?.startNodeId || !definitionNode.loop.endNodeId) continue;
+    if (!loopNode || !definitionNode.loop?.startNodeId || !definitionNode.loop.endNodeId) {
+      continue;
+    }
     const memberIds = templatePath(
       definition,
       definitionNode.loop.startNodeId,
@@ -121,7 +135,9 @@ export function createGraphLayout(
     const members = memberIds
       .map((id) => graphNodes.find((node) => node.id === id))
       .filter((node): node is GraphNode => !!node);
-    if (!members.length) continue;
+    if (!members.length) {
+      continue;
+    }
     if (!members.every((member) => !!storedPositions[member.id])) {
       arrangeLoopMembers(definition, definitionNode, loopNode, members, graphNodes, height);
     }
@@ -216,11 +232,15 @@ function createEdges(definition: FlowerDefinition, graphNodes: GraphNode[]): Gra
   }
   for (const node of definition.nodes) {
     const from = positions.get(node.id);
-    if (!from) continue;
+    if (!from) {
+      continue;
+    }
     node.connections.forEach((legacyConnection, index) => {
       const connection = effectiveConnection(definition, legacyConnection);
       const to = positions.get(connection.childId);
-      if (!to) return;
+      if (!to) {
+        return;
+      }
       const start = {x: from.x, y: from.y - from.height / 2};
       const end = {x: to.x, y: to.y + to.height / 2};
       edges.push({
@@ -263,22 +283,46 @@ function boundaryEdge(
   };
 }
 
+function componentOutputCount(
+  nodes: FlowerNodeDefinition[],
+  preferred: string[] = [],
+): number {
+  const ids = new Set(nodes.map((node) => node.id));
+  const validPreferred = preferred.filter((id) => ids.has(id));
+  if (validPreferred.length) {
+    return validPreferred.length;
+  }
+  const parents = new Set(nodes.flatMap((node) =>
+    node.connections
+      .filter((connection) => ids.has(connection.childId))
+      .map(() => node.id)));
+  return nodes.filter((node) => !parents.has(node.id)).length;
+}
+
 function templatePath(
   definition: FlowerDefinition,
   startNodeId: string,
   endNodeId: string,
 ): string[] {
-  if (startNodeId === endNodeId) return [startNodeId];
+  if (startNodeId === endNodeId) {
+    return [startNodeId];
+  }
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const visited = new Set<string>();
   const visit = (id: string): string[] | null => {
-    if (visited.has(id)) return null;
+    if (visited.has(id)) {
+      return null;
+    }
     visited.add(id);
     for (const legacyConnection of nodes.get(id)?.connections ?? []) {
       const connection = effectiveConnection(definition, legacyConnection);
-      if (connection.childId === endNodeId) return [id, endNodeId];
+      if (connection.childId === endNodeId) {
+        return [id, endNodeId];
+      }
       const remainder = visit(connection.childId);
-      if (remainder) return [id, ...remainder];
+      if (remainder) {
+        return [id, ...remainder];
+      }
     }
     return null;
   };
