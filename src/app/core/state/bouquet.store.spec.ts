@@ -31,6 +31,18 @@ describe('bouquet flower placement', () => {
       Math.abs(flower.leanX ?? 0) + Math.abs(flower.leanZ ?? 0) > 0.05)).toBe(true);
   });
 
+  it('keeps insertion points inside the narrow bud vase', () => {
+    const store = new BouquetStore();
+
+    store.setVase('bud');
+    store.shuffleBouquet();
+    store.moveFlower(store.state().flowers[0]!.instanceId, 300, 0, 180);
+
+    for (const flower of store.state().flowers) {
+      expect(Math.hypot(flower.x, flower.z)).toBeLessThanOrEqual(14.001);
+    }
+  });
+
   it('copies a flower instance including instance-level settings', () => {
     const store = new BouquetStore();
     const source = store.state().flowers[0]!;

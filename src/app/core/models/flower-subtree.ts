@@ -85,16 +85,16 @@ export function createFlowerSubtree(
 ): FlowerSubtreeDefinition {
   const selectedIds = selection.nodeIds;
   const rootPosition = positions[selection.rootNodeId] ?? {x: 0, y: 0};
-  const nodes = definition.nodes
-    .filter((node) => selectedIds.has(node.id))
-    .map((node) => sanitizeExportedNode(node, selectedIds, node.id === selection.rootNodeId));
+  const selectedNodes = definition.nodes.filter((node) => selectedIds.has(node.id));
+  const nodes = selectedNodes.map((node) =>
+    sanitizeExportedNode(node, selectedIds, node.id === selection.rootNodeId));
 
   return {
     schemaVersion: 1,
     id: metadata.id,
     name: metadata.name,
     rootNodeId: selection.rootNodeId,
-    outputNodeIds: componentOutputNodeIds(nodes),
+    outputNodeIds: componentOutputNodeIds(selectedNodes),
     createdAt: metadata.createdAt ?? new Date().toISOString(),
     sourceDefinitionId: definition.id,
     nodes,
@@ -300,6 +300,8 @@ function sanitizeExportedNode(
       endNodeId: clone.loop.endNodeId && selectedIds.has(clone.loop.endNodeId)
         ? clone.loop.endNodeId
         : null,
+      memberNodeIds: clone.loop.memberNodeIds?.filter((id) => selectedIds.has(id)),
+      continuationOutputNodeIds: clone.loop.continuationOutputNodeIds?.filter((id) => selectedIds.has(id)),
     };
   }
   if (root && !clone.incoming) {
@@ -317,13 +319,17 @@ function componentOutputNodeIds(
   if (validPreferred.length) {
     return validPreferred;
   }
+  const externalParents = nodes
+    .filter((node) => node.connections.some((connection) => !ids.has(connection.childId)))
+    .map((node) => node.id);
   const parents = new Set(nodes.flatMap((node) =>
     node.connections
       .filter((connection) => ids.has(connection.childId))
       .map(() => node.id)));
-  return nodes
+  const leaves = nodes
     .filter((node) => !parents.has(node.id))
     .map((node) => node.id);
+  return [...new Set([...externalParents, ...leaves])];
 }
 
 function incomingParent(

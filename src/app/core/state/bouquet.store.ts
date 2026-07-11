@@ -9,6 +9,7 @@ import {
   ProjectExport,
 } from '../models/flower.models';
 import {validateFlowerDefinition} from '../models/flower-validation';
+import {DEFAULT_VASE_ID, isVaseId, vaseInsertionRadius} from '../data/vases';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -52,7 +53,7 @@ export class BouquetStore {
     const bouquet: BouquetProject = {
       id: this.createBouquetId(),
       name: `Strauß ${nextIndex}`,
-      state: {schemaVersion: 2, rotation: 0, flowers: []},
+      state: {schemaVersion: 2, rotation: 0, vaseId: DEFAULT_VASE_ID, flowers: []},
     };
     this.bouquets.update((bouquets) => [...bouquets, bouquet]);
     this.activeBouquetId.set(bouquet.id);
@@ -144,6 +145,11 @@ export class BouquetStore {
     this.updateActiveBouquetState((state) => ({...state, rotation}));
   }
 
+  setVase(vaseId: string): void {
+    if (!isVaseId(vaseId)) return;
+    this.updateActiveBouquetState((state) => this.withArrangedFlowers({...state, vaseId}));
+  }
+
   rotateBy(delta: number): void {
     this.setRotation(this.state().rotation + delta);
   }
@@ -153,7 +159,7 @@ export class BouquetStore {
       ...state,
       flowers: state.flowers.map((flower) =>
         flower.instanceId === instanceId
-          ? moveFlowerInsideVase(flower, deltaX, deltaY, deltaZ, state.rotation)
+          ? moveFlowerInsideVase(flower, deltaX, deltaY, deltaZ, state.rotation, vaseInsertionRadius(state.vaseId))
           : flower),
     }));
   }
@@ -252,13 +258,14 @@ export class BouquetStore {
   }
 
   resetBouquet(): void {
-    this.updateActiveBouquetState(() => ({schemaVersion: 2, rotation: 0, flowers: []}));
+    this.updateActiveBouquetState(() => ({schemaVersion: 2, rotation: 0, vaseId: DEFAULT_VASE_ID, flowers: []}));
   }
 
   private createInitialBouquet(): BouquetState {
     return {
       schemaVersion: 2,
       rotation: 0,
+      vaseId: DEFAULT_VASE_ID,
       flowers: [
         this.createPlacement('garden-rose', -18, -16, 4, 1.03, 0.04, 0.16),
         this.createPlacement('meadow-daisy', 16, -15, -9, 0.92, -0.08, -0.14),
@@ -312,7 +319,7 @@ export class BouquetStore {
       .map((bouquet, index) => ({
         id: bouquet.id || this.createBouquetId(),
         name: bouquet.name.trim() || `Strauß ${index + 1}`,
-        state: structuredClone(bouquet.state),
+        state: this.normalizedBouquetState(bouquet.state),
       }));
     if (!nextBouquets.length) return;
 
@@ -332,15 +339,23 @@ export class BouquetStore {
     return [{id: this.createBouquetId(), name: 'Strauß 1', state: structuredClone(project.bouquet)}];
   }
 
+  private normalizedBouquetState(state: BouquetState): BouquetState {
+    return {
+      ...structuredClone(state),
+      vaseId: isVaseId(state.vaseId) ? state.vaseId : DEFAULT_VASE_ID,
+    };
+  }
+
   private withArrangedFlowers(state: BouquetState): BouquetState {
     const count = state.flowers.length;
     if (!count) return state;
+    const maximumRadius = Math.max(0, vaseInsertionRadius(state.vaseId) - 2);
     return {
       ...state,
       flowers: state.flowers.map((flower, index) => {
         const angle = index * Math.PI * (3 - Math.sqrt(5)) + flower.seed * Math.PI * 2;
         const seedWave = Math.sin((flower.seed + index) * 31.7);
-        const radius = count === 1 ? 0 : Math.min(28, 9 + Math.sqrt(index) * 7);
+        const radius = count === 1 ? 0 : Math.min(maximumRadius, 6 + Math.sqrt(index) * 6);
         const lean = 0.08 + Math.min(0.16, radius / 150) + seedWave * 0.025;
         return {
           ...flower,
@@ -393,8 +408,8 @@ export function moveFlowerInsideVase(
   deltaY: number,
   deltaZ: number,
   bouquetRotation: number,
+  insertionRadius = vaseInsertionRadius(DEFAULT_VASE_ID),
 ): BouquetFlower {
-  const insertionRadius = 30;
   let x = flower.x + deltaX * 0.32;
   let z = flower.z + deltaZ * 0.32;
   const radius = Math.hypot(x, z);
@@ -431,6 +446,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 
 function isBouquetState(value: unknown): value is BouquetState {
   if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
+  if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
   if (!Array.isArray(value['flowers'])) return false;
 
   return value['flowers'].every((flower) =>

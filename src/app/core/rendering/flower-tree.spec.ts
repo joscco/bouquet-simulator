@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
+import {FlowerDefinition, FlowerNodeConnection, FlowerNodeDefinition} from '../models/flower.models';
 import {flattenFlowerTemplates, generateFlowerTree} from './flower-tree';
 
 describe('procedural flower tree generator', () => {
@@ -81,6 +82,41 @@ describe('procedural flower tree generator', () => {
     expect(bloom?.parentId).toBe(stems.at(-1)?.id);
   });
 
+  it('repeats a framed member subtree and continues from the selected output', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'member-loop',
+      name: 'Member loop',
+      rootNodeId: 'root',
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
+        node('root', [connection('loop')]),
+        {
+          ...node('loop', [connection('bloom')]),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'stem',
+            endNodeId: 'stem',
+            memberNodeIds: ['stem', 'leaf'],
+            continuationOutputNodeIds: ['stem'],
+          },
+        },
+        node('stem', [connection('leaf')]),
+        node('leaf', []),
+        node('bloom', []),
+      ],
+    };
+    const tree = generateFlowerTree(definition, 0.2);
+    const stems = tree.nodes.filter((treeNode) => treeNode.templateId === 'stem');
+    const leaves = tree.nodes.filter((treeNode) => treeNode.templateId === 'leaf');
+    const bloom = tree.nodes.find((treeNode) => treeNode.templateId === 'bloom');
+
+    expect(stems).toHaveLength(2);
+    expect(leaves).toHaveLength(2);
+    expect(stems[1]!.parentId).toBe(stems[0]!.id);
+    expect(bloom?.parentId).toBe(stems[1]!.id);
+  });
+
   it('applies a node offset before positioning its descendants', () => {
     const baseTree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
     const bloom = baseTree.nodes.find((node) => isTemplate(node.templateId, 'bloom'))!;
@@ -158,4 +194,24 @@ function isPetalTemplate(actual: string): boolean {
   return isTemplate(actual, 'petal')
     || isTemplate(actual, 'petal-copy')
     || isTemplate(actual, 'petal-copy-copy');
+}
+
+function node(id: string, connections: FlowerNodeConnection[]): FlowerNodeDefinition {
+  return {
+    id,
+    name: id,
+    draggable: false,
+    graphic: null,
+    connections,
+  };
+}
+
+function connection(childId: string): FlowerNodeConnection {
+  return {
+    childId,
+    repeat: {min: 1, max: 1},
+    length: {min: 10, max: 10},
+    angle: {min: 0, max: 0},
+    randomness: 0,
+  };
 }

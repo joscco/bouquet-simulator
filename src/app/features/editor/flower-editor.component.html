@@ -62,11 +62,17 @@
     <div class="flex items-center gap-2">
       <details class="relative">
         <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-xl border border-stone-200 text-sm hover:bg-stone-50" matTooltip="Stängel"><mat-icon>grass</mat-icon></summary>
-        <div class="absolute right-0 z-30 mt-2 grid w-56 grid-cols-2 gap-2 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+        <div class="absolute right-0 z-30 mt-2 grid w-64 grid-cols-2 gap-2 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
           <label class="text-[9px] font-bold uppercase text-stone-400">Breite<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="draft().stem.width" (ngModelChange)="updateStem('width', $event)"></label>
           <label class="text-[9px] font-bold uppercase text-stone-400">Taper<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0.1" max="1" step="0.05" [ngModel]="draft().stem.taper" (ngModelChange)="updateStem('taper', $event)"></label>
           <label class="text-[9px] font-bold uppercase text-stone-400">Farbe<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)"></label>
           <label class="text-[9px] font-bold uppercase text-stone-400">Licht<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)"></label>
+          <label class="col-span-2 min-w-0 text-[9px] font-semibold text-stone-500">
+            <span class="mb-1 flex justify-between"><span>Stängelbiegung</span><span>{{ draft().stem.bend ?? 0 }} %</span></span>
+            <mat-slider class="w-full" min="-100" max="100" step="1" discrete>
+              <input matSliderThumb [value]="draft().stem.bend ?? 0" (valueChange)="updateStem('bend', $event)">
+            </mat-slider>
+          </label>
         </div>
       </details>
       <label class="grid h-9 w-9 cursor-pointer place-items-center rounded-xl border border-stone-200 text-base hover:bg-stone-50" matTooltip="Definition laden">
@@ -81,10 +87,36 @@
   <div class="grid min-h-0 flex-1 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
     <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1">
       <div class="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-1 rounded-2xl border border-stone-200 bg-white/90 p-1.5 shadow-lg backdrop-blur">
+        <button
+          mat-flat-button
+          [class.bg-teal-800!]="lassoMode()"
+          [class.text-white!]="lassoMode()"
+          type="button"
+          matTooltip="Teilbaum per Lasso auswählen"
+          (click)="toggleLassoMode()"
+        >
+          <mat-icon>gesture</mat-icon>
+          Auswählen
+        </button>
+        <button
+          mat-button
+          type="button"
+          matTooltip="Auswahl als Komponente bearbeiten"
+          [disabled]="!subtreeSelection()"
+          (click)="toggleSubtreeActions()"
+        >
+          <mat-icon>inventory_2</mat-icon>
+          Komponente
+        </button>
         <button mat-flat-button class="bg-emerald-950! text-white!" type="button" matTooltip="Knoten oder Komponente hinzufügen" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon>Knoten</button>
         <button mat-button type="button" matTooltip="Wiederholungsknoten hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon>Wiederholung</button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
         <button mat-button type="button" matTooltip="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon>Aufräumen</button>
+        @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
+          <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
+            {{ subtreeNodeIds().size }} gewählt
+          </span>
+        }
       </div>
 
       @if (addMenuOpen()) {
@@ -140,13 +172,13 @@
         </section>
       }
 
-      @if (subtreeAnchorIds().size) {
+      @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
         <section class="absolute left-4 top-[4.75rem] z-20 w-[min(390px,calc(100%-2rem))] rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-2 flex items-start gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
               <p class="mb-0 mt-1 text-[10px] leading-relaxed text-stone-500">
-                Shift halten und Knoten wählen. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.
+                Mit dem Lasso Knoten berühren. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.
               </p>
             </div>
             <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
@@ -192,6 +224,18 @@
           </pattern>
         </defs>
         <rect width="1000" height="1000" fill="url(#graph-grid)" />
+        @if (lassoPath()) {
+          <path
+            [attr.d]="lassoPath()"
+            fill="none"
+            stroke="#0f766e"
+            stroke-width="3"
+            stroke-dasharray="8 6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="pointer-events-none"
+          />
+        }
 
         @for (node of graphLayout().nodes; track node.id) {
           @if (node.loop) {
@@ -286,10 +330,33 @@
               />
               <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
               <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
-              <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
-              <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
-              <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)" />
-              <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
+              @if (node.memberIds.length) {
+                <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
+                <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
+                @for (port of node.outputPorts; track $index) {
+                  <g>
+                    <circle
+                      [attr.cx]="port.x - node.x"
+                      [attr.cy]="port.y - node.y"
+                      r="11"
+                      fill="#064e3b"
+                      stroke="#ffffff"
+                      stroke-width="3"
+                      class="cursor-crosshair"
+                      (pointerdown)="startConnection($event, node.id, $index)"
+                    />
+                    <title>Ausgang · {{ node.outputPortNames[$index] }}</title>
+                  </g>
+                }
+                <text x="0" [attr.y]="-node.height / 2 + 18" class="pointer-events-none fill-stone-500 text-[8px] font-bold [text-anchor:middle]">
+                  {{ node.outputPorts.length === 1 ? 'AUSGANG' : 'AUSGÄNGE' }}
+                </text>
+              } @else {
+                <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
+                <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
+                <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)" />
+                <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
+              }
             } @else {
               <rect
                 [attr.x]="-node.width / 2" [attr.y]="-node.height / 2" [attr.width]="node.width" [attr.height]="node.height" rx="20"
@@ -309,8 +376,18 @@
               <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
                 {{ node.root ? 'BASIS' : node.component ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
               </text>
-              <circle cx="0" [attr.cy]="-node.height / 2" r="12" fill="#064e3b" stroke="#ffffff" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" />
-              <path [attr.d]="'M-4 ' + (-node.height / 2 + 6) + ' 0 ' + (-node.height / 2 - 2) + ' 4 ' + (-node.height / 2 + 6)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none" />
+              @for (port of node.outputPorts; track $index) {
+                <circle
+                  [attr.cx]="port.x - node.x"
+                  [attr.cy]="port.y - node.y"
+                  [attr.r]="node.component ? 8 : 12"
+                  fill="#064e3b"
+                  stroke="#ffffff"
+                  stroke-width="3"
+                  class="cursor-crosshair"
+                  (pointerdown)="startConnection($event, node.id, $index)"
+                />
+              }
             }
           </g>
         }
@@ -424,6 +501,13 @@
                       </mat-slider>
                     </label>
                   </div>
+                  <label class="block border-t border-emerald-100 pt-2 text-[9px] font-semibold text-stone-500">
+                    <span class="mb-1 flex justify-between"><span>Stängelbiegung</span><span>{{ incomingStemBend(incoming) }} %</span></span>
+                    <mat-slider class="w-full" min="-100" max="100" step="1" discrete>
+                      <input matSliderThumb [value]="incomingStemBend(incoming)"
+                        (valueChange)="updateIncomingStem('bend', $event)">
+                    </mat-slider>
+                  </label>
                 </div>
               </section>
             }
@@ -440,8 +524,26 @@
           } @else if (node.loop) {
             <div class="rounded-xl bg-amber-50 p-3">
               <app-interval-slider label="Wiederholungen" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
+              @if (node.loop.memberNodeIds?.length) {
+                <div class="mt-3 border-t border-amber-100 pt-2">
+                  <div class="mb-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">Fortsetzungsoutputs</div>
+                  <div class="space-y-1">
+                    @for (outputId of loopOutputOptions(node); track outputId) {
+                      <label class="flex items-center gap-2 rounded-lg bg-white/70 px-2 py-1 text-[10px] font-semibold text-stone-700">
+                        <input
+                          type="checkbox"
+                          class="h-3.5 w-3.5 accent-amber-700"
+                          [checked]="loopOutputEnabled(node, outputId)"
+                          (change)="toggleLoopOutput(outputId, $any($event.target).checked)"
+                        >
+                        {{ nodeName(outputId) }}
+                      </label>
+                    }
+                  </div>
+                </div>
+              }
               <p class="mb-0 mt-2 text-[9px] leading-relaxed text-amber-900/70">
-                Grünen Start zum ersten Knoten ziehen. Vom letzten Knoten zum gelben Ende ziehen. Bei einem Hauptstängel dürfen Start und Ende derselbe Knoten sein.
+                Der gerahmte Teilbaum wird wiederholt. Ausgewählte Outputs dienen als Ansatzpunkte für die nächste Wiederholung.
               </p>
             </div>
           } @else {

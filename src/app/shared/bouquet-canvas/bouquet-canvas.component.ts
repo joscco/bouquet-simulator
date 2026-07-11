@@ -15,6 +15,7 @@ import {
   Box3,
   Box3Helper,
   BufferGeometry,
+  CatmullRomCurve3,
   Color,
   CylinderGeometry,
   DirectionalLight,
@@ -31,6 +32,7 @@ import {
   OrthographicCamera,
   PCFSoftShadowMap,
   PlaneGeometry,
+  QuadraticBezierCurve3,
   Raycaster,
   Scene,
   SRGBColorSpace,
@@ -51,13 +53,15 @@ import {effectiveConnection} from '../../core/models/flower-connections';
 import {createBuiltInGeometry} from '../../core/rendering/graphic-geometries';
 import {createGraphicPaintTexture} from '../../core/rendering/graphic-paint';
 import {graphicOrientationQuaternion} from '../../core/rendering/graphic-orientation';
-import {FlowerTree, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
+import {FlowerTree, FlowerTreeEdge, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
+import {DEFAULT_VASE_ID} from '../../core/data/vases';
 
 const UP = new Vector3(0, 1, 0);
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const FIT_PADDING = 48;
 const FIT_MARGIN = 1.08;
 const ORBIT_LIMIT = Math.PI * 0.46;
+const VASE_BRANCH_CLEARANCE = 34;
 
 interface PickData {
   instanceId: string;
@@ -65,6 +69,127 @@ interface PickData {
 }
 
 export type BouquetCanvasViewMode = 'pan' | 'rotate';
+
+interface VaseRenderDefinition {
+  profile: Array<[number, number]>;
+  bodyColor: number;
+  openingColor: number;
+  rimColor: number;
+  rimRadius: number;
+  rimTube: number;
+  openingRadius: number;
+  openingY: number;
+  roughness?: number;
+  metalness?: number;
+  opacity?: number;
+  rings?: Array<{
+    radius: number;
+    y: number;
+    tube: number;
+    color?: number;
+  }>;
+}
+
+const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
+  classic: {
+    profile: [
+      [0, -62], [24, -62], [38, -60], [48, -54], [54, -44], [57, -30],
+      [56, -14], [52, 0], [47, 11], [44, 18], [41, 21],
+    ],
+    bodyColor: 0xcbd5cf,
+    openingColor: 0x3f514b,
+    rimColor: 0xe7ece8,
+    openingRadius: 39,
+    openingY: 20,
+    rimRadius: 42,
+    rimTube: 2.6,
+    roughness: 0.24,
+    metalness: 0.08,
+    opacity: 0.92,
+    rings: [
+      {radius: 41, y: -60, tube: 2.4, color: 0xe7ece8},
+      {radius: 50, y: -3, tube: 1.3, color: 0xdde5df},
+    ],
+  },
+  tulip: {
+    profile: [
+      [0, -63], [19, -63], [28, -60], [33, -52], [35, -42], [35, -30],
+      [37, -18], [42, -6], [50, 8], [59, 20], [66, 27],
+    ],
+    bodyColor: 0xf3d7d4,
+    openingColor: 0x6f3f46,
+    rimColor: 0xffeee9,
+    openingRadius: 58,
+    openingY: 26,
+    rimRadius: 64,
+    rimTube: 2.4,
+    roughness: 0.32,
+    opacity: 0.94,
+    rings: [
+      {radius: 30, y: -60, tube: 2, color: 0xffeee9},
+    ],
+  },
+  cylinder: {
+    profile: [
+      [0, -64], [31, -64], [37, -62], [40, -57], [40, -34], [39, -10],
+      [40, 12], [39, 23], [36, 28],
+    ],
+    bodyColor: 0xd7e4ed,
+    openingColor: 0x334c5c,
+    rimColor: 0xf3f8fb,
+    openingRadius: 34,
+    openingY: 27,
+    rimRadius: 38,
+    rimTube: 2,
+    roughness: 0.18,
+    metalness: 0.04,
+    opacity: 0.82,
+    rings: [
+      {radius: 37, y: -62, tube: 2, color: 0xf3f8fb},
+      {radius: 40, y: -43, tube: .7, color: 0xe7f1f7},
+      {radius: 40, y: 6, tube: .7, color: 0xe7f1f7},
+    ],
+  },
+  bowl: {
+    profile: [
+      [0, -50], [32, -50], [49, -47], [61, -40], [69, -29], [73, -16],
+      [71, -4], [64, 7], [53, 15], [43, 19],
+    ],
+    bodyColor: 0xd9c7aa,
+    openingColor: 0x5b4731,
+    rimColor: 0xf4e8d5,
+    openingRadius: 41,
+    openingY: 18,
+    rimRadius: 45,
+    rimTube: 3.2,
+    roughness: 0.46,
+    rings: [
+      {radius: 49, y: -48, tube: 2.2, color: 0xf1dfc4},
+      {radius: 69, y: -5, tube: 1.1, color: 0xe8d5b7},
+    ],
+  },
+  bud: {
+    profile: [
+      [0, -68], [12, -68], [19, -65], [25, -57], [28, -46], [27, -31],
+      [24, -14], [19, 3], [17, 18], [19, 29], [22, 34],
+    ],
+    bodyColor: 0xcfd7f0,
+    openingColor: 0x3e456f,
+    rimColor: 0xedf0ff,
+    openingRadius: 17,
+    openingY: 33,
+    rimRadius: 21,
+    rimTube: 2,
+    roughness: 0.28,
+    metalness: 0.03,
+    opacity: 0.9,
+    rings: [
+      {radius: 19, y: -66, tube: 1.8, color: 0xedf0ff},
+      {radius: 25, y: -42, tube: .9, color: 0xdde4f6},
+      {radius: 18, y: 17, tube: .8, color: 0xdde4f6},
+    ],
+  },
+};
 
 @Component({
   selector: 'app-bouquet-canvas',
@@ -136,6 +261,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private lastHighlightedNodeId: string | null = null;
   private lastHighlightedConnection: {sourceId: string; index: number} | null = null;
   private lastVaseEnabled: boolean | null = null;
+  private lastVaseId: string | null = null;
   private lastGeometrySignature: string | null = null;
   private backgroundDrag: {
     pointerId: number;
@@ -164,6 +290,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const highlightedNodeId = this.highlightedNodeId();
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
+      const vaseId = state.vaseId ?? DEFAULT_VASE_ID;
       this.zoom();
       this.fitToContent();
       this.viewportInsets();
@@ -181,14 +308,16 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const shouldRecenter = definitions !== this.lastDefinitions
         || state.flowers.length !== this.lastFlowerCount
         || geometrySignature !== this.lastGeometrySignature
-        || vaseEnabled !== this.lastVaseEnabled;
+        || vaseEnabled !== this.lastVaseEnabled
+        || vaseId !== this.lastVaseId;
       const structureChanged = state.flowers !== this.lastFlowers
         || definitions !== this.lastDefinitions
         || selectedId !== this.lastSelectedId
         || highlightedNodeId !== this.lastHighlightedNodeId
         || highlightedConnection?.sourceId !== this.lastHighlightedConnection?.sourceId
         || highlightedConnection?.index !== this.lastHighlightedConnection?.index
-        || vaseEnabled !== this.lastVaseEnabled;
+        || vaseEnabled !== this.lastVaseEnabled
+        || vaseId !== this.lastVaseId;
 
       this.lastFlowers = state.flowers;
       this.lastDefinitions = definitions;
@@ -197,6 +326,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastHighlightedNodeId = highlightedNodeId;
       this.lastHighlightedConnection = highlightedConnection;
       this.lastVaseEnabled = vaseEnabled;
+      this.lastVaseId = vaseId;
       this.lastGeometrySignature = geometrySignature;
       if (structureChanged) {
         this.recenterOnNextRebuild ||= shouldRecenter;
@@ -324,7 +454,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.bouquet.rotation.set(0, 0, 0);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
 
-    if (this.vaseEnabled()) this.bouquet.add(this.createVase());
+    if (this.vaseEnabled()) this.bouquet.add(this.createVase(this.state().vaseId ?? DEFAULT_VASE_ID));
 
     for (const flower of this.state().flowers) {
       const definition = definitions.get(flower.definitionId);
@@ -345,10 +475,11 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     const group = new Group();
     group.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
     const templates = flattenFlowerTemplates(definition);
-    const tree = cutFlowerTree(
+    let tree = cutFlowerTree(
       generateFlowerTree(definition, flower.seed, flower.nodeOffsets ?? EMPTY_OFFSETS),
       flower.cutRatio ?? 0,
     );
+    if (this.vaseEnabled()) tree = pruneLowerBranches(tree, VASE_BRANCH_CLEARANCE);
     const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
     const graphicPrototypes = new Map<string, Mesh>();
 
@@ -366,7 +497,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const highlighted = this.highlightedConnection()?.sourceId === edge.connectionSourceId
         && this.highlightedConnection()?.index === edge.connectionIndex;
       if (highlighted) {
-        group.add(this.createStem(from, to, startWidth + 3, endWidth + 3, '#eab308', 0.72));
+        group.add(this.createStem(from, to, startWidth + 3, endWidth + 3, '#eab308', 0.72, connection?.stem?.bend ?? definition.stem.bend ?? 0));
       }
       const stem = this.createStem(
         from,
@@ -375,6 +506,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         endWidth,
         connection?.stem?.color ?? definition.stem.color,
         1,
+        connection?.stem?.bend ?? definition.stem.bend ?? 0,
       );
       stem.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
       group.add(stem);
@@ -433,40 +565,55 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     return group;
   }
 
-  private createVase(): Group {
+  private createVase(vaseId: string): Group {
+    const definition = VASE_RENDER_DEFINITIONS[vaseId] ?? VASE_RENDER_DEFINITIONS[DEFAULT_VASE_ID]!;
     const vase = new Group();
-    const profile = [
-      new Vector2(0, -60),
-      new Vector2(42, -60),
-      new Vector2(55, -49),
-      new Vector2(58, -24),
-      new Vector2(47, 12),
-      new Vector2(44, 18),
-    ];
+    const profile = smoothVaseProfile(definition.profile);
+    const opacity = definition.opacity ?? 1;
     const body = new Mesh(
-      new LatheGeometry(profile, 48),
+      new LatheGeometry(profile, 144),
       new MeshStandardMaterial({
-        color: 0xcbd5cf,
-        roughness: 0.3,
-        metalness: 0.06,
+        color: definition.bodyColor,
+        roughness: definition.roughness ?? 0.35,
+        metalness: definition.metalness ?? 0.06,
+        transparent: opacity < 1,
+        opacity,
       }),
     );
+    body.geometry.computeVertexNormals();
     const opening = new Mesh(
-      new CylinderGeometry(42, 42, 2.5, 48),
-      new MeshStandardMaterial({color: 0x3f514b, roughness: 0.9}),
-    );
-    opening.position.y = 17;
-    const rim = new Mesh(
-      new TorusGeometry(45, 3, 10, 48),
+      new CylinderGeometry(definition.openingRadius * 0.94, definition.openingRadius, 2.8, 144),
       new MeshStandardMaterial({
-        color: 0xe7ece8,
-        roughness: 0.24,
-        metalness: 0.08,
+        color: definition.openingColor,
+        roughness: 0.86,
+        metalness: 0.04,
+      }),
+    );
+    opening.position.y = definition.openingY;
+    const rim = new Mesh(
+      new TorusGeometry(definition.rimRadius, definition.rimTube, 18, 144),
+      new MeshStandardMaterial({
+        color: definition.rimColor,
+        roughness: Math.max(0.18, (definition.roughness ?? 0.35) - 0.08),
+        metalness: (definition.metalness ?? 0.06) + 0.03,
       }),
     );
     rim.rotation.x = Math.PI / 2;
-    rim.position.y = 18;
+    rim.position.y = definition.openingY + 1;
     vase.add(body, opening, rim);
+    for (const ringDefinition of definition.rings ?? []) {
+      const ring = new Mesh(
+        new TorusGeometry(ringDefinition.radius, ringDefinition.tube, 12, 144),
+        new MeshStandardMaterial({
+          color: ringDefinition.color ?? definition.rimColor,
+          roughness: definition.roughness ?? 0.35,
+          metalness: definition.metalness ?? 0.06,
+        }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = ringDefinition.y;
+      vase.add(ring);
+    }
     vase.traverse((object) => {
       if (object instanceof Mesh) {
         object.castShadow = true;
@@ -483,9 +630,27 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     endWidth: number,
     color: string,
     opacity: number,
-  ): Mesh {
+    bend: number,
+  ): Object3D {
     const start = treePosition(from);
     const end = treePosition(to);
+    const direction = end.clone().sub(start);
+    const length = Math.max(0.01, direction.length());
+    const bendAmount = clamp(bend, -100, 100) / 100;
+    if (Math.abs(bendAmount) > 0.01 && length > 8) {
+      return this.createCurvedStem(start, end, startWidth, endWidth, color, opacity, bendAmount);
+    }
+    return this.createStemSegment(start, end, startWidth, endWidth, color, opacity);
+  }
+
+  private createStemSegment(
+    start: Vector3,
+    end: Vector3,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    opacity: number,
+  ): Mesh {
     const direction = end.clone().sub(start);
     const length = Math.max(0.01, direction.length());
     const geometry = new CylinderGeometry(endWidth / 2, startWidth / 2, length, 7, 1, false);
@@ -500,6 +665,43 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     stem.position.copy(start).add(end).multiplyScalar(0.5);
     stem.quaternion.setFromUnitVectors(UP, direction.normalize());
     return stem;
+  }
+
+  private createCurvedStem(
+    start: Vector3,
+    end: Vector3,
+    startWidth: number,
+    endWidth: number,
+    color: string,
+    opacity: number,
+    bendAmount: number,
+  ): Group {
+    const direction = end.clone().sub(start);
+    const length = Math.max(0.01, direction.length());
+    const axis = Math.abs(direction.clone().normalize().dot(new Vector3(0, 0, 1))) > 0.94
+      ? new Vector3(1, 0, 0)
+      : new Vector3(0, 0, 1);
+    const side = direction.clone().cross(axis).normalize().multiplyScalar(length * 0.28 * bendAmount);
+    const curve = new QuadraticBezierCurve3(
+      start,
+      start.clone().add(end).multiplyScalar(0.5).add(side),
+      end,
+    );
+    const points = curve.getPoints(8);
+    const group = new Group();
+    for (let index = 0; index < points.length - 1; index++) {
+      const progress = index / (points.length - 2);
+      const nextProgress = (index + 1) / (points.length - 2);
+      group.add(this.createStemSegment(
+        points[index]!,
+        points[index + 1]!,
+        lerp(startWidth, endWidth, progress),
+        lerp(startWidth, endWidth, nextProgress),
+        color,
+        opacity,
+      ));
+    }
+    return group;
   }
 
   private createGraphic(graphic: FlowerNodeGraphic): Mesh {
@@ -786,7 +988,14 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     );
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const intersections = this.raycaster.intersectObject(this.bouquet, true);
-    return intersections.find((intersection) => intersection.object.userData['pick'])?.object ?? null;
+    for (const intersection of intersections) {
+      let object: Object3D | null = intersection.object;
+      while (object) {
+        if (object.userData['pick']) return object;
+        object = object.parent;
+      }
+    }
+    return null;
   }
 
   private dragMode(event: PointerEvent): BouquetCanvasViewMode {
@@ -938,6 +1147,97 @@ function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
 
 function nodeDistance(from: FlowerTreeNode, to: FlowerTreeNode): number {
   return Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+}
+
+function pruneLowerBranches(tree: FlowerTree, clearance: number): FlowerTree {
+  const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
+  const childEdges = new Map<string, FlowerTreeEdge[]>();
+  for (const edge of tree.edges) {
+    childEdges.set(edge.from, [...(childEdges.get(edge.from) ?? []), edge]);
+  }
+
+  const mainPathEdges = new Set<string>();
+  let currentId = tree.rootId;
+  let distanceFromRoot = 0;
+  const rootDistances = new Map<string, number>([[tree.rootId, 0]]);
+  while (true) {
+    const edge = longestChildEdge(currentId);
+    if (!edge) break;
+    const from = nodes.get(edge.from);
+    const to = nodes.get(edge.to);
+    if (!from || !to) break;
+    mainPathEdges.add(edgeKey(edge));
+    distanceFromRoot += nodeDistance(from, to);
+    rootDistances.set(edge.to, distanceFromRoot);
+    currentId = edge.to;
+  }
+
+  const keptIds = new Set<string>([tree.rootId]);
+  const visit = (nodeId: string, distance: number): void => {
+    for (const edge of childEdges.get(nodeId) ?? []) {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      if (!from || !to) continue;
+      const isMainPath = mainPathEdges.has(edgeKey(edge));
+      if (!isMainPath && distance < clearance) continue;
+      const nextDistance = isMainPath
+        ? (rootDistances.get(edge.to) ?? distance + nodeDistance(from, to))
+        : distance + nodeDistance(from, to);
+      keptIds.add(edge.to);
+      visit(edge.to, nextDistance);
+    }
+  };
+  visit(tree.rootId, 0);
+
+  return {
+    rootId: tree.rootId,
+    nodes: tree.nodes.filter((node) => keptIds.has(node.id)),
+    edges: tree.edges.filter((edge) => keptIds.has(edge.from) && keptIds.has(edge.to)),
+  };
+
+  function longestChildEdge(nodeId: string): FlowerTreeEdge | null {
+    let best: FlowerTreeEdge | null = null;
+    let bestLength = -1;
+    for (const edge of childEdges.get(nodeId) ?? []) {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      if (!from || !to) continue;
+      const length = nodeDistance(from, to) + longestFrom(edge.to);
+      if (length > bestLength) {
+        best = edge;
+        bestLength = length;
+      }
+    }
+    return best;
+  }
+
+  function longestFrom(nodeId: string): number {
+    return Math.max(0, ...(childEdges.get(nodeId) ?? []).map((edge) => {
+      const from = nodes.get(edge.from);
+      const to = nodes.get(edge.to);
+      return from && to ? nodeDistance(from, to) + longestFrom(edge.to) : 0;
+    }));
+  }
+}
+
+function edgeKey(edge: FlowerTreeEdge): string {
+  return `${edge.from}->${edge.to}:${edge.connectionSourceId}:${edge.connectionIndex}`;
+}
+
+function smoothVaseProfile(profile: Array<[number, number]>): Vector2[] {
+  const curve = new CatmullRomCurve3(
+    profile.map(([x, y]) => new Vector3(x, y, 0)),
+    false,
+    'centripetal',
+    0.45,
+  );
+  const points = curve.getPoints(Math.max(32, profile.length * 8))
+    .map((point) => new Vector2(Math.max(0, point.x), point.y));
+  const first = profile[0]!;
+  const last = profile[profile.length - 1]!;
+  points[0] = new Vector2(first[0], first[1]);
+  points[points.length - 1] = new Vector2(last[0], last[1]);
+  return points;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

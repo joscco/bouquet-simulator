@@ -38,6 +38,8 @@ export interface FlowerNodeConnection {
   stem?: {
     color: string;
     width: number;
+    /** Seitliche Biegung des Stängelsegments, -100 bis 100. */
+    bend?: number;
   };
 }
 
@@ -99,6 +101,10 @@ export interface FlowerNodeDefinition {
     repeat: NumberRange;
     startNodeId: string | null;
     endNodeId: string | null;
+    /** Sichtbar gerahmte Knoten, die als Teilbaum wiederholt werden. */
+    memberNodeIds?: string[];
+    /** Outputs, von denen aus die nächste Wiederholung weiterwächst. Leer/fehlend = alle Outputs. */
+    continuationOutputNodeIds?: string[];
   };
   component?: FlowerNodeComponent;
 }
@@ -119,6 +125,8 @@ export interface FlowerDefinition {
     highlightColor: string;
     width: number;
     taper: number;
+    /** Standard-Biegung neuer Stängelsegmente, -100 bis 100. */
+    bend?: number;
   };
   nodes: FlowerNodeDefinition[];
   editor?: {
@@ -150,6 +158,7 @@ export interface BouquetFlower {
 export interface BouquetState {
   schemaVersion: 2;
   rotation: number;
+  vaseId?: string;
   flowers: BouquetFlower[];
 }
 

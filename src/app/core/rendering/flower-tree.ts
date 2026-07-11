@@ -240,6 +240,10 @@ export function generateFlowerTree(
   ): void {
     const loop = loopTemplate.loop;
     if (!loop?.startNodeId || !loop.endNodeId) return;
+    if (loop.memberNodeIds?.length) {
+      expandMemberLoop(parent, loopTemplate, entryConnection, entrySourceId, entryConnectionIndex, ancestors, expansionDepth);
+      return;
+    }
     const path = findPath(loop.startNodeId, loop.endNodeId);
     if (!path) return;
     const repeat = randomInteger(loop.repeat, random);
@@ -287,6 +291,90 @@ export function generateFlowerTree(
       ancestors,
       expansionDepth + 1,
     );
+  }
+
+  function expandMemberLoop(
+    parent: FlowerTreeNode,
+    loopTemplate: FlowerNodeDefinition,
+    entryConnection: FlowerNodeConnection,
+    entrySourceId: string,
+    entryConnectionIndex: number,
+    ancestors: Set<string>,
+    expansionDepth: number,
+  ): void {
+    const loop = loopTemplate.loop;
+    if (!loop?.startNodeId) return;
+    const memberIds = new Set(loop.memberNodeIds ?? []);
+    if (!memberIds.has(loop.startNodeId)) return;
+    const outputIds = loop.continuationOutputNodeIds?.filter((id) => memberIds.has(id)).length
+      ? loop.continuationOutputNodeIds.filter((id) => memberIds.has(id))
+      : memberOutputNodeIds(memberIds);
+    const repeat = randomInteger(loop.repeat, random);
+    let attachments = [parent];
+    for (let iteration = 0; iteration < repeat && nodes.length < MAX_GENERATED_NODES; iteration++) {
+      const nextAttachments: FlowerTreeNode[] = [];
+      for (const attachment of attachments) {
+        const root = addNode(
+          attachment,
+          loop.startNodeId,
+          entryConnection,
+          entrySourceId,
+          entryConnectionIndex,
+          iteration,
+          repeat,
+          true,
+        );
+        expandMemberChildren(root, loop.startNodeId, memberIds, new Set([...ancestors, loop.startNodeId]), expansionDepth + 1);
+        nextAttachments.push(...nodes.filter((node) =>
+          outputIds.includes(node.templateId)
+          && descendantOf(node, root.id)));
+      }
+      attachments = nextAttachments.length ? nextAttachments : attachments;
+    }
+    for (const attachment of attachments) {
+      expandChildren(attachment, loopTemplate.id, ancestors, expansionDepth + 1);
+    }
+  }
+
+  function expandMemberChildren(
+    parent: FlowerTreeNode,
+    templateId: string,
+    memberIds: Set<string>,
+    ancestors: Set<string>,
+    expansionDepth: number,
+  ): void {
+    const template = templates.get(templateId);
+    if (!template || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
+    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
+      const connection = effectiveConnection(definition, legacyConnection);
+      if (!memberIds.has(connection.childId) || ancestors.has(connection.childId)) continue;
+      const count = randomInteger(connection.repeat, random);
+      for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
+        const child = addNode(parent, connection.childId, connection, template.id, connectionIndex, index, count);
+        expandMemberChildren(child, connection.childId, memberIds, new Set([...ancestors, connection.childId]), expansionDepth + 1);
+      }
+    }
+  }
+
+  function memberOutputNodeIds(memberIds: Set<string>): string[] {
+    const internalParents = new Set<string>();
+    for (const id of memberIds) {
+      const template = templates.get(id);
+      for (const connection of template?.connections ?? []) {
+        const childId = effectiveConnection(definition, connection).childId;
+        if (memberIds.has(childId)) internalParents.add(id);
+      }
+    }
+    return [...memberIds].filter((id) => !internalParents.has(id));
+  }
+
+  function descendantOf(node: FlowerTreeNode, rootId: string): boolean {
+    let current: FlowerTreeNode | undefined = node;
+    while (current) {
+      if (current.id === rootId) return true;
+      current = current.parentId ? nodes.find((candidate) => candidate.id === current!.parentId) : undefined;
+    }
+    return false;
   }
 
   function findPath(
@@ -409,6 +497,12 @@ function addComponentTemplates(
         endNodeId: node.loop.endNodeId && internalIds.has(node.loop.endNodeId)
           ? componentTemplateKey(ownerId, node.loop.endNodeId)
           : null,
+        memberNodeIds: node.loop.memberNodeIds
+          ?.filter((id) => internalIds.has(id))
+          .map((id) => componentTemplateKey(ownerId, id)),
+        continuationOutputNodeIds: node.loop.continuationOutputNodeIds
+          ?.filter((id) => internalIds.has(id))
+          .map((id) => componentTemplateKey(ownerId, id)),
       } : undefined,
     };
     templates.set(key, clone);

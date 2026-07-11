@@ -1,5 +1,6 @@
 import {FlowerDefinition, FlowerNodeDefinition} from '../../core/models/flower.models';
 import {effectiveConnection} from '../../core/models/flower-connections';
+import {activeLoopOutputNodeIds} from './flower-editor-loops';
 
 export interface Point {
   x: number;
@@ -14,6 +15,8 @@ export interface GraphNode extends Point {
   component: boolean;
   componentNodeCount: number;
   componentOutputCount: number;
+  outputPorts: Point[];
+  outputPortNames: string[];
   loop: boolean;
   loopStartName: string;
   loopEndName: string;
@@ -46,6 +49,45 @@ export interface GraphLayout {
 export function materializePositions(definition: FlowerDefinition): Record<string, Point> {
   const layout = createGraphLayout(definition, definition.editor?.nodePositions ?? {});
   return Object.fromEntries(layout.nodes.map((node) => [node.id, {x: node.x, y: node.y}]));
+}
+
+export function createCompactGraphPositions(definition: FlowerDefinition): Record<string, Point> {
+  const baseLayout = createGraphLayout(definition, {});
+  const graphNodes = new Map(baseLayout.nodes.map((node) => [node.id, node]));
+  const children = childNodesByParent(definition);
+  const visited = new Set<string>();
+  const positioned = new Map<string, Point>();
+  const roots = [
+    definition.rootNodeId,
+    ...definition.nodes
+      .map((node) => node.id)
+      .filter((id) => id !== definition.rootNodeId && !hasIncoming(definition, id)),
+    ...definition.nodes.map((node) => node.id),
+  ].filter((id, index, ids) => ids.indexOf(id) === index);
+
+  const maximumDepth = Math.max(1, ...roots.map((id) => subtreeDepth(id, children, new Set())));
+  const levelGap = clamp(850 / maximumDepth, 104, 146);
+  let cursor = 70;
+  for (const rootId of roots) {
+    if (visited.has(rootId) || !graphNodes.has(rootId)) continue;
+    const width = measureSubtree(rootId, children, graphNodes, new Set());
+    placeSubtree(rootId, 0, cursor, width, levelGap, children, graphNodes, positioned, visited);
+    cursor += width + 72;
+  }
+
+  const points = [...positioned.values()];
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const offsetX = clamp(500 - (minX + maxX) / 2, 80 - minX, 920 - maxX);
+  const offsetY = 900;
+
+  return Object.fromEntries([...positioned].map(([id, point]) => [
+    id,
+    {
+      x: clamp(point.x + offsetX, (graphNodes.get(id)?.width ?? 0) / 2 + 20, 980 - (graphNodes.get(id)?.width ?? 0) / 2),
+      y: clamp(point.y + offsetY, (graphNodes.get(id)?.height ?? 0) / 2 + 20, 980 - (graphNodes.get(id)?.height ?? 0) / 2),
+    },
+  ]));
 }
 
 export function createGraphLayout(
@@ -85,12 +127,8 @@ export function createGraphLayout(
     groups.set(level, [...(groups.get(level) ?? []), node]);
   }
   const internalNodeIds = new Set(definition.nodes
-    .filter((node) => node.loop?.startNodeId && node.loop.endNodeId)
-    .flatMap((node) => templatePath(
-      definition,
-      node.loop!.startNodeId!,
-      node.loop!.endNodeId!,
-    )));
+    .filter((node) => node.loop)
+    .flatMap((node) => loopMemberIds(definition, node)));
   const graphNodes: GraphNode[] = [];
   for (const [level, nodes] of groups) {
     const outerNodes = nodes.filter((node) => !internalNodeIds.has(node.id));
@@ -100,6 +138,7 @@ export function createGraphLayout(
       const fallbackX = internalNodeIds.has(node.id) ? width / 2 : gap * (++outerIndex);
       const fallback = {x: fallbackX, y: 920 - level * (840 / maxLevel)};
       const position = storedPositions[node.id] ?? fallback;
+      const loopOutputIds = node.loop ? activeLoopOutputNodeIds(definition, node) : [];
       graphNodes.push({
         id: node.id,
         name: node.name,
@@ -109,7 +148,7 @@ export function createGraphLayout(
         hasGraphic: !!node.graphic,
         component: !!node.component,
         componentNodeCount: node.component?.nodes.length ?? 0,
-        componentOutputCount: node.component ? componentOutputCount(node.component.nodes, node.component.outputNodeIds) : 0,
+        componentOutputCount: node.component ? componentOutputIds(node.component.nodes, node.component.outputNodeIds).length : 0,
         loop: !!node.loop,
         loopStartName: definition.nodes.find((candidate) =>
           candidate.id === node.loop?.startNodeId)?.name ?? 'Start wählen',
@@ -119,19 +158,18 @@ export function createGraphLayout(
         memberIds: [],
         width: node.loop ? 260 : node.component ? 196 : 172,
         height: node.loop ? 170 : node.component ? 88 : 78,
+        outputPorts: [],
+        outputPortNames: loopOutputIds.map((id) =>
+          definition.nodes.find((candidate) => candidate.id === id)?.name ?? id),
       });
     });
   }
   for (const definitionNode of definition.nodes.filter((node) => node.loop)) {
     const loopNode = graphNodes.find((node) => node.id === definitionNode.id);
-    if (!loopNode || !definitionNode.loop?.startNodeId || !definitionNode.loop.endNodeId) {
+    if (!loopNode || !definitionNode.loop) {
       continue;
     }
-    const memberIds = templatePath(
-      definition,
-      definitionNode.loop.startNodeId,
-      definitionNode.loop.endNodeId,
-    );
+    const memberIds = loopMemberIds(definition, definitionNode);
     const members = memberIds
       .map((id) => graphNodes.find((node) => node.id === id))
       .filter((node): node is GraphNode => !!node);
@@ -155,6 +193,9 @@ export function createGraphLayout(
     members.forEach((member) => member.loopMember = true);
   }
   graphNodes.sort((first, second) => Number(second.loop) - Number(first.loop));
+  graphNodes.forEach((node) => {
+    node.outputPorts = createOutputPorts(node);
+  });
   return {
     nodes: graphNodes,
     edges: createEdges(definition, graphNodes),
@@ -204,6 +245,7 @@ function createEdges(definition: FlowerDefinition, graphNodes: GraphNode[]): Gra
   const positions = new Map(graphNodes.map((node) => [node.id, node]));
   const edges: GraphEdge[] = [];
   for (const node of definition.nodes.filter((candidate) => candidate.loop)) {
+    if (node.loop?.memberNodeIds?.length) continue;
     const loopNode = positions.get(node.id);
     const startNode = node.loop?.startNodeId ? positions.get(node.loop.startNodeId) : null;
     const endNode = node.loop?.endNodeId ? positions.get(node.loop.endNodeId) : null;
@@ -241,7 +283,7 @@ function createEdges(definition: FlowerDefinition, graphNodes: GraphNode[]): Gra
       if (!to) {
         return;
       }
-      const start = {x: from.x, y: from.y - from.height / 2};
+      const start = outputPortForConnection(from, index);
       const end = {x: to.x, y: to.y + to.height / 2};
       edges.push({
         key: `${node.id}-${connection.childId}-${index}`,
@@ -283,20 +325,122 @@ function boundaryEdge(
   };
 }
 
-function componentOutputCount(
+function componentOutputIds(
   nodes: FlowerNodeDefinition[],
   preferred: string[] = [],
-): number {
+): string[] {
   const ids = new Set(nodes.map((node) => node.id));
   const validPreferred = preferred.filter((id) => ids.has(id));
   if (validPreferred.length) {
-    return validPreferred.length;
+    return validPreferred;
   }
   const parents = new Set(nodes.flatMap((node) =>
     node.connections
       .filter((connection) => ids.has(connection.childId))
       .map(() => node.id)));
-  return nodes.filter((node) => !parents.has(node.id)).length;
+  return nodes.filter((node) => !parents.has(node.id)).map((node) => node.id);
+}
+
+function createOutputPorts(node: GraphNode): Point[] {
+  const count = Math.max(1,
+    node.loop && node.memberIds.length
+      ? node.outputPortNames.length
+      : node.component ? node.componentOutputCount : 1);
+  const spacing = 28;
+  const maxSpan = Math.max(0, node.width - 74);
+  const span = Math.min(maxSpan, (count - 1) * spacing);
+  const startX = node.x - span / 2;
+  return Array.from({length: count}, (_, index) => {
+    const progress = count <= 1 ? 0 : index / (count - 1);
+    return {
+      x: startX + (count === 1 ? 0 : span * progress),
+      y: node.y - node.height / 2,
+    };
+  });
+}
+
+function outputPortForConnection(node: GraphNode, connectionIndex: number): Point {
+  const ports = node.outputPorts.length ? node.outputPorts : createOutputPorts(node);
+  if (ports.length <= 1) return ports[0] ?? {x: node.x, y: node.y - node.height / 2};
+  return ports[Math.min(connectionIndex, ports.length - 1)]!;
+}
+
+function childNodesByParent(definition: FlowerDefinition): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  const ids = new Set(definition.nodes.map((node) => node.id));
+  for (const node of definition.nodes) {
+    const children = [
+      ...(node.loop?.startNodeId && ids.has(node.loop.startNodeId) ? [node.loop.startNodeId] : []),
+      ...node.connections
+        .map((legacyConnection) => effectiveConnection(definition, legacyConnection).childId)
+        .filter((id) => ids.has(id)),
+    ];
+    result.set(node.id, [...new Set(children)]);
+  }
+  return result;
+}
+
+function hasIncoming(definition: FlowerDefinition, nodeId: string): boolean {
+  return definition.nodes.some((node) =>
+    node.connections.some((connection) => effectiveConnection(definition, connection).childId === nodeId)
+    || node.loop?.startNodeId === nodeId);
+}
+
+function measureSubtree(
+  nodeId: string,
+  children: Map<string, string[]>,
+  nodes: Map<string, GraphNode>,
+  stack: Set<string>,
+): number {
+  const node = nodes.get(nodeId);
+  if (!node || stack.has(nodeId)) return 0;
+  const nextStack = new Set(stack).add(nodeId);
+  const childWidths = (children.get(nodeId) ?? [])
+    .map((childId) => measureSubtree(childId, children, nodes, nextStack))
+    .filter((width) => width > 0);
+  const childrenWidth = childWidths.length
+    ? childWidths.reduce((sum, width) => sum + width, 0) + (childWidths.length - 1) * 34
+    : 0;
+  return Math.max(node.width + 46, childrenWidth);
+}
+
+function placeSubtree(
+  nodeId: string,
+  depth: number,
+  left: number,
+  width: number,
+  levelGap: number,
+  children: Map<string, string[]>,
+  nodes: Map<string, GraphNode>,
+  positioned: Map<string, Point>,
+  visited: Set<string>,
+): void {
+  const node = nodes.get(nodeId);
+  if (!node || visited.has(nodeId)) return;
+  visited.add(nodeId);
+  positioned.set(nodeId, {
+    x: left + width / 2,
+    y: -depth * levelGap,
+  });
+
+  const childIds = (children.get(nodeId) ?? []).filter((id) => nodes.has(id) && !visited.has(id));
+  if (!childIds.length) return;
+  const childWidths = childIds.map((id) => measureSubtree(id, children, nodes, new Set([nodeId])));
+  const totalWidth = childWidths.reduce((sum, childWidth) => sum + childWidth, 0) + (childWidths.length - 1) * 34;
+  let cursor = left + Math.max(0, (width - totalWidth) / 2);
+  childIds.forEach((id, index) => {
+    const childWidth = childWidths[index]!;
+    placeSubtree(id, depth + 1, cursor, childWidth, levelGap, children, nodes, positioned, visited);
+    cursor += childWidth + 34;
+  });
+}
+
+function subtreeDepth(nodeId: string, children: Map<string, string[]>, stack: Set<string>): number {
+  if (stack.has(nodeId)) return 0;
+  const childIds = children.get(nodeId) ?? [];
+  if (!childIds.length) return 0;
+  const nextStack = new Set(stack).add(nodeId);
+  return 1 + Math.max(0, ...childIds.map((id) => subtreeDepth(id, children, nextStack)));
 }
 
 function templatePath(
@@ -327,6 +471,17 @@ function templatePath(
     return null;
   };
   return visit(startNodeId) ?? [];
+}
+
+function loopMemberIds(definition: FlowerDefinition, node: FlowerNodeDefinition): string[] {
+  if (!node.loop) return [];
+  const ids = new Set(definition.nodes.map((candidate) => candidate.id));
+  const members = [...new Set(node.loop.memberNodeIds ?? [])].filter((id) => ids.has(id));
+  if (members.length) return members;
+  if (node.loop.startNodeId && node.loop.endNodeId) {
+    return templatePath(definition, node.loop.startNodeId, node.loop.endNodeId);
+  }
+  return [];
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

@@ -14,6 +14,7 @@ import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {ProjectExport} from '../../core/models/flower.models';
+import {DEFAULT_VASE_ID, VASE_OPTIONS} from '../../core/data/vases';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {
   BouquetFlowerListItem,
@@ -41,6 +42,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   private readonly snackBar = inject(MatSnackBar);
   private readonly projectStorage = inject(BouquetProjectStorage);
   private readonly flowerNameCollator = new Intl.Collator('de', {numeric: true, sensitivity: 'base'});
+  readonly vaseOptions = VASE_OPTIONS;
   readonly pickerOpen = signal(false);
   readonly menuOpen = signal(false);
   readonly selectedId = signal<string | null>(null);
@@ -78,6 +80,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
     const normalized = this.store.state().rotation * 180 / Math.PI % 360;
     return Math.round(normalized < 0 ? normalized + 360 : normalized);
   });
+  readonly activeVaseId = computed(() => this.store.state().vaseId ?? DEFAULT_VASE_ID);
 
   private menuLayoutTween: {kill: () => void} | null = null;
 
@@ -170,6 +173,10 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   setRotationFromDegrees(value: string | number): void {
     this.store.setRotation(Number(value) * Math.PI / 180);
+  }
+
+  setVase(vaseId: string): void {
+    this.store.setVase(vaseId);
   }
 
   exportProject(): void {

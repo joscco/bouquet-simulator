@@ -24,6 +24,9 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
   if (definition.nodes.find((node) => node.id === definition.rootNodeId)?.loop) {
     issues.push({severity: 'error', message: 'Ein Loop kann nicht der Basisknoten sein.'});
   }
+  if (Math.abs(definition.stem.bend ?? 0) > 100) {
+    issues.push({severity: 'error', message: 'Die Standard-Stängelbiegung ist ungültig.'});
+  }
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const incomingCounts = new Map<string, number>();
   for (const source of definition.nodes) {
@@ -42,6 +45,13 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
 
   for (const node of definition.nodes) {
     if (node.loop) {
+      const memberNodeIds = node.loop.memberNodeIds ?? [];
+      if (memberNodeIds.some((id) => !ids.has(id))) {
+        issues.push({severity: 'error', message: `Loop „${node.name}“ enthält einen fehlenden Knoten.`});
+      }
+      if ((node.loop.continuationOutputNodeIds ?? []).some((id) => !memberNodeIds.includes(id))) {
+        issues.push({severity: 'error', message: `Loop „${node.name}“ hat einen ungültigen Fortsetzungsoutput.`});
+      }
       if (
         !node.loop.startNodeId
         || !node.loop.endNodeId
@@ -132,6 +142,9 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       }
       if (connection.stem && connection.stem.width <= 0) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängeldicke.`});
+      }
+      if (Math.abs(connection.stem?.bend ?? 0) > 100) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängelbiegung.`});
       }
     }
   }

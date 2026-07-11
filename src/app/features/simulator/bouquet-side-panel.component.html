@@ -136,6 +136,28 @@
         </output>
       </div>
 
+      <div class="mt-4 border-t border-stone-200/70 pt-4">
+        <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Vase</div>
+        <div class="grid grid-cols-5 gap-1.5">
+          @for (vase of vaseOptions(); track vase.id) {
+            <button
+              class="icon-button h-9! w-full! rounded-lg! border border-stone-200 bg-white"
+              [class.border-emerald-950]="activeVaseId() === vase.id"
+              [class.bg-emerald-950]="activeVaseId() === vase.id"
+              [class.text-white]="activeVaseId() === vase.id"
+              [class.text-stone-500]="activeVaseId() !== vase.id"
+              type="button"
+              [matTooltip]="vase.name"
+              [attr.aria-label]="'Vase ' + vase.name + ' auswählen'"
+              [attr.aria-pressed]="activeVaseId() === vase.id"
+              (click)="vaseChange.emit(vase.id)"
+            >
+              <mat-icon class="text-[20px]!">{{ vase.symbol }}</mat-icon>
+            </button>
+          }
+        </div>
+      </div>
+
       <div class="mt-4 grid shrink-0 grid-cols-2 gap-2 border-t border-stone-200/70 pt-4">
         <label
           class="panel-button cursor-pointer"

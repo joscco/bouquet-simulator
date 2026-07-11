@@ -79,6 +79,16 @@ describe('flower subtrees', () => {
       .toEqual(['left', 'right']);
   });
 
+  it('keeps internal leaves and external exit nodes as component outputs', () => {
+    const selection = resolveFlowerSubtreeSelection(definition, ['branch', 'left'])!;
+    const tree = createFlowerSubtree(definition, positions, selection, {
+      id: 'branch-and-left',
+      name: 'Branch and left',
+    });
+
+    expect(tree.outputNodeIds?.sort()).toEqual(['branch', 'left']);
+  });
+
   it('treats a complete flower definition as a reusable component', () => {
     const component = createFlowerDefinitionComponent({
       ...definition,
@@ -118,6 +128,7 @@ describe('flower subtrees', () => {
 
     const component = extracted.definition.nodes.find((node) => node.id === extracted.insertedNodeId)!;
     expect(component.component?.nodes.map((node) => node.id).sort()).toEqual(['branch', 'left']);
+    expect(component.component?.outputNodeIds?.sort()).toEqual(['branch', 'left']);
     expect(extracted.definition.nodes.some((node) => node.id === 'branch')).toBe(false);
     expect(component.connections).toContainEqual(expect.objectContaining({childId: 'right'}));
     expect(extracted.definition.nodes.find((node) => node.id === 'root')?.connections)
