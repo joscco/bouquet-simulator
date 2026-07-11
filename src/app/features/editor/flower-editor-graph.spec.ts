@@ -24,4 +24,5 @@ describe('flower editor graph layout', () => {
       expect(member.y + member.height / 2).toBeLessThan(loop.y + loop.height / 2);
     }
   });
+
 });

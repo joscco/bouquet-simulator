@@ -5,6 +5,7 @@ import {
   NodeOffset,
   NumberRange,
 } from '../models/flower.models';
+import {effectiveConnection} from '../models/flower-connections';
 
 export interface FlowerTreeNode {
   id: string;
@@ -80,8 +81,9 @@ export function generateFlowerTree(
     const template = templates.get(templateId);
     if (!template) return;
 
-    for (const [connectionIndex, connection] of template.connections.entries()) {
+    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
       if (connectionIndex === excludedConnectionIndex) continue;
+      const connection = effectiveConnection(definition, legacyConnection);
       const childTemplate = templates.get(connection.childId);
       if (!childTemplate || ancestors.has(childTemplate.id)) continue;
       const count = randomInteger(connection.repeat, random);
@@ -195,7 +197,8 @@ export function generateFlowerTree(
       visited.add(nodeId);
       const template = templates.get(nodeId);
       if (!template || template.loop) return null;
-      for (const [connectionIndex, connection] of template.connections.entries()) {
+      for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
+        const connection = effectiveConnection(definition, legacyConnection);
         if (connection.childId === endNodeId) {
           return [{sourceId: nodeId, targetId: endNodeId, connectionIndex, connection}];
         }

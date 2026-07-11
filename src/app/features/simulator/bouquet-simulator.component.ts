@@ -19,6 +19,7 @@ export class BouquetSimulatorComponent {
   private readonly snackBar = inject(MatSnackBar);
   readonly pickerOpen = signal(false);
   readonly selectedId = signal<string | null>(null);
+  readonly bouquetPitch = signal(0);
   readonly rotationDegrees = computed(() => {
     const normalized = this.store.state().rotation * 180 / Math.PI % 360;
     return Math.round(normalized < 0 ? normalized + 360 : normalized);
@@ -29,8 +30,14 @@ export class BouquetSimulatorComponent {
     this.pickerOpen.set(false);
   }
 
-  moveNode(event: {instanceId: string; nodeId: string; dx: number; dy: number}): void {
-    this.store.moveNode(event.instanceId, event.nodeId, event.dx, event.dy);
+  moveFlower(event: {instanceId: string; dx: number; dy: number; dz: number}): void {
+    this.store.moveFlower(event.instanceId, event.dx, event.dy, event.dz);
+  }
+
+  orbitBouquet(delta: {yaw: number; pitch: number}): void {
+    this.store.rotateBy(delta.yaw);
+    this.bouquetPitch.update((pitch) =>
+      Math.max(-0.42, Math.min(0.48, pitch + delta.pitch)));
   }
 
   deleteSelected(): void {
@@ -40,9 +47,10 @@ export class BouquetSimulatorComponent {
     this.selectedId.set(null);
   }
 
-  resetSelectedNodes(): void {
-    const selectedId = this.selectedId();
-    if (selectedId) this.store.resetNodeOffsets(selectedId);
+  resetBouquet(): void {
+    this.store.resetBouquet();
+    this.selectedId.set(null);
+    this.bouquetPitch.set(0);
   }
 
   setRotationFromDegrees(value: string | number): void {
@@ -73,6 +81,7 @@ export class BouquetSimulatorComponent {
     try {
       this.store.importProject(await readJsonFile<ProjectExport>(file));
       this.selectedId.set(null);
+      this.bouquetPitch.set(0);
     } catch (error: unknown) {
       this.snackBar.open(error instanceof Error ? error.message : 'Die Datei konnte nicht gelesen werden.');
     } finally {

@@ -11,11 +11,23 @@ export interface GraphicPoint {
 export type GraphicPrimitive =
   | 'leaf-pointed'
   | 'leaf-round'
+  | 'leaf-serrated'
+  /** @deprecated Alte Dateien werden weiterhin geladen; entspricht leaf-pointed. */
   | 'petal-pointed'
+  /** @deprecated Alte Dateien werden weiterhin geladen; entspricht leaf-round. */
   | 'petal-round'
   | 'sphere'
   | 'rod'
   | 'png';
+
+export interface GraphicPaintStroke {
+  /** Position auf der Grafik, jeweils von 0 bis 1. */
+  x: number;
+  y: number;
+  /** Pinseldurchmesser relativ zur Grafikbreite. */
+  size: number;
+  color: string;
+}
 
 export interface FlowerNodeConnection {
   childId: string;
@@ -33,14 +45,32 @@ export interface FlowerNodeConnection {
   };
 }
 
+export type FlowerNodeIncomingConnection = Omit<FlowerNodeConnection, 'childId'>;
+
 export interface FlowerNodeGraphic {
   primitive?: GraphicPrimitive;
   color?: string;
   accentColor?: string;
+  /** Freihand-Bemalung in UV-Koordinaten. */
+  paint?: GraphicPaintStroke[];
+  /** Wölbung entlang der Wachstumsrichtung, -100 bis 100. */
+  bendMain?: number;
+  /** Wölbung quer zur Wachstumsrichtung, -100 bis 100. */
+  bendCross?: number;
+  /** Roll-Ausrichtung der Grafik um ihre Wachstumsrichtung. */
+  orientation?: 'connection' | 'toward-parent';
+  /** Konstante Drehung um die Wachstumsrichtung, in Grad. */
+  rotationBase?: number;
+  /** Symmetrische zufällige Abweichung von rotationBase, in Grad. */
+  rotationSpread?: number;
   png?: string;
   width: number;
   height: number;
   depth?: number;
+  /** Einheitliche Skalierung zusätzlich zu Breite, Höhe und Tiefe. */
+  scale?: number;
+  /** Lokaler Versatz der Grafik relativ zum Ursprung des Knotens. */
+  offset?: {x: number; y: number; z: number};
   rotation: NumberRange;
   start: GraphicPoint;
   end: GraphicPoint;
@@ -51,6 +81,8 @@ export interface FlowerNodeDefinition {
   name: string;
   draggable: boolean;
   graphic: FlowerNodeGraphic | null;
+  /** Parameter der einzigen zulässigen Eingangsverbindung. */
+  incoming?: FlowerNodeIncomingConnection;
   connections: FlowerNodeConnection[];
   loop?: {
     repeat: NumberRange;
@@ -88,6 +120,9 @@ export interface BouquetFlower {
   y: number;
   z: number;
   scale: number;
+  /** Neigung der gesamten Blume um ihren Einsteckpunkt. */
+  leanX?: number;
+  leanZ?: number;
   seed: number;
   nodeOffsets?: Record<string, NodeOffset>;
 }

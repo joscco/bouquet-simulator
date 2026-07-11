@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  HostListener,
   ViewChild,
   computed,
   inject,
@@ -20,13 +19,27 @@ import {
   FlowerNodeConnection,
   FlowerNodeDefinition,
   FlowerNodeGraphic,
+  FlowerNodeIncomingConnection,
   GraphicPrimitive,
   NumberRange,
 } from '../../core/models/flower.models';
+import {
+  DEFAULT_INCOMING_CONNECTION,
+  connectionFromIncoming,
+  incomingConnectionReference,
+  migrateIncomingConnections,
+  nodeIncomingOrDefault,
+} from '../../core/models/flower-connections';
+import {
+  BUILT_IN_GRAPHICS,
+  canonicalGraphicPrimitive,
+} from '../../core/rendering/graphic-geometries';
+import {graphicRotationSettings} from '../../core/rendering/graphic-orientation';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
+import {GraphicPainterComponent} from './graphic-painter.component';
 import {
   Point,
   createGraphLayout,
@@ -44,24 +57,19 @@ import {
     MatSnackBarModule,
     BouquetCanvasComponent,
     IntervalSliderComponent,
+    GraphicPainterComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
 })
 export class FlowerEditorComponent {
-  readonly graphicPrimitives: ReadonlyArray<{value: GraphicPrimitive; label: string}> = [
-    {value: 'leaf-pointed', label: 'Spitzes Blatt'},
-    {value: 'leaf-round', label: 'Rundes Blatt'},
-    {value: 'petal-pointed', label: 'Spitzes Blütenblatt'},
-    {value: 'petal-round', label: 'Rundes Blütenblatt'},
-    {value: 'sphere', label: 'Kugel'},
-    {value: 'rod', label: 'Stäbchen'},
-  ];
+  readonly graphicPrimitives = BUILT_IN_GRAPHICS;
   readonly store = inject(BouquetStore);
   private readonly snackBar = inject(MatSnackBar);
-  readonly draft = signal<FlowerDefinition>(structuredClone(this.store.definitions()[0]));
+  readonly draft = signal<FlowerDefinition>(
+    migrateIncomingConnections(this.store.definitions()[0]),
+  );
   readonly selectedNodeId = signal(this.draft().rootNodeId);
-  readonly selectedEdge = signal<{sourceId: string; index: number} | null>(null);
   readonly graphZoom = signal(1);
   readonly graphCenter = signal<Point>({x: 500, y: 500});
   readonly previewZoom = signal(1);
@@ -80,12 +88,11 @@ export class FlowerEditorComponent {
 
   readonly selectedNode = computed(() =>
     this.draft().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
-  readonly selectedConnection = computed(() => {
-    const selected = this.selectedEdge();
-    if (!selected) return null;
-    const source = this.draft().nodes.find((node) => node.id === selected.sourceId);
-    const connection = source?.connections[selected.index];
-    return source && connection ? {...selected, source, connection} : null;
+  readonly selectedIncoming = computed(() =>
+    incomingConnectionReference(this.draft(), this.selectedNodeId()));
+  readonly incomingSettings = computed(() => {
+    const node = this.selectedNode();
+    return node ? nodeIncomingOrDefault(node) : structuredClone(DEFAULT_INCOMING_CONNECTION);
   });
   readonly validationIssues = computed(() => validateFlowerDefinition(this.draft()));
   readonly graphLayout = computed(() => createGraphLayout(this.draft(), this.graphPositions()));
@@ -170,17 +177,11 @@ export class FlowerEditorComponent {
 
   selectNode(id: string): void {
     this.selectedNodeId.set(id);
-    this.selectedEdge.set(null);
   }
 
-  selectConnection(event: PointerEvent, sourceId: string, index: number): void {
+  selectConnection(event: PointerEvent, targetId: string): void {
     event.stopPropagation();
-    this.selectedNodeId.set(sourceId);
-    this.selectedEdge.set({sourceId, index});
-  }
-
-  clearConnectionSelection(): void {
-    this.selectedEdge.set(null);
+    this.selectNode(targetId);
   }
 
   addNode(): void {
@@ -192,6 +193,7 @@ export class FlowerEditorComponent {
       name: `Knoten ${index}`,
       draggable: false,
       graphic: null,
+      incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
     };
     const offset = this.draft().nodes.length * 17 % 160;
@@ -212,6 +214,7 @@ export class FlowerEditorComponent {
       name: `Wiederholung ${index}`,
       draggable: false,
       graphic: null,
+      incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
       loop: {
         repeat: {min: 2, max: 4},
@@ -252,7 +255,6 @@ export class FlowerEditorComponent {
   }
 
   graphPointerDown(event: PointerEvent): void {
-    this.clearConnectionSelection();
     if (event.button !== 0 && event.pointerType !== 'touch') return;
     if (event.pointerType === 'touch') {
       this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
@@ -300,6 +302,7 @@ export class FlowerEditorComponent {
       ...structuredClone(source),
       id,
       name: `${source.name} Kopie`,
+      connections: [],
     };
     const sourcePosition = this.graphPositions()[source.id] ?? {x: 500, y: 300};
     this.graphPositions.update((positions) => ({
@@ -345,10 +348,6 @@ export class FlowerEditorComponent {
     this.updateSelectedNode((node) => ({...node, name: value}));
   }
 
-  setNodeDraggable(value: boolean): void {
-    this.updateSelectedNode((node) => ({...node, draggable: value}));
-  }
-
   setHasGraphic(value: boolean): void {
     const defaultGraphic: FlowerNodeGraphic = {
       primitive: 'leaf-pointed',
@@ -356,6 +355,11 @@ export class FlowerEditorComponent {
       width: 50,
       height: 50,
       depth: 8,
+      scale: 1,
+      offset: {x: 0, y: 0, z: 0},
+      orientation: 'toward-parent',
+      rotationBase: 0,
+      rotationSpread: 0,
       rotation: {min: 0, max: 0},
       start: {x: 0.5, y: 0.9},
       end: {x: 0.5, y: 0.1},
@@ -363,9 +367,21 @@ export class FlowerEditorComponent {
     this.updateSelectedNode((node) => ({...node, graphic: value ? node.graphic ?? defaultGraphic : null}));
   }
 
-  updateGraphic(key: 'width' | 'height' | 'depth', value: number): void {
+  updateGraphic(key: 'width' | 'height' | 'depth' | 'scale', value: number): void {
     this.updateSelectedNode((node) => node.graphic
       ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
+      : node);
+  }
+
+  updateGraphicOffset(key: 'x' | 'y' | 'z', value: number): void {
+    this.updateSelectedNode((node) => node.graphic
+      ? {
+          ...node,
+          graphic: {
+            ...node.graphic,
+            offset: {...(node.graphic.offset ?? {x: 0, y: 0, z: 0}), [key]: Number(value)},
+          },
+        }
       : node);
   }
 
@@ -381,30 +397,87 @@ export class FlowerEditorComponent {
       : node);
   }
 
-  updateGraphicRotation(rotation: NumberRange): void {
+  graphicPrimitive(graphic: FlowerNodeGraphic): GraphicPrimitive {
+    return canonicalGraphicPrimitive(graphic.primitive ?? 'leaf-pointed');
+  }
+
+  isPaintableGraphic(graphic: FlowerNodeGraphic): boolean {
+    return this.graphicPrimitives.find((entry) =>
+      entry.value === this.graphicPrimitive(graphic))?.organic ?? false;
+  }
+
+  updateGraphicPaint(paint: NonNullable<FlowerNodeGraphic['paint']>): void {
     this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, rotation}}
+      ? {...node, graphic: {...node.graphic, paint}}
       : node);
   }
 
-  updateConnectionRange(
-    index: number,
+  updateGraphicBend(key: 'bendMain' | 'bendCross', value: number): void {
+    this.updateSelectedNode((node) => node.graphic
+      ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
+      : node);
+  }
+
+  graphicRotationBase(graphic: FlowerNodeGraphic): number {
+    return Math.round(graphicRotationSettings(graphic).base);
+  }
+
+  graphicRotationSpread(graphic: FlowerNodeGraphic): number {
+    return Math.round(graphicRotationSettings(graphic).spread);
+  }
+
+  updateGraphicRotationBase(base: number): void {
+    this.updateGraphicRotationSettings(Number(base), this.graphicRotationSpread(this.selectedNode()!.graphic!));
+  }
+
+  updateGraphicRotationSpread(spread: number): void {
+    this.updateGraphicRotationSettings(
+      this.graphicRotationBase(this.selectedNode()!.graphic!),
+      Math.max(0, Math.min(180, Number(spread))),
+    );
+  }
+
+  updateGraphicOrientation(orientation: NonNullable<FlowerNodeGraphic['orientation']>): void {
+    this.updateSelectedNode((node) => node.graphic
+      ? {...node, graphic: {...node.graphic, orientation}}
+      : node);
+  }
+
+  private updateGraphicRotationSettings(base: number, spread: number): void {
+    const normalizedBase = Math.max(-180, Math.min(180, base));
+    this.updateSelectedNode((node) => node.graphic
+      ? {
+          ...node,
+          graphic: {
+            ...node.graphic,
+            rotationBase: normalizedBase,
+            rotationSpread: spread,
+            rotation: {
+              min: normalizedBase - spread,
+              max: normalizedBase + spread,
+            },
+          },
+        }
+      : node);
+  }
+
+  updateIncomingRange(
     group: 'repeat' | 'length' | 'angle' | 'azimuth',
     value: NumberRange,
   ): void {
-    this.updateConnection(index, (connection) => ({
-      ...connection,
+    this.updateIncoming((incoming) => ({
+      ...incoming,
       [group]: value,
     }));
   }
 
-  connectionRandomness(connection: FlowerNodeConnection): number {
-    return Math.round((connection.randomness ?? 0.35) * 100);
+  incomingRandomness(incoming: FlowerNodeIncomingConnection): number {
+    return Math.round((incoming.randomness ?? 0.35) * 100);
   }
 
-  updateConnectionRandomness(index: number, percentage: number): void {
-    this.updateConnection(index, (connection) => ({
-      ...connection,
+  updateIncomingRandomness(percentage: number): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
       randomness: Math.max(0, Math.min(1, Number(percentage) / 100)),
     }));
   }
@@ -415,30 +488,29 @@ export class FlowerEditorComponent {
       : node);
   }
 
-  connectionStemColor(connection: FlowerNodeConnection): string {
-    return connection.stem?.color ?? this.draft().stem.color;
+  incomingStemColor(incoming: FlowerNodeIncomingConnection): string {
+    return incoming.stem?.color ?? this.draft().stem.color;
   }
 
-  connectionStemWidth(connection: FlowerNodeConnection): number {
-    return connection.stem?.width ?? this.draft().stem.width;
+  incomingStemWidth(incoming: FlowerNodeIncomingConnection): number {
+    return incoming.stem?.width ?? this.draft().stem.width;
   }
 
-  updateConnectionStem(index: number, key: 'color' | 'width', value: string | number): void {
-    this.updateConnection(index, (connection) => ({
-      ...connection,
+  updateIncomingStem(key: 'color' | 'width', value: string | number): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
       stem: {
-        color: key === 'color' ? String(value) : this.connectionStemColor(connection),
-        width: key === 'width' ? Number(value) : this.connectionStemWidth(connection),
+        color: key === 'color' ? String(value) : this.incomingStemColor(incoming),
+        width: key === 'width' ? Number(value) : this.incomingStemWidth(incoming),
       },
     }));
   }
 
-  removeSelectedConnection(): void {
-    const selected = this.selectedEdge();
-    if (!selected) return;
-    this.updateConnectionForSource(selected.sourceId, (connections) =>
-      connections.filter((_, index) => index !== selected.index));
-    this.selectedEdge.set(null);
+  removeIncomingConnection(): void {
+    const incoming = this.selectedIncoming();
+    if (!incoming) return;
+    this.updateConnectionForSource(incoming.sourceId, (connections) =>
+      connections.filter((_, index) => index !== incoming.index));
   }
 
   startNodeDrag(event: PointerEvent, nodeId: string): void {
@@ -579,21 +651,26 @@ export class FlowerEditorComponent {
       this.notify('Diese Verbindung würde einen Zyklus erzeugen.');
       return;
     }
-    const connection: FlowerNodeConnection = {
-      childId: targetId,
-      repeat: {min: 1, max: 1},
-      length: {min: 50, max: 70},
-      angle: {min: 0, max: 10},
-      azimuth: {min: 0, max: 360},
-      randomness: 0.25,
-    };
-    let newIndex = 0;
+    if (
+      targetId === this.draft().rootNodeId
+      || incomingConnectionReference(this.draft(), targetId)
+    ) {
+      this.notify('Dieser Knoten hat bereits eine Eingangsverbindung.');
+      return;
+    }
+    const target = this.draft().nodes.find((node) => node.id === targetId);
+    if (!target) return;
+    const incoming = nodeIncomingOrDefault(target);
+    const connection = connectionFromIncoming(targetId, incoming);
     this.updateConnectionForSource(pending.sourceId, (connections) => {
-      newIndex = connections.length;
       return [...connections, connection];
     });
-    this.selectedNodeId.set(pending.sourceId);
-    this.selectedEdge.set({sourceId: pending.sourceId, index: newIndex});
+    this.draft.update((draft) => ({
+      ...draft,
+      nodes: draft.nodes.map((node) =>
+        node.id === targetId ? {...node, incoming} : node),
+    }));
+    this.selectNode(targetId);
   }
 
   async saveToCatalog(): Promise<void> {
@@ -658,17 +735,6 @@ export class FlowerEditorComponent {
     if (definition) this.loadDefinition(definition);
   }
 
-  @HostListener('window:keydown.delete', ['$event'])
-  @HostListener('window:keydown.backspace', ['$event'])
-  deleteSelectedEdgeWithKeyboard(event: Event): void {
-    if (!this.selectedEdge()) return;
-    const target = event.target as HTMLElement;
-    if (target.matches('input, textarea, select') || target.isContentEditable) return;
-    event.preventDefault();
-    this.removeSelectedConnection();
-  }
-
-
   private uniqueDefinitionId(seed: string): string {
     const existing = new Set(this.store.definitions().map((definition) => definition.id));
     const base = slugify(seed) || 'blume';
@@ -683,7 +749,7 @@ export class FlowerEditorComponent {
   }
 
   private loadDefinition(definition: FlowerDefinition): void {
-    const clone = structuredClone(definition);
+    const clone = migrateIncomingConnections(definition);
     this.draft.set(clone);
     this.graphPositions.set(materializePositions(clone));
     this.selectNode(clone.rootNodeId);
@@ -704,13 +770,10 @@ export class FlowerEditorComponent {
     }));
   }
 
-  private updateConnection(
-    index: number,
-    update: (connection: FlowerNodeConnection) => FlowerNodeConnection,
+  private updateIncoming(
+    update: (incoming: FlowerNodeIncomingConnection) => FlowerNodeIncomingConnection,
   ): void {
-    this.updateConnectionForSource(this.selectedNodeId(), (connections) =>
-      connections.map((connection, connectionIndex) =>
-        connectionIndex === index ? update(connection) : connection));
+    this.updateSelectedNode((node) => ({...node, incoming: update(nodeIncomingOrDefault(node))}));
   }
 
   private updateConnectionForSource(

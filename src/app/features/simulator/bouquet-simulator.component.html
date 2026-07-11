@@ -43,26 +43,29 @@
             Ausgewählt
           </div>
           <div class="flex gap-2 lg:grid">
-            <button mat-stroked-button type="button" (click)="resetSelectedNodes()"><mat-icon>restart_alt</mat-icon>Knoten</button>
             <button mat-button class="text-rose-700!" type="button" (click)="deleteSelected()"><mat-icon>delete</mat-icon>Entfernen</button>
           </div>
         </section>
       }
 
-      <button mat-button class="lg:mt-auto" type="button" (click)="store.resetBouquet(); selectedId.set(null)"><mat-icon>delete_sweep</mat-icon>Alles leeren</button>
+      <button mat-button class="lg:mt-auto" type="button" (click)="resetBouquet()"><mat-icon>delete_sweep</mat-icon>Alles leeren</button>
     </aside>
 
     <div class="relative order-1 min-h-[560px] overflow-hidden rounded-3xl border border-stone-200 bg-[#f8f7f2] shadow-sm lg:order-2">
       <div class="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/60 bg-white/75 px-3 py-1.5 text-[10px] font-semibold text-stone-400 backdrop-blur">
-        Freie Fläche drehen · grüne Punkte bewegen
+        Freie Fläche in alle Richtungen drehen · Blume neigen
       </div>
       <app-bouquet-canvas
         class="block h-full"
         [state]="store.state()"
         [definitions]="store.definitions()"
         [selectedId]="selectedId()"
-        (nodeDrag)="moveNode($event)"
-        (rotateDrag)="store.rotateBy($event)"
+        [flowerMoveEnabled]="true"
+        [vaseEnabled]="true"
+        [orbitEnabled]="true"
+        [orbitPitch]="bouquetPitch()"
+        (flowerDrag)="moveFlower($event)"
+        (orbitDrag)="orbitBouquet($event)"
         (selectionChange)="selectedId.set($event)"
       />
     </div>

@@ -1,4 +1,5 @@
 import {FlowerDefinition, FlowerNodeDefinition} from '../../core/models/flower.models';
+import {effectiveConnection} from '../../core/models/flower-connections';
 
 export interface Point {
   x: number;
@@ -9,7 +10,6 @@ export interface GraphNode extends Point {
   id: string;
   name: string;
   root: boolean;
-  draggable: boolean;
   hasGraphic: boolean;
   loop: boolean;
   loopStartName: string;
@@ -23,6 +23,7 @@ export interface GraphNode extends Point {
 export interface GraphEdge {
   key: string;
   sourceId: string;
+  targetId: string;
   index: number;
   path: string;
   labelX: number;
@@ -58,7 +59,8 @@ export function createGraphLayout(
       if (node.loop?.startNodeId && !levels.has(node.loop.startNodeId)) {
         levels.set(node.loop.startNodeId, level + 1);
       }
-      for (const connection of node.connections) {
+      for (const legacyConnection of node.connections) {
+        const connection = effectiveConnection(definition, legacyConnection);
         if (!levels.has(connection.childId)) levels.set(connection.childId, level + 1);
       }
     }
@@ -95,7 +97,6 @@ export function createGraphLayout(
         x: position.x,
         y: position.y,
         root: node.id === definition.rootNodeId,
-        draggable: node.draggable,
         hasGraphic: !!node.graphic,
         loop: !!node.loop,
         loopStartName: definition.nodes.find((candidate) =>
@@ -150,7 +151,9 @@ export function curvedConnectionPath(start: Point, end: Point): string {
   const distance = Math.abs(end.y - start.y);
   const curve = Math.max(48, distance * 0.46);
   const direction = end.y <= start.y ? -1 : 1;
-  return `M ${start.x} ${start.y} C ${start.x} ${start.y + direction * curve}, ${end.x} ${end.y - direction * curve}, ${end.x} ${end.y}`;
+  const firstControl = {x: start.x, y: start.y + direction * curve};
+  const secondControl = {x: end.x, y: end.y - direction * curve};
+  return `M ${start.x} ${start.y} C ${firstControl.x} ${firstControl.y}, ${secondControl.x} ${secondControl.y}, ${end.x} ${end.y}`;
 }
 
 function arrangeLoopMembers(
@@ -214,7 +217,8 @@ function createEdges(definition: FlowerDefinition, graphNodes: GraphNode[]): Gra
   for (const node of definition.nodes) {
     const from = positions.get(node.id);
     if (!from) continue;
-    node.connections.forEach((connection, index) => {
+    node.connections.forEach((legacyConnection, index) => {
+      const connection = effectiveConnection(definition, legacyConnection);
       const to = positions.get(connection.childId);
       if (!to) return;
       const start = {x: from.x, y: from.y - from.height / 2};
@@ -222,6 +226,7 @@ function createEdges(definition: FlowerDefinition, graphNodes: GraphNode[]): Gra
       edges.push({
         key: `${node.id}-${connection.childId}-${index}`,
         sourceId: node.id,
+        targetId: connection.childId,
         index,
         path: curvedConnectionPath(start, end),
         labelX: (start.x + end.x) / 2,
@@ -247,6 +252,7 @@ function boundaryEdge(
   return {
     key,
     sourceId,
+    targetId: sourceId,
     index,
     path: curvedConnectionPath(start, end),
     labelX: (start.x + end.x) / 2,
@@ -268,7 +274,8 @@ function templatePath(
   const visit = (id: string): string[] | null => {
     if (visited.has(id)) return null;
     visited.add(id);
-    for (const connection of nodes.get(id)?.connections ?? []) {
+    for (const legacyConnection of nodes.get(id)?.connections ?? []) {
+      const connection = effectiveConnection(definition, legacyConnection);
       if (connection.childId === endNodeId) return [id, endNodeId];
       const remainder = visit(connection.childId);
       if (remainder) return [id, ...remainder];
