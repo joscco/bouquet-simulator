@@ -1,32 +1,46 @@
-import {ChangeDetectionStrategy, Component, HostListener, computed, inject, signal} from '@angular/core';
-import {MatButtonModule} from '@angular/material/button';
-import {MatIconModule} from '@angular/material/icon';
-import {MatSliderModule} from '@angular/material/slider';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  HostListener,
+  OnDestroy,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
-import {MatTooltipModule} from '@angular/material/tooltip';
-import {RouterLink} from '@angular/router';
+import {gsap} from 'gsap';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
-import {BouquetFlower, FlowerDefinition, ProjectExport} from '../../core/models/flower.models';
+import {ProjectExport} from '../../core/models/flower.models';
+import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
+import {
+  BouquetFlowerListItem,
+  BouquetSidePanelComponent,
+} from './bouquet-side-panel.component';
+import {BouquetFlowerPickerComponent} from './bouquet-flower-picker.component';
+import {BouquetProjectStorage} from './bouquet-project-storage.service';
 
 @Component({
   selector: 'app-bouquet-simulator',
   imports: [
-    RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatSliderModule,
     MatSnackBarModule,
-    MatTooltipModule,
     BouquetCanvasComponent,
+    ViewSwitcherComponent,
+    BouquetSidePanelComponent,
+    BouquetFlowerPickerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-simulator.component.html',
 })
-export class BouquetSimulatorComponent {
+export class BouquetSimulatorComponent implements OnDestroy {
+  private static readonly MENU_ANIMATION_SECONDS = 0.32;
+
   readonly store = inject(BouquetStore);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly projectStorage = inject(BouquetProjectStorage);
+  private readonly flowerNameCollator = new Intl.Collator('de', {numeric: true, sensitivity: 'base'});
   readonly pickerOpen = signal(false);
   readonly menuOpen = signal(false);
   readonly selectedId = signal<string | null>(null);
@@ -34,29 +48,59 @@ export class BouquetSimulatorComponent {
   readonly zoom = signal(1);
   readonly viewOffset = signal({x: 0, y: 0});
   readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
+  readonly previewInsetLeft = signal(Math.min(64, this.viewportWidth()));
   readonly previewInsets = computed(() => ({
-    left: this.menuOpen()
-      ? Math.min(424, this.viewportWidth())
-      : Math.min(64, this.viewportWidth()),
+    left: this.previewInsetLeft(),
     right: 0,
     top: 0,
     bottom: 0,
   }));
   readonly bouquetDefinitions = computed(() =>
     this.store.definitions().filter((definition) => (definition.catalogRole ?? 'flower') === 'flower'));
+  readonly usedFlowers = computed<BouquetFlowerListItem[]>(() => {
+    const definitions = new Map(this.store.definitions().map((definition) => [definition.id, definition]));
+    return this.store.state().flowers
+      .map((flower) => {
+        const definition = definitions.get(flower.definitionId);
+        return {
+          instanceId: flower.instanceId,
+          name: definition?.name ?? 'Unbekannte Blume',
+          symbol: definition?.catalogIcon?.symbol ?? '✿',
+          color: definition?.catalogIcon?.color ?? '#5b8d53',
+          lengthPercent: Math.round((1 - (flower.cutRatio ?? 0)) * 100),
+        };
+      })
+      .sort((left, right) =>
+        this.flowerNameCollator.compare(left.name, right.name)
+        || left.instanceId.localeCompare(right.instanceId));
+  });
   readonly rotationDegrees = computed(() => {
     const normalized = this.store.state().rotation * 180 / Math.PI % 360;
     return Math.round(normalized < 0 ? normalized + 360 : normalized);
   });
 
+  private menuLayoutTween: {kill: () => void} | null = null;
+
+  constructor() {
+    this.projectStorage.restoreProject();
+    effect(() => this.projectStorage.persistProject(this.store.exportProject()));
+  }
+
   @HostListener('window:resize')
   updateViewportWidth(): void {
     this.viewportWidth.set(window.innerWidth);
+    this.cancelMenuLayoutTween();
+    this.previewInsetLeft.set(this.targetPreviewInset(this.menuOpen()));
   }
 
   toggleMenu(): void {
-    this.menuOpen.update((open) => !open);
-    this.viewOffset.set({x: 0, y: 0});
+    const open = !this.menuOpen();
+    this.menuOpen.set(open);
+    this.animateMenuLayout(open);
+  }
+
+  ngOnDestroy(): void {
+    this.cancelMenuLayoutTween();
   }
 
   addFlower(definitionId: string): void {
@@ -72,8 +116,28 @@ export class BouquetSimulatorComponent {
     this.store.copyFlower(instanceId);
   }
 
-  setFlowerCut(instanceId: string, value: string | number): void {
-    this.store.setFlowerCut(instanceId, Number(value) / 100);
+  shuffleBouquet(): void {
+    this.store.shuffleBouquet();
+    this.selectedId.set(null);
+  }
+
+  addBouquet(): void {
+    this.store.addBouquet();
+    this.resetTransientView();
+  }
+
+  selectBouquet(bouquetId: string): void {
+    this.store.selectBouquet(bouquetId);
+    this.resetTransientView();
+  }
+
+  deleteBouquet(bouquetId: string): void {
+    this.store.removeBouquet(bouquetId);
+    this.resetTransientView();
+  }
+
+  setFlowerLength(instanceId: string, lengthPercent: number): void {
+    this.store.setFlowerCut(instanceId, (100 - lengthPercent) / 100);
   }
 
   orbitBouquet(delta: {yaw: number; pitch: number}): void {
@@ -90,57 +154,22 @@ export class BouquetSimulatorComponent {
   }
 
   resetView(): void {
-    this.viewOffset.set({x: 0, y: 0});
-    this.bouquetPitch.set(0);
-    this.zoom.set(1);
+    this.resetTransientView();
     this.store.setRotation(0);
   }
 
-  deleteSelected(): void {
-    const selectedId = this.selectedId();
-    if (!selectedId) return;
-    this.store.removeFlower(selectedId);
-    this.selectedId.set(null);
+  removeFlower(instanceId: string): void {
+    this.store.removeFlower(instanceId);
+    if (this.selectedId() === instanceId) this.selectedId.set(null);
   }
 
   resetBouquet(): void {
     this.store.resetBouquet();
-    this.selectedId.set(null);
-    this.bouquetPitch.set(0);
-    this.zoom.set(1);
-    this.viewOffset.set({x: 0, y: 0});
+    this.resetTransientView();
   }
 
   setRotationFromDegrees(value: string | number): void {
     this.store.setRotation(Number(value) * Math.PI / 180);
-  }
-
-  previewColor(definition: FlowerDefinition): string {
-    return definition.catalogIcon?.color ?? '#5b8d53';
-  }
-
-  previewSymbol(definition: FlowerDefinition): string {
-    return definition.catalogIcon?.symbol ?? '✿';
-  }
-
-  flowerDefinition(flower: BouquetFlower): FlowerDefinition | null {
-    return this.store.definitions().find((definition) => definition.id === flower.definitionId) ?? null;
-  }
-
-  flowerName(flower: BouquetFlower): string {
-    return this.flowerDefinition(flower)?.name ?? 'Unbekannte Blume';
-  }
-
-  flowerSymbol(flower: BouquetFlower): string {
-    return this.flowerDefinition(flower)?.catalogIcon?.symbol ?? '✿';
-  }
-
-  flowerColor(flower: BouquetFlower): string {
-    return this.flowerDefinition(flower)?.catalogIcon?.color ?? '#5b8d53';
-  }
-
-  flowerCutPercent(flower: BouquetFlower): number {
-    return Math.round((flower.cutRatio ?? 0) * 100);
   }
 
   exportProject(): void {
@@ -153,14 +182,61 @@ export class BouquetSimulatorComponent {
     if (!file) return;
     try {
       this.store.importProject(await readJsonFile<ProjectExport>(file));
-      this.selectedId.set(null);
-      this.bouquetPitch.set(0);
-      this.zoom.set(1);
-      this.viewOffset.set({x: 0, y: 0});
+      this.resetTransientView();
     } catch (error: unknown) {
       this.snackBar.open(error instanceof Error ? error.message : 'Die Datei konnte nicht gelesen werden.');
     } finally {
       input.value = '';
     }
+  }
+
+  private animateMenuLayout(open: boolean): void {
+    this.cancelMenuLayoutTween();
+
+    const layout = {
+      inset: this.previewInsetLeft(),
+      x: this.viewOffset().x,
+      y: this.viewOffset().y,
+    };
+    const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+    if (reducedMotion) {
+      this.previewInsetLeft.set(this.targetPreviewInset(open));
+      this.viewOffset.set({x: 0, y: 0});
+      return;
+    }
+
+    this.menuLayoutTween = gsap.to(layout, {
+      inset: this.targetPreviewInset(open),
+      x: 0,
+      y: 0,
+      duration: BouquetSimulatorComponent.MENU_ANIMATION_SECONDS,
+      ease: 'power3.out',
+      onUpdate: () => {
+        this.previewInsetLeft.set(layout.inset);
+        this.viewOffset.set({x: layout.x, y: layout.y});
+      },
+      onComplete: () => {
+        this.menuLayoutTween = null;
+        this.previewInsetLeft.set(this.targetPreviewInset(open));
+        this.viewOffset.set({x: 0, y: 0});
+      },
+    });
+  }
+
+  private cancelMenuLayoutTween(): void {
+    this.menuLayoutTween?.kill();
+    this.menuLayoutTween = null;
+  }
+
+  private targetPreviewInset(open: boolean): number {
+    return Math.min(open ? 424 : 64, this.viewportWidth());
+  }
+
+  private resetTransientView(): void {
+    this.selectedId.set(null);
+    this.bouquetPitch.set(0);
+    this.zoom.set(1);
+    this.viewOffset.set({x: 0, y: 0});
   }
 }

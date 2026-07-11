@@ -96,4 +96,88 @@ describe('bouquet flower placement', () => {
     expect(store.definitions().some((definition) => definition.id === targetId)).toBe(false);
     expect(store.state().flowers.some((flower) => flower.definitionId === targetId)).toBe(false);
   });
+
+  it('restores a valid persisted bouquet', () => {
+    const store = new BouquetStore();
+    const persisted = structuredClone(store.state());
+    persisted.rotation = 1.25;
+    persisted.flowers[0]!.cutRatio = 0.37;
+
+    expect(store.restoreBouquet(persisted)).toBe(true);
+    expect(store.state()).toEqual(persisted);
+    expect(store.state()).not.toBe(persisted);
+  });
+
+  it('rejects invalid or outdated persisted bouquets', () => {
+    const store = new BouquetStore();
+    const previous = structuredClone(store.state());
+    const unknownDefinition = structuredClone(previous);
+    unknownDefinition.flowers[0]!.definitionId = 'missing-definition';
+
+    expect(store.restoreBouquet({schemaVersion: 2, rotation: 'wrong', flowers: []})).toBe(false);
+    expect(store.restoreBouquet(unknownDefinition)).toBe(false);
+    expect(store.state()).toEqual(previous);
+  });
+
+  it('creates up to four named bouquets and switches between their states', () => {
+    const store = new BouquetStore();
+    const firstBouquetId = store.activeBouquetId();
+    const firstFlowerCount = store.flowerCount();
+
+    store.renameActiveBouquet('Sommer');
+    store.addBouquet();
+    const secondBouquetId = store.activeBouquetId();
+    store.renameActiveBouquet('Tisch');
+
+    expect(store.bouquetSummaries()).toEqual([
+      expect.objectContaining({id: firstBouquetId, index: 1, name: 'Sommer', flowerCount: firstFlowerCount}),
+      expect.objectContaining({id: secondBouquetId, index: 2, name: 'Tisch', flowerCount: 0}),
+    ]);
+
+    store.addFlower('garden-rose');
+    expect(store.flowerCount()).toBe(1);
+
+    store.selectBouquet(firstBouquetId);
+    expect(store.activeBouquetName()).toBe('Sommer');
+    expect(store.flowerCount()).toBe(firstFlowerCount);
+
+    store.selectBouquet(secondBouquetId);
+    expect(store.activeBouquetName()).toBe('Tisch');
+    expect(store.flowerCount()).toBe(1);
+  });
+
+  it('limits bouquets to four and exports the active bouquet collection', () => {
+    const store = new BouquetStore();
+    store.addBouquet();
+    store.addBouquet();
+    store.addBouquet();
+    store.addBouquet();
+
+    expect(store.bouquets()).toHaveLength(4);
+    expect(store.canAddBouquet()).toBe(false);
+
+    const exported = store.exportProject();
+    expect(exported.bouquets).toHaveLength(4);
+    expect(exported.activeBouquetId).toBe(store.activeBouquetId());
+    expect(exported.bouquet).toEqual(store.state());
+  });
+
+  it('removes bouquets while keeping a valid active bouquet', () => {
+    const store = new BouquetStore();
+    const firstBouquetId = store.activeBouquetId();
+    store.addBouquet();
+    const secondBouquetId = store.activeBouquetId();
+    store.addFlower('garden-rose');
+
+    store.removeBouquet(secondBouquetId);
+
+    expect(store.bouquets()).toHaveLength(1);
+    expect(store.activeBouquetId()).toBe(firstBouquetId);
+    expect(store.flowerCount()).toBeGreaterThan(1);
+
+    store.removeBouquet(firstBouquetId);
+
+    expect(store.bouquets()).toHaveLength(1);
+    expect(store.activeBouquetId()).toBe(firstBouquetId);
+  });
 });

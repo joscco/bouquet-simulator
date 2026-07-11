@@ -1743,7 +1743,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "schemaVersion": 2,
     "id": "margeritenbluete-2",
     "name": "Margeritenblüte",
-    "catalogRole": "component",
+    "catalogRole": "flower",
     "catalogIcon": {
       "symbol": "✿",
       "color": "#5b8d53"

@@ -9,7 +9,7 @@ import {validateFlowerDefinition} from './flower-validation';
 
 describe('node-owned incoming connections', () => {
   it('migrates legacy edge settings onto their target node', () => {
-    const legacy = structuredClone(DEFAULT_FLOWERS[1]);
+    const legacy = structuredClone(daisyComponentDefinition());
     const source = legacy.nodes.find((node) =>
       node.connections.some((connection) => connection.childId === 'petal'))!;
     const legacyConnection = source.connections.find((connection) =>
@@ -24,7 +24,7 @@ describe('node-owned incoming connections', () => {
   });
 
   it('uses the settings stored on the target node', () => {
-    const definition = migrateIncomingConnections(DEFAULT_FLOWERS[1]);
+    const definition = migrateIncomingConnections(daisyComponentDefinition());
     const target = definition.nodes.find((node) => node.id === 'petal')!;
     target.incoming = {...target.incoming!, length: {min: 33, max: 44}};
     const source = definition.nodes.find((node) =>
@@ -35,7 +35,7 @@ describe('node-owned incoming connections', () => {
   });
 
   it('rejects a second incoming link to the same node', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[1]);
+    const definition = structuredClone(daisyComponentDefinition());
     const target = definition.nodes.find((node) => node.id === 'petal')!;
     const source = definition.nodes.find((node) =>
       node.connections.some((connection) => connection.childId === target.id))!;
@@ -47,3 +47,8 @@ describe('node-owned incoming connections', () => {
       issue.message.includes('mehr als eine Eingangsverbindung'))).toBe(true);
   });
 });
+
+function daisyComponentDefinition() {
+  return DEFAULT_FLOWERS.find((definition) =>
+    definition.id === 'margeritenbluete-2' && definition.rootNodeId === 'flower-head')!;
+}

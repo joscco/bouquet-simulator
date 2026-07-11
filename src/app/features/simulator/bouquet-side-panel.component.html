@@ -1,0 +1,203 @@
+<aside class="pointer-events-none absolute inset-y-0 left-0 z-20">
+  <section
+    class="absolute bottom-0 left-16 top-0 w-[min(360px,calc(100vw-4rem))] overflow-hidden border-r border-white/70 bg-white/82 shadow-2xl shadow-stone-900/10 backdrop-blur-xl transition-[transform,opacity] duration-[320ms] ease-out will-change-transform motion-reduce:transition-none"
+    [class.translate-x-0]="menuOpen()"
+    [class.-translate-x-full]="!menuOpen()"
+    [class.opacity-100]="menuOpen()"
+    [class.opacity-0]="!menuOpen()"
+    [class.pointer-events-auto]="menuOpen()"
+    [class.pointer-events-none]="!menuOpen()"
+    [attr.aria-hidden]="!menuOpen()"
+    [attr.inert]="menuOpen() ? null : ''"
+  >
+    <div class="flex h-full min-h-0 flex-col overflow-hidden p-4">
+      <div class="mb-4 flex shrink-0 items-center gap-2">
+        <div class="min-w-0 flex-1">
+          <input
+            class="h-6 w-full truncate border-0 bg-transparent p-0 text-sm font-semibold text-stone-800 outline-none focus:text-emerald-900"
+            type="text"
+            aria-label="Straußname"
+            [value]="activeBouquetName()"
+            (change)="bouquetNameChange.emit($any($event.target).value)"
+            (blur)="bouquetNameChange.emit($any($event.target).value)"
+          >
+          <div class="text-[10px] text-stone-400">Ziehen: drehen · Rad/Trackpad: zoomen</div>
+        </div>
+        <button
+          class="icon-button icon-button--danger"
+          type="button"
+          matTooltip="Strauß löschen"
+          aria-label="Strauß löschen"
+          [disabled]="bouquets().length <= 1"
+          (click)="deleteActiveBouquet()"
+        >
+          <mat-icon class="text-[19px]!">delete</mat-icon>
+        </button>
+      </div>
+      <div class="mb-4 grid shrink-0 grid-cols-3 gap-2">
+        @for (action of quickActions; track action.action) {
+          <button
+            class="panel-button panel-button--compact"
+            [class.panel-button--danger]="action.danger"
+            type="button"
+            (click)="emitQuickAction(action.action)"
+          >
+            <mat-icon class="panel-button__icon">{{ action.icon }}</mat-icon>
+            <span class="panel-button__label">{{ action.label }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="mb-4 flex min-h-0 flex-1 flex-col border-t border-stone-200/70 pt-3">
+        <div class="mb-2 flex shrink-0 items-center justify-start gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Verwendete Blumen</span>
+          <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
+            {{ flowers().length }}
+          </span>
+          <span class="flex-1"></span>
+          <button
+            class="icon-button icon-button--lg icon-button--primary"
+            type="button"
+            matTooltip="Blume hinzufügen"
+            aria-label="Blume hinzufügen"
+            (click)="pickerOpen.emit()"
+          >
+            <mat-icon>add</mat-icon>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 space-y-2 overflow-y-scroll pr-1 [scrollbar-gutter:stable]">
+          @for (flower of flowers(); track flower.instanceId) {
+            <section
+              class="grid min-h-[76px] grid-cols-[2rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 rounded-lg border bg-white/80 p-2 shadow-sm transition"
+              [class.border-emerald-400]="selectedId() === flower.instanceId"
+              [class.bg-emerald-50]="selectedId() === flower.instanceId"
+              [class.border-stone-200]="selectedId() !== flower.instanceId"
+            >
+              <button
+                class="grid h-8 w-8 place-items-center rounded-lg bg-stone-100 text-base shadow-inner"
+                type="button"
+                [style.color]="flower.color"
+                (click)="selectionChange.emit(flower.instanceId)"
+                [attr.aria-label]="flower.name + ' auswählen'"
+              >
+                {{ flower.symbol }}
+              </button>
+              <button
+                class="min-w-0 self-center truncate text-left text-xs font-bold text-stone-800"
+                type="button"
+                (click)="selectionChange.emit(flower.instanceId)"
+              >
+                {{ flower.name }}
+              </button>
+              <div class="flex items-center justify-end gap-0.5">
+                @for (action of flowerActions; track action.action) {
+                  <button
+                    class="icon-button icon-button--sm"
+                    [class.icon-button--danger]="action.danger"
+                    type="button"
+                    [matTooltip]="action.tooltip"
+                    [attr.aria-label]="flower.name + ' ' + action.ariaVerb"
+                    (click)="emitFlowerAction(action.action, flower.instanceId)"
+                  >
+                    <mat-icon class="text-[18px]!">{{ action.icon }}</mat-icon>
+                  </button>
+                }
+              </div>
+              <div class="col-span-3 grid grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-2">
+                <mat-slider class="w-full min-w-0" min="2" max="100" step="1" aria-label="Blumenlänge">
+                  <input
+                    matSliderThumb
+                    [value]="flower.lengthPercent"
+                    (input)="lengthChange.emit({instanceId: flower.instanceId, lengthPercent: +$any($event.target).value})"
+                  >
+                </mat-slider>
+                <output class="text-right text-[10px] font-semibold tabular-nums text-stone-500">
+                  {{ flower.lengthPercent }}%
+                </output>
+              </div>
+            </section>
+          } @empty {
+            <div class="rounded-xl border border-dashed border-stone-300 px-3 py-5 text-center text-[10px] text-stone-400">
+              Noch keine Blumen im Strauß.
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_42px] items-center gap-3 border-t border-stone-200/70 pt-4">
+        <label for="rotation" class="text-[10px] font-bold uppercase tracking-wider text-stone-500">
+          Drehung
+        </label>
+        <mat-slider id="rotation" class="min-w-0 w-full" min="0" max="360" step="1" discrete>
+          <input matSliderThumb [value]="rotationDegrees()" (input)="rotationChange.emit(+$any($event.target).value)">
+        </mat-slider>
+        <output class="text-right text-xs font-semibold tabular-nums text-stone-600">
+          {{ rotationDegrees() }}°
+        </output>
+      </div>
+
+      <div class="mt-4 grid shrink-0 grid-cols-2 gap-2 border-t border-stone-200/70 pt-4">
+        <label
+          class="panel-button cursor-pointer"
+        >
+          <mat-icon class="panel-button__icon">upload</mat-icon>
+          <span class="panel-button__label">Laden</span>
+          <input class="sr-only" type="file" accept="application/json,.json" (change)="projectImport.emit($event)">
+        </label>
+        <button
+          class="panel-button"
+          type="button"
+          (click)="projectExport.emit()"
+        >
+          <mat-icon class="panel-button__icon">download</mat-icon>
+          <span class="panel-button__label">Exportieren</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="pointer-events-auto relative z-10 flex h-full w-16 flex-col items-center border-r border-white/70 bg-white/82 px-2 py-3 shadow-2xl shadow-stone-900/10 backdrop-blur-xl">
+    <button
+      class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+      type="button"
+      [matTooltip]="menuOpen() ? 'Menü schließen' : 'Menü öffnen'"
+      [attr.aria-label]="menuOpen() ? 'Menü schließen' : 'Menü öffnen'"
+      [attr.aria-expanded]="menuOpen()"
+      (click)="menuToggle.emit()"
+    >
+      <mat-icon class="transition-transform duration-[320ms] motion-reduce:transition-none" [class.rotate-180]="menuOpen()">
+        chevron_right
+      </mat-icon>
+    </button>
+    <div class="mt-3 flex flex-col items-center gap-2">
+      @for (bouquet of bouquets(); track bouquet.id) {
+        <button
+          class="bouquet-rail-item grid h-9 w-9 place-items-center rounded-lg border text-xs font-bold transition"
+          type="button"
+          [class.border-emerald-950]="activeBouquetId() === bouquet.id"
+          [class.bg-emerald-950]="activeBouquetId() === bouquet.id"
+          [class.text-white]="activeBouquetId() === bouquet.id"
+          [class.border-stone-200]="activeBouquetId() !== bouquet.id"
+          [class.bg-white]="activeBouquetId() !== bouquet.id"
+          [class.text-stone-600]="activeBouquetId() !== bouquet.id"
+          [class.bouquet-rail-item--removing]="deletingBouquetId() === bouquet.id"
+          [attr.aria-label]="bouquet.name + ' auswählen'"
+          [attr.aria-current]="activeBouquetId() === bouquet.id ? 'page' : null"
+          (click)="bouquetSelect.emit(bouquet.id)"
+        >
+          {{ bouquet.index }}
+        </button>
+      }
+      @if (canAddBouquet()) {
+        <button
+          class="bouquet-rail-item grid h-9 w-9 place-items-center rounded-lg border border-dashed border-stone-300 text-stone-500 transition hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-900"
+          type="button"
+          aria-label="Neuen Strauß anlegen"
+          (click)="bouquetAdd.emit()"
+        >
+          <mat-icon>add</mat-icon>
+        </button>
+      }
+    </div>
+  </nav>
+</aside>

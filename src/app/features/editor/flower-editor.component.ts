@@ -8,7 +8,6 @@ import {
   signal,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {RouterLink} from '@angular/router';
 import {MatButtonModule} from '@angular/material/button';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import {MatIconModule} from '@angular/material/icon';
@@ -60,6 +59,7 @@ import {
   curvedConnectionPath,
   materializePositions,
 } from './flower-editor-graph';
+import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 
 interface FlowerComponentCatalogEntry {
   key: string;
@@ -72,7 +72,6 @@ interface FlowerComponentCatalogEntry {
   selector: 'app-flower-editor',
   imports: [
     FormsModule,
-    RouterLink,
     MatButtonModule,
     MatCheckboxModule,
     MatIconModule,
@@ -82,6 +81,7 @@ interface FlowerComponentCatalogEntry {
     BouquetCanvasComponent,
     IntervalSliderComponent,
     GraphicPainterComponent,
+    ViewSwitcherComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',

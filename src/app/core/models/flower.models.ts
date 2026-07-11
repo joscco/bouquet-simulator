@@ -153,9 +153,17 @@ export interface BouquetState {
   flowers: BouquetFlower[];
 }
 
+export interface BouquetProject {
+  id: string;
+  name: string;
+  state: BouquetState;
+}
+
 export interface ProjectExport {
   schemaVersion: 2;
   exportedAt: string;
   definitions: FlowerDefinition[];
   bouquet: BouquetState;
+  bouquets?: BouquetProject[];
+  activeBouquetId?: string;
 }

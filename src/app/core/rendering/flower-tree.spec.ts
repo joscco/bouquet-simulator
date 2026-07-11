@@ -25,7 +25,7 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
     const stemNodes = tree.nodes.filter((node) => node.templateId === 'stem');
     const leafNodes = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const petalNodes = tree.nodes.filter((node) => isTemplate(node.templateId, 'petal'));
+    const petalNodes = tree.nodes.filter((node) => isPetalTemplate(node.templateId));
 
     expect(stemNodes.length).toBeGreaterThanOrEqual(2);
     expect(new Set(leafNodes.map((node) => node.parentId))).toEqual(new Set(stemNodes.map((node) => node.id)));
@@ -102,7 +102,7 @@ describe('procedural flower tree generator', () => {
 
   it('distributes repeated branches in three dimensions', () => {
     const tree = generateFlowerTree(DEFAULT_FLOWERS[1], 0.31);
-    const petals = tree.nodes.filter((node) => node.templateId === 'petal');
+    const petals = tree.nodes.filter((node) => isTemplate(node.templateId, 'petal'));
 
     expect(petals.some((node) => Math.abs(node.z) > 0.1)).toBe(true);
     expect(new Set(petals.map((node) => node.parentId)).size).toBeGreaterThan(0);
@@ -152,4 +152,10 @@ describe('procedural flower tree generator', () => {
 
 function isTemplate(actual: string, expected: string): boolean {
   return actual === expected || actual.endsWith(`::${expected}`);
+}
+
+function isPetalTemplate(actual: string): boolean {
+  return isTemplate(actual, 'petal')
+    || isTemplate(actual, 'petal-copy')
+    || isTemplate(actual, 'petal-copy-copy');
 }
