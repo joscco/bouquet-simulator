@@ -115,6 +115,18 @@
                   {{ flower.lengthPercent }}%
                 </output>
               </div>
+              @if (selectedId() === flower.instanceId) {
+                <div class="col-span-3 border-t border-stone-100 pt-1.5">
+                  <app-numeric-slider
+                    label="Eigendrehung"
+                    unit="°"
+                    [value]="flower.rotationDegrees"
+                    [minimum]="0"
+                    [maximum]="359"
+                    (valueChange)="flowerRotationChange.emit({instanceId: flower.instanceId, rotationDegrees: $event})"
+                  />
+                </div>
+              }
             </section>
           } @empty {
             <div class="rounded-xl border border-dashed border-stone-300 px-3 py-5 text-center text-[10px] text-stone-400">

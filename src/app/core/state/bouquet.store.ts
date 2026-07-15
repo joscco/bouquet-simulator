@@ -12,6 +12,7 @@ import {validateFlowerDefinition} from '../models/flower-validation';
 import {DEFAULT_VASE_ID, isVaseId, vaseInsertionRadius} from '../data/vases';
 import {materializeDefinitionComponents} from '../models/flower-components';
 import {normalizeConnectionReferences} from '../models/flower-connections';
+import {normalizeFlowerCatalogCapabilities} from '../models/flower-catalog';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -144,6 +145,15 @@ export class BouquetStore {
     }));
   }
 
+  setFlowerRotation(instanceId: string, rotationY: number): void {
+    if (!Number.isFinite(rotationY)) return;
+    this.updateActiveBouquetState((state) => ({
+      ...state,
+      flowers: state.flowers.map((flower) =>
+        flower.instanceId === instanceId ? {...flower, rotationY} : flower),
+    }));
+  }
+
   setRotation(rotation: number): void {
     this.updateActiveBouquetState((state) => ({...state, rotation}));
   }
@@ -168,7 +178,7 @@ export class BouquetStore {
   }
 
   replaceDefinition(definition: FlowerDefinition): void {
-    const normalized = normalizeConnectionReferences(definition);
+    const normalized = normalizeDefinition(definition);
     this.definitions.update((definitions) => {
       const existing = definitions.findIndex((candidate) => candidate.id === normalized.id);
       if (existing < 0) return [...definitions, normalized];
@@ -460,7 +470,11 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function normalizeDefinitions(definitions: FlowerDefinition[]): FlowerDefinition[] {
-  return definitions.map((definition) => normalizeConnectionReferences(definition));
+  return definitions.map(normalizeDefinition);
+}
+
+function normalizeDefinition(definition: FlowerDefinition): FlowerDefinition {
+  return normalizeFlowerCatalogCapabilities(normalizeConnectionReferences(definition));
 }
 
 function isBouquetState(value: unknown): value is BouquetState {
@@ -479,6 +493,7 @@ function isBouquetState(value: unknown): value is BouquetState {
     && isFiniteNumber(flower['seed'])
     && (flower['leanX'] === undefined || isFiniteNumber(flower['leanX']))
     && (flower['leanZ'] === undefined || isFiniteNumber(flower['leanZ']))
+    && (flower['rotationY'] === undefined || isFiniteNumber(flower['rotationY']))
     && (flower['cutRatio'] === undefined || isFiniteNumber(flower['cutRatio']))
     && (flower['nodeOffsets'] === undefined || isRecord(flower['nodeOffsets'])));
 }

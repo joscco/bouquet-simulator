@@ -40,6 +40,7 @@
     (bouquetReset)="resetBouquet()"
     (selectionChange)="selectedId.set($event)"
     (lengthChange)="setFlowerLength($event.instanceId, $event.lengthPercent)"
+    (flowerRotationChange)="setFlowerRotation($event.instanceId, $event.rotationDegrees)"
     (flowerCopy)="copyFlower($event)"
     (flowerRemove)="removeFlower($event)"
     (rotationChange)="setRotationFromDegrees($event)"

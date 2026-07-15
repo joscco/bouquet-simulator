@@ -623,6 +623,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       }
     });
     group.rotation.x = flower.leanX ?? 0;
+    group.rotation.y = flower.rotationY ?? 0;
     group.rotation.z = flower.leanZ ?? 0;
     group.position.set(flower.x, -flower.y, flower.z);
     group.scale.setScalar(flower.scale);

@@ -14,8 +14,46 @@ import {NumberRange} from '../../core/models/flower.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block'},
   template: `
-    <div class="range-slider__header">
-      <span class="range-slider__label">{{ label() }}</span>
+    <span class="range-slider__label">{{ label() }}</span>
+    <div class="range-slider__row">
+      <div
+        class="range-slider"
+        [style.--range-start]="startPercentage() + '%'"
+        [style.--range-end]="endPercentage() + '%'"
+      >
+        <div class="range-slider__track"></div>
+        <div class="range-slider__selection"></div>
+        <input
+          class="range-slider__input"
+          type="range"
+          [attr.aria-label]="label() + ' erster Wert'"
+          [min]="minimum()"
+          [max]="maximum()"
+          [step]="step()"
+          [value]="firstHandle()"
+          (input)="setFirst(+$any($event.target).value)"
+          (pointerdown)="startDrag('first')"
+          (pointerup)="stopDrag()"
+          (pointercancel)="stopDrag()"
+          (keydown)="startDrag('first')"
+          (keyup)="stopDrag()"
+        >
+        <input
+          class="range-slider__input"
+          type="range"
+          [attr.aria-label]="label() + ' zweiter Wert'"
+          [min]="minimum()"
+          [max]="maximum()"
+          [step]="step()"
+          [value]="secondHandle()"
+          (input)="setSecond(+$any($event.target).value)"
+          (pointerdown)="startDrag('second')"
+          (pointerup)="stopDrag()"
+          (pointercancel)="stopDrag()"
+          (keydown)="startDrag('second')"
+          (keyup)="stopDrag()"
+        >
+      </div>
       <div class="range-slider__values">
         <input
           #minimumInput
@@ -45,57 +83,24 @@ import {NumberRange} from '../../core/models/flower.models';
         }
       </div>
     </div>
-    <div
-      class="range-slider"
-      [style.--range-start]="startPercentage() + '%'"
-      [style.--range-end]="endPercentage() + '%'"
-    >
-      <div class="range-slider__track"></div>
-      <div class="range-slider__selection"></div>
-      <input
-        class="range-slider__input"
-        type="range"
-        [attr.aria-label]="label() + ' erster Wert'"
-        [min]="minimum()"
-        [max]="maximum()"
-        [step]="step()"
-        [value]="firstHandle()"
-        (input)="setFirst(+$any($event.target).value)"
-        (pointerdown)="startDrag('first')"
-        (pointerup)="stopDrag()"
-        (pointercancel)="stopDrag()"
-        (keydown)="startDrag('first')"
-        (keyup)="stopDrag()"
-      >
-      <input
-        class="range-slider__input"
-        type="range"
-        [attr.aria-label]="label() + ' zweiter Wert'"
-        [min]="minimum()"
-        [max]="maximum()"
-        [step]="step()"
-        [value]="secondHandle()"
-        (input)="setSecond(+$any($event.target).value)"
-        (pointerdown)="startDrag('second')"
-        (pointerup)="stopDrag()"
-        (pointercancel)="stopDrag()"
-        (keydown)="startDrag('second')"
-        (keyup)="stopDrag()"
-      >
-    </div>
   `,
   styles: `
-    :host { width: 100%; }
+    :host {
+      width: 100%;
+      min-width: 0;
+      container-type: inline-size;
+    }
 
-    .range-slider__header {
+    .range-slider__row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .range-slider__label {
-      min-width: 0;
+      display: block;
+      margin-bottom: 5px;
       color: #57534e;
       font-size: 10px;
       font-weight: 600;
@@ -106,39 +111,37 @@ import {NumberRange} from '../../core/models/flower.models';
       display: flex;
       align-items: center;
       min-width: 0;
-      height: 28px;
-      overflow: hidden;
-      border: 1px solid #d6d3d1;
-      border-radius: 6px;
-      background: white;
+      gap: 4px;
     }
 
     .range-slider__number {
       appearance: textfield;
-      width: 46px;
+      width: 48px;
       min-width: 0;
-      height: 100%;
+      height: 36px;
       box-sizing: border-box;
-      border: 0;
-      padding: 0 4px;
-      background: transparent;
+      border: 1px solid #d6d3d1;
+      border-radius: 8px;
+      padding: 0 7px;
+      background: #fff;
       color: #292524;
-      font: 600 10px/1 sans-serif;
-      text-align: right;
+      font: 500 11px/1 sans-serif;
       outline: none;
     }
 
     .range-slider__number::-webkit-inner-spin-button,
     .range-slider__number::-webkit-outer-spin-button { appearance: none; margin: 0; }
 
-    .range-slider__number:focus-visible { box-shadow: inset 0 0 0 2px #059669; }
+    .range-slider__number:focus-visible {
+      border-color: #047857;
+      box-shadow: 0 0 0 3px rgb(4 120 87 / 12%);
+    }
     .range-slider__separator, .range-slider__unit { flex: none; color: #78716c; font-size: 9px; }
-    .range-slider__unit { padding-right: 5px; }
 
     .range-slider {
       --thumb-size: 18px;
       position: relative;
-      height: 38px;
+      height: 36px;
       width: calc(100% - var(--thumb-size));
       margin-inline: calc(var(--thumb-size) / 2);
     }
@@ -146,7 +149,7 @@ import {NumberRange} from '../../core/models/flower.models';
     .range-slider__track,
     .range-slider__selection {
       position: absolute;
-      top: 17px;
+      top: 16px;
       height: 4px;
       border-radius: 999px;
       pointer-events: none;
@@ -170,7 +173,7 @@ import {NumberRange} from '../../core/models/flower.models';
       left: 0;
       top: 0;
       width: 100%;
-      height: 38px;
+      height: 36px;
       margin: 0;
       padding: 0;
       background: transparent;
@@ -220,6 +223,12 @@ import {NumberRange} from '../../core/models/flower.models';
     .range-slider__input:focus-visible::-moz-range-thumb {
       outline: 3px solid rgb(16 185 129 / 0.28);
       outline-offset: 2px;
+    }
+
+    @container (max-width: 230px) {
+      .range-slider__row { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+      .range-slider__values { width: 100%; }
+      .range-slider__number { flex: 1 1 0; width: 100%; }
     }
   `,
 })

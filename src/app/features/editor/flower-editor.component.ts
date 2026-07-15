@@ -8,8 +8,6 @@ import {
   signal,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {MatButtonModule} from '@angular/material/button';
-import {MatCheckboxModule} from '@angular/material/checkbox';
 import {MatIconModule} from '@angular/material/icon';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 import {MatTooltipModule} from '@angular/material/tooltip';
@@ -42,6 +40,7 @@ import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
 import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
+import {NumericFieldComponent} from '../../shared/numeric-field/numeric-field.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {
@@ -55,6 +54,11 @@ import {
   resolveFlowerSubtreeSelection,
 } from '../../core/models/flower-subtree';
 import {materializeDefinitionComponents} from '../../core/models/flower-components';
+import {
+  isAvailableAsComponent,
+  isAvailableInBouquet,
+  normalizeFlowerCatalogCapabilities,
+} from '../../core/models/flower-catalog';
 import {
   Point,
   createCompactGraphPositions,
@@ -71,7 +75,8 @@ import {
 interface FlowerComponentCatalogEntry {
   key: string;
   source: 'definition' | 'saved';
-  role: 'flower' | 'component';
+  availableInBouquet: boolean;
+  availableAsComponent: boolean;
   tree: FlowerSubtreeDefinition;
 }
 
@@ -79,18 +84,18 @@ interface FlowerComponentCatalogEntry {
   selector: 'app-flower-editor',
   imports: [
     FormsModule,
-    MatButtonModule,
-    MatCheckboxModule,
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
     BouquetCanvasComponent,
     IntervalSliderComponent,
     NumericSliderComponent,
+    NumericFieldComponent,
     ViewSwitcherComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
+  styleUrl: './flower-editor.component.css',
 })
 export class FlowerEditorComponent {
   readonly graphicPrimitives = BUILT_IN_GRAPHICS;
@@ -110,22 +115,26 @@ export class FlowerEditorComponent {
   readonly lassoMode = signal(false);
   readonly lassoPoints = signal<Point[]>([]);
   readonly savedTrees = this.subtreeLibrary.trees;
-  readonly componentCatalog = computed<FlowerComponentCatalogEntry[]>(() => [
+  readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() => [
     ...this.store.definitions().map((definition) => ({
       key: `definition:${definition.id}`,
       source: 'definition' as const,
-      role: (definition.catalogRole ?? 'flower') as 'flower' | 'component',
+      availableInBouquet: isAvailableInBouquet(definition),
+      availableAsComponent: isAvailableAsComponent(definition),
       tree: createFlowerDefinitionComponent(migrateIncomingConnections(definition)),
     })),
     ...this.savedTrees().map((tree) => ({
       key: `saved:${tree.id}`,
       source: 'saved' as const,
-      role: 'component' as const,
+      availableInBouquet: false,
+      availableAsComponent: true,
       tree,
     })),
   ]);
+  readonly componentCatalog = computed(() =>
+    this.catalogEntries().filter((entry) => entry.availableAsComponent));
   readonly selectedCatalogEntry = computed(() =>
-    this.componentCatalog().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
+    this.catalogEntries().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
   readonly canDeleteSelectedCatalogEntry = computed(() => {
     const entry = this.selectedCatalogEntry();
     return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
@@ -134,7 +143,7 @@ export class FlowerEditorComponent {
     const query = normalizeSearch(this.componentSearch());
     if (!query) return this.componentCatalog();
     return this.componentCatalog().filter((entry) =>
-      normalizeSearch(`${entry.tree.name} ${entry.role} ${entry.source}`).includes(query));
+      normalizeSearch(`${entry.tree.name} ${this.catalogEntryType(entry)} ${entry.source}`).includes(query));
   });
   readonly graphZoom = signal(1);
   readonly graphCenter = signal<Point>({x: 500, y: 500});
@@ -220,11 +229,19 @@ export class FlowerEditorComponent {
     this.draft.update((draft) => ({...draft, [key]: value}));
   }
 
-  updateCatalogRole(isFlower: boolean): void {
+  updateCatalogCapability(key: 'availableInBouquet' | 'availableAsComponent', enabled: boolean): void {
     this.draft.update((draft) => ({
       ...draft,
-      catalogRole: isFlower ? 'flower' : 'component',
+      [key]: enabled,
     }));
+  }
+
+  catalogEntryType(entry: FlowerComponentCatalogEntry): string {
+    if (entry.source === 'saved') return 'Extrahierte Komponente';
+    if (entry.availableInBouquet && entry.availableAsComponent) return 'Blume + Komponente';
+    if (entry.availableInBouquet) return 'Blume';
+    if (entry.availableAsComponent) return 'Komponente';
+    return 'Nur im Katalog';
   }
 
   updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
@@ -239,6 +256,8 @@ export class FlowerEditorComponent {
       id,
       name: 'Neue Blume',
       catalogRole: 'flower',
+      availableInBouquet: true,
+      availableAsComponent: true,
       rootNodeId: 'base',
       stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72, bend: 0, curve: 14},
       nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
@@ -1133,7 +1152,7 @@ export class FlowerEditorComponent {
   }
 
   selectCatalogEntry(key: string): void {
-    const entry = this.componentCatalog().find((candidate) => candidate.key === key);
+    const entry = this.catalogEntries().find((candidate) => candidate.key === key);
     if (!entry) return;
     if (entry.source === 'definition') {
       const definition = this.store.definitions().find((candidate) => candidate.id === entry.tree.id);
@@ -1333,7 +1352,9 @@ export class FlowerEditorComponent {
   }
 
   private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
-    const clone = normalizeConnectionReferences(migrateIncomingConnections(definition));
+    const clone = normalizeFlowerCatalogCapabilities(
+      normalizeConnectionReferences(migrateIncomingConnections(definition)),
+    );
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
     this.graphPositions.set(materializePositions(clone));
@@ -1356,6 +1377,8 @@ export class FlowerEditorComponent {
       id: tree.id,
       name: tree.name,
       catalogRole: role,
+      availableInBouquet: role === 'flower',
+      availableAsComponent: true,
       outputNodeIds: role === 'component' ? structuredClone(tree.outputNodeIds ?? []) : undefined,
       rootNodeId: tree.rootNodeId,
       stem: structuredClone(this.draft().stem),

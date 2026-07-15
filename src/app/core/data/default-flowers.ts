@@ -269,7 +269,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         }
       }
     },
-    "catalogRole": "flower"
+    "catalogRole": "flower",
+    "availableInBouquet": true,
+    "availableAsComponent": true
   },
   {
     "schemaVersion": 2,
@@ -383,7 +385,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "bendCross": 45,
           "orientation": "toward-parent",
           "rotationBase": 85,
-          "rotationSpread": 15,
+          "rotationSpread": 5,
           "start": {
             "x": 0.5,
             "y": 0.88
@@ -393,8 +395,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "y": 0.05
           },
           "rotation": {
-            "min": 70,
-            "max": 100
+            "min": 80,
+            "max": 90
           }
         },
         "connections": [],
@@ -432,7 +434,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "bendCross": 55,
           "orientation": "toward-parent",
           "rotationBase": 89,
-          "rotationSpread": 10,
+          "rotationSpread": 3,
           "start": {
             "x": 0.5,
             "y": 0.88
@@ -442,8 +444,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "y": 0.05
           },
           "rotation": {
-            "min": 79,
-            "max": 99
+            "min": 86,
+            "max": 92
           }
         },
         "connections": [],
@@ -472,22 +474,24 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       "nodePositions": {
         "bloom": {
           "x": 500,
-          "y": 840
+          "y": 900
         },
         "petal": {
-          "x": 666.2290098940915,
-          "y": 560
+          "x": 248,
+          "y": 754
         },
         "petal-copy": {
-          "x": 789.902592912034,
-          "y": 673.547589506194
+          "x": 500,
+          "y": 754
         },
         "petal-copy-copy": {
-          "x": 815.736191613087,
-          "y": 799.4283588024285
+          "x": 752,
+          "y": 754
         }
       }
-    }
+    },
+    "availableInBouquet": false,
+    "availableAsComponent": true
   },
   {
     "schemaVersion": 2,
@@ -885,7 +889,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "y": 372.3808915865728
         }
       }
-    }
+    },
+    "availableInBouquet": true,
+    "availableAsComponent": true
   },
   {
     "schemaVersion": 2,
@@ -1249,7 +1255,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "y": 109.62460524302253
         }
       }
-    }
+    },
+    "availableInBouquet": true,
+    "availableAsComponent": true
   },
   {
     "schemaVersion": 2,
@@ -1576,7 +1584,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "y": 316
         }
       }
-    }
+    },
+    "availableInBouquet": true,
+    "availableAsComponent": true
   },
   {
     "schemaVersion": 2,
@@ -1743,6 +1753,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "y": 754
         }
       }
-    }
+    },
+    "availableInBouquet": false,
+    "availableAsComponent": true
   }
 ];

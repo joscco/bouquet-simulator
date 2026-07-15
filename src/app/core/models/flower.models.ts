@@ -124,8 +124,12 @@ export interface FlowerDefinition {
   schemaVersion: 2;
   id: string;
   name: string;
-  /** Nur fertige Blumen erscheinen im Strauß-Editor; Komponenten bleiben im Flower-Editor wiederverwendbar. */
+  /** @deprecated Wird beim Laden in die beiden unabhaengigen Katalogfreigaben migriert. */
   catalogRole?: 'flower' | 'component';
+  /** Die Definition kann im Bouquet-Picker ausgewaehlt werden. */
+  availableInBouquet?: boolean;
+  /** Die Definition kann im Flower-Editor als echte Referenz eingefuegt werden. */
+  availableAsComponent?: boolean;
   catalogIcon?: {
     symbol: string;
     color: string;
@@ -164,6 +168,8 @@ export interface BouquetFlower {
   /** Neigung der gesamten Blume um ihren Einsteckpunkt. */
   leanX?: number;
   leanZ?: number;
+  /** Eigendrehung der Blumeninstanz um ihre Wachstumsachse, in Radiant. */
+  rotationY?: number;
   seed: number;
   /** 0 = vollständig, 1 = von unten maximal gekürzt. */
   cutRatio?: number;

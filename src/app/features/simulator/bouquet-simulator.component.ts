@@ -15,6 +15,7 @@ import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {ProjectExport} from '../../core/models/flower.models';
 import {DEFAULT_VASE_ID, VASE_OPTIONS} from '../../core/data/vases';
+import {isAvailableInBouquet} from '../../core/models/flower-catalog';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {
   BouquetFlowerListItem,
@@ -58,7 +59,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
     bottom: 0,
   }));
   readonly bouquetDefinitions = computed(() =>
-    this.store.definitions().filter((definition) => (definition.catalogRole ?? 'flower') === 'flower'));
+    this.store.definitions().filter(isAvailableInBouquet));
   readonly usedFlowers = computed<BouquetFlowerListItem[]>(() => {
     const definitions = new Map(this.store.definitions().map((definition) => [definition.id, definition]));
     return this.store.state().flowers
@@ -70,6 +71,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
           symbol: definition?.catalogIcon?.symbol ?? '✿',
           color: definition?.catalogIcon?.color ?? '#5b8d53',
           lengthPercent: Math.round((1 - (flower.cutRatio ?? 0)) * 100),
+          rotationDegrees: normalizedDegrees(flower.rotationY ?? 0),
         };
       })
       .sort((left, right) =>
@@ -141,6 +143,10 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   setFlowerLength(instanceId: string, lengthPercent: number): void {
     this.store.setFlowerCut(instanceId, (100 - lengthPercent) / 100);
+  }
+
+  setFlowerRotation(instanceId: string, rotationDegrees: number): void {
+    this.store.setFlowerRotation(instanceId, rotationDegrees * Math.PI / 180);
   }
 
   orbitBouquet(delta: {yaw: number; pitch: number}): void {
@@ -246,4 +252,9 @@ export class BouquetSimulatorComponent implements OnDestroy {
     this.zoom.set(1);
     this.viewOffset.set({x: 0, y: 0});
   }
+}
+
+function normalizedDegrees(radians: number): number {
+  const degrees = Math.round(radians * 180 / Math.PI) % 360;
+  return degrees < 0 ? degrees + 360 : degrees;
 }

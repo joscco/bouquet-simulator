@@ -4,6 +4,7 @@ import {MatSliderModule} from '@angular/material/slider';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetSummary} from '../../core/state/bouquet.store';
 import {VaseOption} from '../../core/data/vases';
+import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
 
 type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
 type FlowerAction = 'copy' | 'remove';
@@ -14,11 +15,12 @@ export interface BouquetFlowerListItem {
   symbol: string;
   color: string;
   lengthPercent: number;
+  rotationDegrees: number;
 }
 
 @Component({
   selector: 'app-bouquet-side-panel',
-  imports: [MatIconModule, MatSliderModule, MatTooltipModule],
+  imports: [MatIconModule, MatSliderModule, MatTooltipModule, NumericSliderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-side-panel.component.html',
   styles: `
@@ -189,6 +191,7 @@ export class BouquetSidePanelComponent {
   readonly bouquetReset = output<void>();
   readonly selectionChange = output<string>();
   readonly lengthChange = output<{instanceId: string; lengthPercent: number}>();
+  readonly flowerRotationChange = output<{instanceId: string; rotationDegrees: number}>();
   readonly flowerCopy = output<string>();
   readonly flowerRemove = output<string>();
   readonly rotationChange = output<number>();
