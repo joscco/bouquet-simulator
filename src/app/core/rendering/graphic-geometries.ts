@@ -18,14 +18,13 @@ export const BUILT_IN_GRAPHICS: ReadonlyArray<{
   organic: boolean;
 }> = [
   {value: 'leaf-pointed', label: 'Blatt', organic: true},
-  {value: 'leaf-round', label: 'Rundes Blatt', organic: true},
   {value: 'leaf-serrated', label: 'Zackiges Blatt', organic: true},
   {value: 'sphere', label: 'Kugel', organic: false},
   {value: 'rod', label: 'Stäbchen', organic: false},
 ];
 
 export function canonicalGraphicPrimitive(primitive: GraphicPrimitive): GraphicPrimitive {
-  return primitive;
+  return primitive === 'leaf-round' ? 'leaf-pointed' : primitive;
 }
 
 export function createBuiltInGeometry(
@@ -47,7 +46,7 @@ export function createBuiltInGeometry(
     geometry.scale(width, height, depth);
     return geometry;
   }
-  return createLeafGeometry(primitive, width, height, depth, bendMain, bendCross);
+  return createLeafGeometry(canonicalGraphicPrimitive(primitive), width, height, depth, bendMain, bendCross);
 }
 
 function createLeafGeometry(

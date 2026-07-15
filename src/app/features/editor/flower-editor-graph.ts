@@ -16,7 +16,9 @@ export interface GraphNode extends Point {
   componentNodeCount: number;
   componentOutputCount: number;
   outputPorts: Point[];
+  outputPortLabels: string[];
   outputPortNames: string[];
+  outputPortNodeIds: string[];
   loop: boolean;
   loopStartName: string;
   loopEndName: string;
@@ -147,8 +149,8 @@ export function createGraphLayout(
         root: node.id === definition.rootNodeId,
         hasGraphic: !!node.graphic,
         component: !!node.component,
-        componentNodeCount: node.component?.nodes.length ?? 0,
-        componentOutputCount: node.component ? componentOutputIds(node.component.nodes, node.component.outputNodeIds).length : 0,
+        componentNodeCount: node.component?.nodes?.length ?? 0,
+        componentOutputCount: node.component?.nodes ? componentOutputIds(node.component.nodes, node.component.outputNodeIds).length : 0,
         loop: !!node.loop,
         loopStartName: definition.nodes.find((candidate) =>
           candidate.id === node.loop?.startNodeId)?.name ?? 'Start wählen',
@@ -159,8 +161,10 @@ export function createGraphLayout(
         width: node.loop ? 260 : node.component ? 196 : 172,
         height: node.loop ? 170 : node.component ? 88 : 78,
         outputPorts: [],
+        outputPortLabels: loopOutputIds.map((_, index) => String(index + 1)),
         outputPortNames: loopOutputIds.map((id) =>
           definition.nodes.find((candidate) => candidate.id === id)?.name ?? id),
+        outputPortNodeIds: loopOutputIds,
       });
     });
   }
@@ -191,6 +195,14 @@ export function createGraphLayout(
     loopNode.height = Math.max(180, bottom - top);
     loopNode.memberIds = memberIds;
     members.forEach((member) => member.loopMember = true);
+    loopNode.outputPortNodeIds.forEach((outputId, index) => {
+      const outputNode = graphNodes.find((node) => node.id === outputId);
+      if (!outputNode) return;
+      const label = String(index + 1);
+      outputNode.outputPortLabels = outputNode.outputPortLabels.includes(label)
+        ? outputNode.outputPortLabels
+        : [...outputNode.outputPortLabels, label];
+    });
   }
   graphNodes.sort((first, second) => Number(second.loop) - Number(first.loop));
   graphNodes.forEach((node) => {
@@ -327,12 +339,11 @@ function boundaryEdge(
 
 function componentOutputIds(
   nodes: FlowerNodeDefinition[],
-  preferred: string[] = [],
+  preferred?: string[],
 ): string[] {
   const ids = new Set(nodes.map((node) => node.id));
-  const validPreferred = preferred.filter((id) => ids.has(id));
-  if (validPreferred.length) {
-    return validPreferred;
+  if (preferred !== undefined) {
+    return preferred.filter((id) => ids.has(id));
   }
   const parents = new Set(nodes.flatMap((node) =>
     node.connections
@@ -342,10 +353,10 @@ function componentOutputIds(
 }
 
 function createOutputPorts(node: GraphNode): Point[] {
-  const count = Math.max(1,
-    node.loop && node.memberIds.length
-      ? node.outputPortNames.length
-      : node.component ? node.componentOutputCount : 1);
+  const count = node.loop && node.memberIds.length
+    ? node.outputPortNames.length
+    : node.component ? node.componentOutputCount : 1;
+  if (count <= 0) return [];
   const spacing = 28;
   const maxSpan = Math.max(0, node.width - 74);
   const span = Math.min(maxSpan, (count - 1) * spacing);

@@ -14,11 +14,36 @@ import {NumberRange} from '../../core/models/flower.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block'},
   template: `
-    <div class="flex items-center gap-2">
-      <span class="mr-auto text-[10px] font-semibold text-stone-600">{{ label() }}</span>
-      <span class="rounded-md bg-stone-100 px-1.5 py-1 text-[9px] tabular-nums text-stone-500">
-        {{ sortedValue().min }}–{{ sortedValue().max }}{{ unit() }}
-      </span>
+    <div class="range-slider__header">
+      <span class="range-slider__label">{{ label() }}</span>
+      <div class="range-slider__values">
+        <input
+          #minimumInput
+          class="range-slider__number"
+          type="number"
+          [attr.aria-label]="label() + ' Minimum'"
+          [min]="minimum()"
+          [max]="maximum()"
+          [step]="step()"
+          [value]="sortedValue().min"
+          (input)="setMinimum(minimumInput.valueAsNumber)"
+        >
+        <span class="range-slider__separator">–</span>
+        <input
+          #maximumInput
+          class="range-slider__number"
+          type="number"
+          [attr.aria-label]="label() + ' Maximum'"
+          [min]="minimum()"
+          [max]="maximum()"
+          [step]="step()"
+          [value]="sortedValue().max"
+          (input)="setMaximum(maximumInput.valueAsNumber)"
+        >
+        @if (unit().trim()) {
+          <span class="range-slider__unit">{{ unit().trim() }}</span>
+        }
+      </div>
     </div>
     <div
       class="range-slider"
@@ -60,10 +85,61 @@ import {NumberRange} from '../../core/models/flower.models';
     </div>
   `,
   styles: `
+    :host { width: 100%; }
+
+    .range-slider__header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .range-slider__label {
+      min-width: 0;
+      color: #57534e;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .range-slider__values {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      height: 28px;
+      overflow: hidden;
+      border: 1px solid #d6d3d1;
+      border-radius: 6px;
+      background: white;
+    }
+
+    .range-slider__number {
+      appearance: textfield;
+      width: 46px;
+      min-width: 0;
+      height: 100%;
+      box-sizing: border-box;
+      border: 0;
+      padding: 0 4px;
+      background: transparent;
+      color: #292524;
+      font: 600 10px/1 sans-serif;
+      text-align: right;
+      outline: none;
+    }
+
+    .range-slider__number::-webkit-inner-spin-button,
+    .range-slider__number::-webkit-outer-spin-button { appearance: none; margin: 0; }
+
+    .range-slider__number:focus-visible { box-shadow: inset 0 0 0 2px #059669; }
+    .range-slider__separator, .range-slider__unit { flex: none; color: #78716c; font-size: 9px; }
+    .range-slider__unit { padding-right: 5px; }
+
     .range-slider {
       --thumb-size: 18px;
       position: relative;
       height: 38px;
+      width: calc(100% - var(--thumb-size));
       margin-inline: calc(var(--thumb-size) / 2);
     }
 
@@ -185,6 +261,22 @@ export class IntervalSliderComponent {
     this.valueChange.emit(this.sortedValue());
   }
 
+  setMinimum(value: number): void {
+    if (!Number.isFinite(value)) return;
+    const current = this.sortedValue();
+    this.firstHandle.set(clampValue(value, this.minimum(), current.max));
+    this.secondHandle.set(current.max);
+    this.valueChange.emit(this.sortedValue());
+  }
+
+  setMaximum(value: number): void {
+    if (!Number.isFinite(value)) return;
+    const current = this.sortedValue();
+    this.firstHandle.set(current.min);
+    this.secondHandle.set(clampValue(value, current.min, this.maximum()));
+    this.valueChange.emit(this.sortedValue());
+  }
+
   startDrag(handle: 'first' | 'second'): void {
     this.activeHandle = handle;
   }
@@ -202,4 +294,8 @@ export function rangePercentage(value: number, minimum: number, maximum: number)
   const span = maximum - minimum;
   if (span <= 0) return 0;
   return Math.max(0, Math.min(100, (value - minimum) / span * 100));
+}
+
+function clampValue(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }

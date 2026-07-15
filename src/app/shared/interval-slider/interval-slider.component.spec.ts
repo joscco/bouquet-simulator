@@ -12,4 +12,9 @@ describe('interval slider value mapping', () => {
     expect(sortedRange(280, 40)).toEqual({min: 40, max: 280});
     expect(sortedRange(-20, -80)).toEqual({min: -80, max: -20});
   });
+
+  it('keeps the handle positions inside the rendered track', () => {
+    expect(rangePercentage(-40, 0, 100)).toBe(0);
+    expect(rangePercentage(140, 0, 100)).toBe(100);
+  });
 });

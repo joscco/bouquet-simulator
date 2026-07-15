@@ -5,7 +5,7 @@ import {FlowerTreeNode} from './flower-tree';
 import {graphicOrientationQuaternion, graphicRotationSettings} from './graphic-orientation';
 
 const graphic: FlowerNodeGraphic = {
-  primitive: 'leaf-round',
+  primitive: 'leaf-pointed',
   color: '#ffffff',
   width: 10,
   height: 20,

@@ -28,20 +28,6 @@
       >
         Im Strauß nutzbar
       </mat-checkbox>
-      <input
-        class="h-8 w-10 rounded-lg border border-stone-200 bg-stone-50 px-2 text-center text-sm font-bold outline-none"
-        maxlength="2"
-        [ngModel]="draft().catalogIcon?.symbol ?? '✿'"
-        aria-label="Katalogsymbol"
-        (ngModelChange)="updateCatalogIconSymbol($event)"
-      >
-      <input
-        class="h-8 w-9 cursor-pointer rounded-lg border border-stone-200 bg-stone-50 p-1"
-        type="color"
-        [ngModel]="draft().catalogIcon?.color ?? '#5b8d53'"
-        aria-label="Katalogsymbolfarbe"
-        (ngModelChange)="updateCatalogIconColor($event)"
-      >
       <button mat-stroked-button class="text-[10px] font-bold" type="button" matTooltip="Neue Definition erstellen" (click)="createNewDefinition()"><mat-icon>add</mat-icon>Neu</button>
       <button mat-stroked-button class="text-[10px] font-bold" type="button" matTooltip="Aktuelle Definition duplizieren" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon>Duplizieren</button>
       @if (selectedCatalogEntry()) {
@@ -62,17 +48,37 @@
     <div class="flex items-center gap-2">
       <details class="relative">
         <summary class="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-xl border border-stone-200 text-sm hover:bg-stone-50" matTooltip="Stängel"><mat-icon>grass</mat-icon></summary>
-        <div class="absolute right-0 z-30 mt-2 grid w-64 grid-cols-2 gap-2 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
-          <label class="text-[9px] font-bold uppercase text-stone-400">Breite<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" [ngModel]="draft().stem.width" (ngModelChange)="updateStem('width', $event)"></label>
-          <label class="text-[9px] font-bold uppercase text-stone-400">Taper<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0.1" max="1" step="0.05" [ngModel]="draft().stem.taper" (ngModelChange)="updateStem('taper', $event)"></label>
-          <label class="text-[9px] font-bold uppercase text-stone-400">Farbe<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)"></label>
-          <label class="text-[9px] font-bold uppercase text-stone-400">Licht<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 p-1" type="color" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)"></label>
-          <label class="col-span-2 min-w-0 text-[9px] font-semibold text-stone-500">
-            <span class="mb-1 flex justify-between"><span>Stängelbiegung</span><span>{{ draft().stem.bend ?? 0 }} %</span></span>
-            <mat-slider class="w-full" min="-100" max="100" step="1" discrete>
-              <input matSliderThumb [value]="draft().stem.bend ?? 0" (valueChange)="updateStem('bend', $event)">
-            </mat-slider>
-          </label>
+        <div class="absolute right-0 z-30 mt-2 w-[min(360px,calc(100vw-1rem))] rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+          <div class="mb-3 flex items-center justify-between">
+            <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">Stängelstandard</div>
+            <span class="rounded-lg bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-900">{{ draft().stem.width }} px</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="text-[9px] font-bold uppercase text-stone-400">Dicke<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="1" max="30" step="0.5" [ngModel]="draft().stem.width" (ngModelChange)="updateStem('width', $event)"></label>
+            <label class="text-[9px] font-bold uppercase text-stone-400">Verjüngung<input class="mt-1 h-9 w-full rounded-lg border border-stone-200 px-2 text-xs" type="number" min="0.1" max="1" step="0.05" [ngModel]="draft().stem.taper" (ngModelChange)="updateStem('taper', $event)"></label>
+            <label class="text-[9px] font-bold uppercase text-stone-400">
+              Farbe
+              <span class="mt-1 flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-2">
+                <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.color"></span>
+                <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.color }}</code>
+                <input class="sr-only" type="color" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)">
+              </span>
+            </label>
+            <label class="text-[9px] font-bold uppercase text-stone-400">
+              Licht
+              <span class="mt-1 flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-2">
+                <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.highlightColor"></span>
+                <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.highlightColor }}</code>
+                <input class="sr-only" type="color" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)">
+              </span>
+            </label>
+          </div>
+          <div class="mt-3 space-y-2 border-t border-stone-100 pt-3">
+            <app-numeric-slider label="Kurvenrichtung" unit="%" [value]="draft().stem.bend ?? 0"
+              [minimum]="-100" [maximum]="100" (valueChange)="updateStem('bend', $event)" />
+            <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="draft().stem.curve ?? 14"
+              [minimum]="0" [maximum]="100" (valueChange)="updateStem('curve', $event)" />
+          </div>
         </div>
       </details>
       <label class="grid h-9 w-9 cursor-pointer place-items-center rounded-xl border border-stone-200 text-base hover:bg-stone-50" matTooltip="Definition laden">
@@ -151,9 +157,8 @@
                 <button
                   class="flex w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2 py-2 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
                   type="button"
-                  (click)="insertComponentFromAddMenu(entry.tree)"
+                  (click)="insertComponentFromAddMenu(entry)"
                 >
-                  <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-indigo-100 text-[10px] font-bold text-indigo-800">C</span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-xs font-bold text-stone-800">{{ entry.tree.name }}</span>
                     <span class="block text-[9px] text-stone-400">
@@ -345,7 +350,12 @@
                       class="cursor-crosshair"
                       (pointerdown)="startConnection($event, node.id, $index)"
                     />
-                    <title>Ausgang · {{ node.outputPortNames[$index] }}</title>
+                    <text
+                      [attr.x]="port.x - node.x"
+                      [attr.y]="port.y - node.y + 4"
+                      class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
+                    >{{ node.outputPortLabels[$index] }}</text>
+                    <title>Ausgang {{ node.outputPortLabels[$index] }} · {{ node.outputPortNames[$index] }}</title>
                   </g>
                 }
                 <text x="0" [attr.y]="-node.height / 2 + 18" class="pointer-events-none fill-stone-500 text-[8px] font-bold [text-anchor:middle]">
@@ -374,19 +384,28 @@
               }
               <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
               <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
-                {{ node.root ? 'BASIS' : node.component ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
+                {{ node.root ? 'BASIS' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
               </text>
               @for (port of node.outputPorts; track $index) {
-                <circle
-                  [attr.cx]="port.x - node.x"
-                  [attr.cy]="port.y - node.y"
-                  [attr.r]="node.component ? 8 : 12"
-                  fill="#064e3b"
-                  stroke="#ffffff"
-                  stroke-width="3"
-                  class="cursor-crosshair"
-                  (pointerdown)="startConnection($event, node.id, $index)"
-                />
+                <g>
+                  <circle
+                    [attr.cx]="port.x - node.x"
+                    [attr.cy]="port.y - node.y"
+                    [attr.r]="node.component ? 8 : 12"
+                    fill="#064e3b"
+                    stroke="#ffffff"
+                    stroke-width="3"
+                    class="cursor-crosshair"
+                    (pointerdown)="startConnection($event, node.id, $index)"
+                  />
+                  @if (node.outputPortLabels[$index]) {
+                    <text
+                      [attr.x]="port.x - node.x"
+                      [attr.y]="port.y - node.y + 4"
+                      class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
+                    >{{ node.outputPortLabels[$index] }}</text>
+                  }
+                </g>
               }
             }
           </g>
@@ -438,6 +457,28 @@
 
       <div class="bg-white lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-scroll lg:border-r lg:border-stone-200 lg:p-3 [scrollbar-gutter:stable]">
         <div class="mb-3 px-1 text-[9px] font-bold uppercase tracking-widest text-stone-400">Eigenschaften</div>
+        @if ((draft().catalogRole ?? 'flower') === 'component') {
+          <section class="mb-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3">
+            <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-indigo-900">Komponentenausgänge</div>
+            <div class="space-y-1">
+              @for (outputId of componentOutputOptions(); track outputId) {
+                <label class="flex items-center gap-2 rounded-lg bg-white/80 px-2 py-1 text-[10px] font-semibold text-stone-700">
+                  <input
+                    type="checkbox"
+                    class="h-3.5 w-3.5 accent-indigo-700"
+                    [checked]="componentOutputEnabled(outputId)"
+                    (change)="toggleComponentOutput(outputId, $any($event.target).checked)"
+                  >
+                  {{ nodeName(outputId) }}
+                </label>
+              } @empty {
+                <div class="rounded-lg border border-dashed border-indigo-200 px-2 py-3 text-center text-[10px] text-stone-400">
+                  Keine offenen Endknoten
+                </div>
+              }
+            </div>
+          </section>
+        }
         @if (selectedNode(); as node) {
         <section class="rounded-2xl border border-stone-200 p-3">
           <div class="mb-3 flex items-center gap-2">
@@ -454,7 +495,7 @@
             }
           </div>
 
-          @if (node.id !== draft().rootNodeId) {
+          @if (node.id !== draft().rootNodeId && !node.loop) {
             @if (incomingSettings(); as incoming) {
               <section class="mb-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
                 <div class="mb-3 flex items-center justify-between gap-2">
@@ -475,39 +516,29 @@
                   <app-interval-slider label="Länge" unit=" px" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
                   <app-interval-slider label="Neigung zum Elternstängel" unit="°" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
                   <app-interval-slider label="Drehung um den Stängel" unit="°" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
-                  <label class="block pt-1">
-                    <span class="mb-1 flex justify-between text-[9px] font-semibold text-stone-500">
-                      <span>Gleichmäßig</span>
-                      <span>{{ incomingRandomness(incoming) }} % zufällig</span>
-                      <span>Zufällig</span>
-                    </span>
-                    <mat-slider class="w-full" min="0" max="100" step="1" discrete>
-                      <input matSliderThumb [value]="incomingRandomness(incoming)"
-                        (valueChange)="updateIncomingRandomness($event)">
-                    </mat-slider>
-                  </label>
-                  <div class="grid grid-cols-[52px_1fr] items-center gap-3 border-t border-emerald-100 pt-2">
-                    <label class="grid h-10 w-10 cursor-pointer place-items-center overflow-hidden rounded-lg border border-stone-200" matTooltip="Stängelfarbe">
-                      <input class="h-14 w-14 cursor-pointer border-0 p-0" type="color"
-                        aria-label="Stängelfarbe der Eingangsverbindung"
-                        [ngModel]="incomingStemColor(incoming)"
-                        (ngModelChange)="updateIncomingStem('color', $event)">
+                  <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
+                    [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
+                  <div class="grid grid-cols-[88px_1fr] items-center gap-3 border-t border-emerald-100 pt-2">
+                    <label class="text-[9px] font-semibold text-stone-500">
+                      Farbe
+                      <span class="mt-1 flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-2">
+                        <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="incomingStemColor(incoming)"></span>
+                        <input class="sr-only" type="color"
+                          aria-label="Stängelfarbe der Eingangsverbindung"
+                          [ngModel]="incomingStemColor(incoming)"
+                          (ngModelChange)="updateIncomingStem('color', $event)">
+                      </span>
                     </label>
-                    <label class="min-w-0 text-[9px] font-semibold text-stone-500">
-                      <span class="mb-1 flex justify-between"><span>Stängeldicke</span><span>{{ incomingStemWidth(incoming) }} px</span></span>
-                      <mat-slider class="w-full" min="1" max="30" step="0.5" discrete>
-                        <input matSliderThumb [value]="incomingStemWidth(incoming)"
-                          (valueChange)="updateIncomingStem('width', $event)">
-                      </mat-slider>
-                    </label>
+                    <app-numeric-slider label="Stängeldicke" unit="px" [value]="incomingStemWidth(incoming)"
+                      [minimum]="1" [maximum]="30" [step]="0.5"
+                      (valueChange)="updateIncomingStem('width', $event)" />
                   </div>
-                  <label class="block border-t border-emerald-100 pt-2 text-[9px] font-semibold text-stone-500">
-                    <span class="mb-1 flex justify-between"><span>Stängelbiegung</span><span>{{ incomingStemBend(incoming) }} %</span></span>
-                    <mat-slider class="w-full" min="-100" max="100" step="1" discrete>
-                      <input matSliderThumb [value]="incomingStemBend(incoming)"
-                        (valueChange)="updateIncomingStem('bend', $event)">
-                    </mat-slider>
-                  </label>
+                  <div class="border-t border-emerald-100 pt-2">
+                    <app-numeric-slider label="Kurvenrichtung" unit="%" [value]="incomingStemBend(incoming)"
+                      [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
+                  </div>
+                  <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
+                    [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
                 </div>
               </section>
             }
@@ -518,11 +549,18 @@
               <div class="text-[9px] font-bold uppercase tracking-wider text-teal-800">Komponente</div>
               <div class="mt-1 text-xs font-semibold text-stone-800">{{ node.component.name }}</div>
               <p class="mb-0 mt-2 text-[9px] leading-relaxed text-teal-900/70">
-                Dieser Knoten kapselt {{ node.component.nodes.length }} interne Knoten und {{ componentOutputCount(node.component) }} Ausgänge. Im Graphen bleibt die Komponente bewusst ein einzelner Knoten.
+                Dieser Knoten referenziert {{ node.component.name }}. 3D-Ansichten materialisieren die Referenz temporär; die Definition bleibt referenziell.
               </p>
             </div>
           } @else if (node.loop) {
             <div class="rounded-xl bg-amber-50 p-3">
+              @if (selectedIncoming()) {
+                <div class="mb-2 flex justify-end">
+                  <button mat-icon-button class="text-rose-600!" type="button"
+                    matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
+                    (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
+                </div>
+              }
               <app-interval-slider label="Wiederholungen" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
               @if (node.loop.memberNodeIds?.length) {
                 <div class="mt-3 border-t border-amber-100 pt-2">
@@ -575,9 +613,6 @@
                         @case ('leaf-pointed') {
                           <path d="M22 28 C5 22 7 7 22 2 C37 7 39 22 22 28Z" fill="currentColor" />
                         }
-                        @case ('leaf-round') {
-                          <path d="M22 28 C5 25 5 8 12 4 C18 1 26 1 32 4 C39 8 39 25 22 28Z" fill="currentColor" />
-                        }
                         @case ('leaf-serrated') {
                           <path d="M22 28 L13 24 L16 20 L7 17 L14 13 L8 9 L18 7 L22 2 L26 7 L36 9 L30 13 L37 17 L28 20 L31 24Z" fill="currentColor" />
                         }
@@ -595,11 +630,12 @@
                 }
               </div>
             </fieldset>
-            <label class="mt-2 flex items-center justify-between rounded-xl bg-stone-50 p-3 text-[10px] font-semibold text-stone-600">
+            <label class="mt-2 flex cursor-pointer items-center justify-between rounded-xl bg-stone-50 p-3 text-[10px] font-semibold text-stone-600">
               Farbe
               <span class="flex items-center gap-2">
+                <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="graphic.color ?? '#5b8d53'"></span>
                 <code class="text-[9px] text-stone-400">{{ graphic.color ?? '#5b8d53' }}</code>
-                <input class="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
+                <input class="sr-only"
                   type="color"
                   [ngModel]="graphic.color ?? '#5b8d53'"
                   (ngModelChange)="updateGraphicColor($event)">
@@ -621,27 +657,11 @@
             </div>
             @if (isPaintableGraphic(graphic)) {
               <div class="mt-2 space-y-2 rounded-xl bg-stone-50 p-3">
-                <label class="block text-[9px] font-semibold text-stone-500">
-                  <span class="mb-1 flex justify-between"><span>Wölbung Hauptrichtung</span><span>{{ graphic.bendMain ?? 0 }} %</span></span>
-                  <input class="w-full accent-emerald-900" type="range" min="-100" max="100" step="1"
-                    [ngModel]="graphic.bendMain ?? 0" (ngModelChange)="updateGraphicBend('bendMain', $event)">
-                </label>
-                <label class="block text-[9px] font-semibold text-stone-500">
-                  <span class="mb-1 flex justify-between"><span>Wölbung Nebenrichtung</span><span>{{ graphic.bendCross ?? 0 }} %</span></span>
-                  <input class="w-full accent-emerald-900" type="range" min="-100" max="100" step="1"
-                    [ngModel]="graphic.bendCross ?? 0" (ngModelChange)="updateGraphicBend('bendCross', $event)">
-                </label>
+                <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
+                  [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendMain', $event)" />
+                <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
+                  [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendCross', $event)" />
               </div>
-              <div class="mt-2">
-                <app-graphic-painter
-                  [graphic]="graphic"
-                  [graphicId]="draft().id + ':' + node.id"
-                  (paintChange)="updateGraphicPaint($event)"
-                />
-              </div>
-              <p class="mt-2 text-[8px] leading-relaxed text-stone-400">
-                Die eingebauten 3D-Modelle liegen in <code>src/app/core/rendering/graphic-geometries.ts</code>.
-              </p>
             }
             <div class="mt-2 space-y-3 rounded-xl bg-stone-50 p-3">
               <label class="block text-[9px] font-bold uppercase text-stone-400">
@@ -655,24 +675,10 @@
                   <option value="toward-parent">Zur Mitte / Elternachse</option>
                 </select>
               </label>
-              <label class="block text-[9px] font-semibold text-stone-500">
-                <span class="mb-1 flex justify-between">
-                  <span>Konstante Grunddrehung</span>
-                  <span>{{ graphicRotationBase(graphic) }}°</span>
-                </span>
-                <input class="w-full accent-emerald-900" type="range" min="-180" max="180" step="1"
-                  [ngModel]="graphicRotationBase(graphic)"
-                  (ngModelChange)="updateGraphicRotationBase($event)">
-              </label>
-              <label class="block text-[9px] font-semibold text-stone-500">
-                <span class="mb-1 flex justify-between">
-                  <span>Zufällige Streuung</span>
-                  <span>±{{ graphicRotationSpread(graphic) }}°</span>
-                </span>
-                <input class="w-full accent-emerald-900" type="range" min="0" max="180" step="1"
-                  [ngModel]="graphicRotationSpread(graphic)"
-                  (ngModelChange)="updateGraphicRotationSpread($event)">
-              </label>
+              <app-numeric-slider label="Konstante Grunddrehung" unit="°" [value]="graphicRotationBase(graphic)"
+                [minimum]="-180" [maximum]="180" (valueChange)="updateGraphicRotationBase($event)" />
+              <app-numeric-slider label="Zufällige Streuung" unit="°" [value]="graphicRotationSpread(graphic)"
+                [minimum]="0" [maximum]="180" (valueChange)="updateGraphicRotationSpread($event)" />
             </div>
           }
           }

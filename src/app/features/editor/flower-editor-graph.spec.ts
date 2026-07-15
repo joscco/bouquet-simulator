@@ -1,21 +1,20 @@
 import {describe, expect, it} from 'vitest';
-import {DEFAULT_FLOWERS} from '../../core/data/default-flowers';
 import {FlowerDefinition} from '../../core/models/flower.models';
 import {createCompactGraphPositions, createGraphLayout} from './flower-editor-graph';
 
 describe('flower editor graph layout', () => {
   it('keeps the outer linear sequence on one vertical axis', () => {
-    const layout = createGraphLayout(DEFAULT_FLOWERS[0], {});
+    const layout = createGraphLayout(memberLoopDefinition(), {});
     const nodes = new Map(layout.nodes.map((node) => [node.id, node]));
 
-    expect(nodes.get('base')?.x).toBe(500);
-    expect(nodes.get('growth-loop')?.x).toBe(500);
-    expect(nodes.get('pfingstrosenbluete')?.x).toBe(500);
+    expect(nodes.get('root')?.x).toBe(500);
+    expect(nodes.get('loop')?.x).toBe(500);
+    expect(nodes.get('after')?.x).toBe(500);
   });
 
   it('places the complete internal path inside its loop bounds', () => {
-    const layout = createGraphLayout(DEFAULT_FLOWERS[0], {});
-    const loop = layout.nodes.find((node) => node.id === 'growth-loop')!;
+    const layout = createGraphLayout(memberLoopDefinition(), {});
+    const loop = layout.nodes.find((node) => node.id === 'loop')!;
 
     for (const memberId of loop.memberIds) {
       const member = layout.nodes.find((node) => node.id === memberId)!;
@@ -60,7 +59,10 @@ describe('flower editor graph layout', () => {
     const inputEdge = layout.edges.find((edge) => edge.sourceId === 'root' && edge.targetId === 'loop')!;
 
     expect(loop.outputPorts).toHaveLength(2);
+    expect(loop.outputPortLabels).toEqual(['1', '2']);
     expect(loop.outputPortNames).toEqual(['Left output', 'Right output']);
+    expect(layout.nodes.find((node) => node.id === 'left')?.outputPortLabels).toEqual(['1']);
+    expect(layout.nodes.find((node) => node.id === 'right')?.outputPortLabels).toEqual(['2']);
     expect(inputEdge.path).toContain(`${loop.x} ${loop.y + loop.height / 2}`);
   });
 
@@ -110,7 +112,7 @@ describe('flower editor graph layout', () => {
     expect(edgeStarts).toContainEqual([String(component.outputPorts[1]!.x), String(component.outputPorts[1]!.y)]);
   });
 
-  it('arches middle component output ports upward', () => {
+  it('keeps multiple component output ports on one straight edge', () => {
     const definition: FlowerDefinition = {
       schemaVersion: 2,
       id: 'three-output',
@@ -147,8 +149,45 @@ describe('flower editor graph layout', () => {
       .nodes.find((node) => node.id === 'component')!;
 
     expect(component.outputPorts).toHaveLength(3);
-    expect(component.outputPorts[1]!.y).toBeLessThan(component.outputPorts[0]!.y);
-    expect(component.outputPorts[1]!.y).toBeLessThan(component.outputPorts[2]!.y);
+    expect(component.outputPorts.map((port) => port.y)).toEqual([
+      component.y - component.height / 2,
+      component.y - component.height / 2,
+      component.y - component.height / 2,
+    ]);
+  });
+
+  it('shows no output ports for a component with explicit empty outputs', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'no-output',
+      name: 'No output',
+      rootNodeId: 'component',
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
+        {
+          id: 'component',
+          name: 'Component',
+          draggable: false,
+          graphic: null,
+          connections: [],
+          component: {
+            schemaVersion: 1,
+            id: 'component-template',
+            name: 'Component template',
+            rootNodeId: 'inner-root',
+            outputNodeIds: [],
+            nodes: [
+              {id: 'inner-root', name: 'Root', draggable: false, graphic: null, connections: []},
+            ],
+          },
+        },
+      ],
+    };
+    const component = createGraphLayout(definition, {})
+      .nodes.find((node) => node.id === 'component')!;
+
+    expect(component.componentOutputCount).toBe(0);
+    expect(component.outputPorts).toEqual([]);
   });
 
   it('keeps auto layout compact for long linear trees', () => {
@@ -205,5 +244,35 @@ function connection(childId: string) {
     repeat: {min: 1, max: 1},
     length: {min: 20, max: 30},
     angle: {min: 0, max: 20},
+  };
+}
+
+function memberLoopDefinition(): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'member-loop',
+    name: 'Member loop',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      {id: 'root', name: 'Root', draggable: false, graphic: null, connections: [connection('loop')]},
+      {
+        id: 'loop',
+        name: 'Loop',
+        draggable: false,
+        graphic: null,
+        connections: [connection('after')],
+        loop: {
+          repeat: {min: 2, max: 3},
+          startNodeId: 'stem',
+          endNodeId: 'leaf',
+          memberNodeIds: ['stem', 'leaf'],
+          continuationOutputNodeIds: ['leaf'],
+        },
+      },
+      {id: 'stem', name: 'Stem', draggable: false, graphic: null, connections: [connection('leaf')]},
+      {id: 'leaf', name: 'Leaf', draggable: false, graphic: null, connections: []},
+      {id: 'after', name: 'After', draggable: false, graphic: null, connections: []},
+    ],
   };
 }

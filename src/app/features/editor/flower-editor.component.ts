@@ -11,7 +11,6 @@ import {FormsModule} from '@angular/forms';
 import {MatButtonModule} from '@angular/material/button';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import {MatIconModule} from '@angular/material/icon';
-import {MatSliderModule} from '@angular/material/slider';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetStore} from '../../core/state/bouquet.store';
@@ -32,6 +31,7 @@ import {
   incomingConnectionReference,
   migrateIncomingConnections,
   nodeIncomingOrDefault,
+  normalizeConnectionReferences,
 } from '../../core/models/flower-connections';
 import {
   BUILT_IN_GRAPHICS,
@@ -41,18 +41,20 @@ import {graphicRotationSettings} from '../../core/rendering/graphic-orientation'
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
+import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
-import {GraphicPainterComponent} from './graphic-painter.component';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {
   FlowerSubtreeDefinition,
   createFlowerDefinitionComponent,
   createFlowerSubtree,
   extractFlowerSubtreeComponent,
+  insertFlowerDefinitionReference,
   insertFlowerSubtree,
   isFlowerSubtreeDefinition,
   resolveFlowerSubtreeSelection,
 } from '../../core/models/flower-subtree';
+import {materializeDefinitionComponents} from '../../core/models/flower-components';
 import {
   Point,
   createCompactGraphPositions,
@@ -80,12 +82,11 @@ interface FlowerComponentCatalogEntry {
     MatButtonModule,
     MatCheckboxModule,
     MatIconModule,
-    MatSliderModule,
     MatSnackBarModule,
     MatTooltipModule,
     BouquetCanvasComponent,
     IntervalSliderComponent,
-    GraphicPainterComponent,
+    NumericSliderComponent,
     ViewSwitcherComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -180,7 +181,10 @@ export class FlowerEditorComponent {
     if (!points.length) return '';
     return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
   });
-  readonly previewDefinitions = computed(() => [this.draft()]);
+  readonly previewDefinitions = computed(() => materializeDefinitionComponents([
+    this.draft(),
+    ...this.store.definitions().filter((definition) => definition.id !== this.draft().id),
+  ]));
   readonly previewFlowers = computed<BouquetState['flowers']>(() => [{
       instanceId: 'editor-preview',
       definitionId: this.draft().id,
@@ -223,27 +227,6 @@ export class FlowerEditorComponent {
     }));
   }
 
-  updateCatalogIconSymbol(value: string): void {
-    const symbol = [...value.trim()][0] ?? '✿';
-    this.draft.update((draft) => ({
-      ...draft,
-      catalogIcon: {
-        symbol,
-        color: draft.catalogIcon?.color ?? this.previewColorFromDefinition(draft),
-      },
-    }));
-  }
-
-  updateCatalogIconColor(color: string): void {
-    this.draft.update((draft) => ({
-      ...draft,
-      catalogIcon: {
-        symbol: draft.catalogIcon?.symbol ?? '✿',
-        color,
-      },
-    }));
-  }
-
   updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
     this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
   }
@@ -256,9 +239,8 @@ export class FlowerEditorComponent {
       id,
       name: 'Neue Blume',
       catalogRole: 'flower',
-      catalogIcon: {symbol: '✿', color: '#5b8d53'},
       rootNodeId: 'base',
-      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72, bend: 0},
+      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72, bend: 0, curve: 14},
       nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
       editor: {nodePositions: {base: {x: 500, y: 840}}},
     };
@@ -308,14 +290,16 @@ export class FlowerEditorComponent {
   }
 
   componentOutputCount(tree: FlowerNodeComponent): number {
-    const ids = new Set(tree.nodes.map((node) => node.id));
-    const preferred = (tree.outputNodeIds ?? []).filter((id) => ids.has(id));
-    if (preferred.length) return preferred.length;
-    const parents = new Set(tree.nodes.flatMap((node) =>
+    const nodes = tree.nodes ?? [];
+    const ids = new Set(nodes.map((node) => node.id));
+    if (tree.outputNodeIds !== undefined) {
+      return tree.outputNodeIds.filter((id) => ids.has(id)).length;
+    }
+    const parents = new Set(nodes.flatMap((node) =>
       node.connections
         .filter((connection) => ids.has(connection.childId))
         .map(() => node.id)));
-    return tree.nodes.filter((node) => !parents.has(node.id)).length;
+    return nodes.filter((node) => !parents.has(node.id)).length;
   }
 
   toggleSubtreeAnchor(id: string): void {
@@ -392,8 +376,12 @@ export class FlowerEditorComponent {
     if (!this.addMenuOpen()) this.componentSearch.set('');
   }
 
-  insertComponentFromAddMenu(tree: FlowerSubtreeDefinition): void {
-    this.insertSavedTree(tree);
+  insertComponentFromAddMenu(entry: FlowerComponentCatalogEntry): void {
+    if (entry.source === 'definition') {
+      this.insertDefinitionReference(entry.tree.id);
+    } else {
+      this.insertSavedTree(entry.tree);
+    }
     this.addMenuOpen.set(false);
     this.componentSearch.set('');
   }
@@ -663,12 +651,6 @@ export class FlowerEditorComponent {
       entry.value === this.graphicPrimitive(graphic))?.organic ?? false;
   }
 
-  updateGraphicPaint(paint: NonNullable<FlowerNodeGraphic['paint']>): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, paint}}
-      : node);
-  }
-
   updateGraphicBend(key: 'bendMain' | 'bendCross', value: number): void {
     this.updateSelectedNode((node) => node.graphic
       ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
@@ -772,6 +754,30 @@ export class FlowerEditorComponent {
     });
   }
 
+  componentOutputOptions(): string[] {
+    return definitionOutputNodeIds(this.draft().nodes);
+  }
+
+  componentOutputEnabled(outputId: string): boolean {
+    const outputNodeIds = this.draft().outputNodeIds;
+    return outputNodeIds !== undefined
+      ? outputNodeIds.includes(outputId)
+      : this.componentOutputOptions().includes(outputId);
+  }
+
+  toggleComponentOutput(outputId: string, enabled: boolean): void {
+    const options = this.componentOutputOptions();
+    this.draft.update((draft) => {
+      const current = new Set(draft.outputNodeIds !== undefined ? draft.outputNodeIds : options);
+      if (enabled) current.add(outputId);
+      else current.delete(outputId);
+      return {
+        ...draft,
+        outputNodeIds: [...current].filter((id) => options.includes(id)),
+      };
+    });
+  }
+
   incomingStemColor(incoming: FlowerNodeIncomingConnection): string {
     return incoming.stem?.color ?? this.draft().stem.color;
   }
@@ -784,13 +790,18 @@ export class FlowerEditorComponent {
     return incoming.stem?.bend ?? this.draft().stem.bend ?? 0;
   }
 
-  updateIncomingStem(key: 'color' | 'width' | 'bend', value: string | number): void {
+  incomingStemCurve(incoming: FlowerNodeIncomingConnection): number {
+    return incoming.stem?.curve ?? this.draft().stem.curve ?? 14;
+  }
+
+  updateIncomingStem(key: 'color' | 'width' | 'bend' | 'curve', value: string | number): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
       stem: {
         color: key === 'color' ? String(value) : this.incomingStemColor(incoming),
         width: key === 'width' ? Number(value) : this.incomingStemWidth(incoming),
         bend: key === 'bend' ? Number(value) : this.incomingStemBend(incoming),
+        curve: key === 'curve' ? Number(value) : this.incomingStemCurve(incoming),
       },
     }));
   }
@@ -1000,7 +1011,7 @@ export class FlowerEditorComponent {
     const target = this.draft().nodes.find((node) => node.id === targetId);
     if (!target) return;
     const incoming = nodeIncomingOrDefault(target);
-    const connection = connectionFromIncoming(targetId, incoming);
+    const connection = connectionFromIncoming(targetId);
     let addedToLoop: string[] = [];
     this.draft.update((draft) => {
       const connected: FlowerDefinition = {
@@ -1010,7 +1021,7 @@ export class FlowerEditorComponent {
             return {...node, connections: [...node.connections, connection]};
           }
           if (node.id === targetId) {
-            return {...node, incoming};
+            return {...node, incoming: structuredClone(incoming)};
           }
           return node;
         }),
@@ -1092,6 +1103,30 @@ export class FlowerEditorComponent {
       this.subtreeAnchorIds.set(new Set());
       this.selectNode(inserted.insertedNodeId);
       this.notify(`„${tree.name}“ wurde als Komponentenknoten angehängt.`);
+    } catch (error: unknown) {
+      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
+    }
+  }
+
+  insertDefinitionReference(definitionId: string): void {
+    const parentId = this.selectedNodeId();
+    const sourceDefinition = this.store.definitions().find((definition) => definition.id === definitionId);
+    if (!sourceDefinition) {
+      this.notify('Die referenzierte Komponente existiert nicht mehr.');
+      return;
+    }
+    try {
+      const inserted = insertFlowerDefinitionReference(
+        this.draft(),
+        this.graphPositions(),
+        sourceDefinition,
+        parentId,
+      );
+      this.draft.set(inserted.definition);
+      this.graphPositions.set(inserted.nodePositions);
+      this.subtreeAnchorIds.set(new Set());
+      this.selectNode(inserted.insertedNodeId);
+      this.notify(`„${sourceDefinition.name}“ wurde als Referenz angehängt.`);
     } catch (error: unknown) {
       this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
     }
@@ -1298,7 +1333,7 @@ export class FlowerEditorComponent {
   }
 
   private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
-    const clone = migrateIncomingConnections(definition);
+    const clone = normalizeConnectionReferences(migrateIncomingConnections(definition));
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
     this.graphPositions.set(materializePositions(clone));
@@ -1307,10 +1342,10 @@ export class FlowerEditorComponent {
   }
 
   private definitionWithEditorState(): FlowerDefinition {
-    return {
+    return normalizeConnectionReferences({
       ...this.draft(),
       editor: {nodePositions: structuredClone(this.graphPositions())},
-    };
+    });
   }
 
   private definitionFromComponent(tree: FlowerSubtreeDefinition, role: 'flower' | 'component'): FlowerDefinition {
@@ -1321,7 +1356,7 @@ export class FlowerEditorComponent {
       id: tree.id,
       name: tree.name,
       catalogRole: role,
-      catalogIcon: {symbol: '✿', color: this.draft().catalogIcon?.color ?? '#5b8d53'},
+      outputNodeIds: role === 'component' ? structuredClone(tree.outputNodeIds ?? []) : undefined,
       rootNodeId: tree.rootNodeId,
       stem: structuredClone(this.draft().stem),
       nodes: structuredClone(tree.nodes),
@@ -1335,10 +1370,6 @@ export class FlowerEditorComponent {
         })),
       },
     };
-  }
-
-  private previewColorFromDefinition(definition: FlowerDefinition): string {
-    return [...definition.nodes].reverse().find((node) => node.graphic)?.graphic?.color ?? '#5b8d53';
   }
 
   private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {
@@ -1437,9 +1468,26 @@ function centerOfPositions(positions: Record<string, Point>): Point {
 
 function selectedExternalConnections(definition: FlowerDefinition, memberNodeIds: string[]): FlowerNodeConnection[] {
   const members = new Set(memberNodeIds);
-  return structuredClone(definition.nodes
+  const incomingIds = new Set(definition.nodes
+    .filter((node) => !!node.incoming)
+    .map((node) => node.id));
+  return definition.nodes
     .filter((node) => members.has(node.id))
-    .flatMap((node) => node.connections.filter((connection) => !members.has(connection.childId))));
+    .flatMap((node) => node.connections.filter((connection) => !members.has(connection.childId)))
+    .map((connection) => incomingIds.has(connection.childId)
+      ? connectionFromIncoming(connection.childId)
+      : structuredClone(connection));
+}
+
+function definitionOutputNodeIds(nodes: FlowerNodeDefinition[]): string[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const parents = new Set(nodes.flatMap((node) =>
+    node.connections
+      .filter((connection) => ids.has(connection.childId))
+      .map(() => node.id)));
+  return nodes
+    .filter((node) => !parents.has(node.id))
+    .map((node) => node.id);
 }
 
 function nodeBounds(nodes: Array<{x: number; y: number; width: number; height: number}>): Point {

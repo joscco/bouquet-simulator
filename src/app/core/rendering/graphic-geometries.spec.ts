@@ -6,14 +6,17 @@ import {
 } from './graphic-geometries';
 
 describe('built-in graphic geometries', () => {
-  it('offers one pointed, one round and one serrated leaf instead of petal duplicates', () => {
+  it('offers pointed and serrated leaves without the round leaf option', () => {
     expect(BUILT_IN_GRAPHICS.map((graphic) => graphic.value)).toEqual([
       'leaf-pointed',
-      'leaf-round',
       'leaf-serrated',
       'sphere',
       'rod',
     ]);
+  });
+
+  it('maps legacy round leaves to pointed leaves', () => {
+    expect(canonicalGraphicPrimitive('leaf-round')).toBe('leaf-pointed');
   });
 
   it('creates UV mapped, curved leaf geometry', () => {
