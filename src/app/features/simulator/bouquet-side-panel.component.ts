@@ -188,6 +188,9 @@ export class BouquetSidePanelComponent {
   readonly activeVaseId = input.required<string>();
   readonly vaseMaterialOptions = input.required<readonly VaseMaterialOption[]>();
   readonly activeVaseMaterialId = input.required<VaseMaterialId>();
+  readonly videoExportSupported = input.required<boolean>();
+  readonly videoExporting = input.required<boolean>();
+  readonly videoExportProgress = input.required<number>();
 
   readonly pickerOpen = output<void>();
   readonly shuffle = output<void>();
@@ -209,6 +212,7 @@ export class BouquetSidePanelComponent {
   readonly bouquetSelect = output<string>();
   readonly bouquetDelete = output<string>();
   readonly bouquetNameChange = output<string>();
+  readonly videoExport = output<void>();
 
   readonly deletingBouquetId = signal<string | null>(null);
 

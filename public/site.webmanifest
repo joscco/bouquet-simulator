@@ -7,9 +7,16 @@
   "theme_color": "#064e3b",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icons/bouquet-studio-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/bouquet-studio-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ]
 }

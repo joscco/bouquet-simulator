@@ -56,6 +56,7 @@ The application remains usable in this mode, but the flower editor's **In Defaul
 | `npm run start:angular` | Start only Angular with the API proxy configured. |
 | `npm test` | Build and run the complete unit-test suite. |
 | `npm run build` | Create a production build in `dist/bouquet-simulator/browser`. |
+| `npm run media:turntable` | Build and export the deterministic bouquet turntable. |
 
 For a clean, lockfile-based installation such as CI, use `npm ci` instead of `npm install`.
 
@@ -124,6 +125,20 @@ npm run build
 ```
 
 The tests cover graph generation, connections, loops, nested components, editor layouts, graphics, bouquet placement, overlap correction, persistence, and migration of older optional fields.
+
+## Presentation media
+
+`npm run media:turntable` renders a deterministic 360-degree turntable from the production build. The representative arrangement, camera, studio background, frame count, and vase material live in `tools/render-turntable.mjs`, so a new export does not depend on browser storage or manual mouse movement.
+
+For the current bouquet, open the simulator menu and choose **Quadratisches Loop-Video exportieren**. The browser records six seconds at 1080×1080 directly from the 3D scene, including the current zoom and camera inclination, restores the original view afterwards, and preferably downloads a seamless H.264 MP4 loop. Browsers without MP4 recording support fall back to WebM. When embedding the file on a website, add the HTML `loop` attribute to the video element so playback repeats automatically.
+
+The default export is square 1080p, six seconds long, and contains:
+
+- `public/media/bouquet-turntable.mp4` for presentations and broad browser support.
+- `public/media/bouquet-turntable.webm` as the compact web variant.
+- `public/media/bouquet-turntable-poster.webp` as the preview image.
+
+Chrome and ffmpeg must be available locally. For a quick draft, the renderer also accepts options such as `node tools/render-turntable.mjs --frames=30 --fps=15 --size=720 --output=/tmp/turntable` after a production build.
 
 ## GitHub Pages deployment
 

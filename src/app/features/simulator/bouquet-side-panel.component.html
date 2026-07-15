@@ -1,4 +1,8 @@
-<aside class="pointer-events-none absolute inset-y-0 left-0 z-20">
+<aside
+  class="pointer-events-none absolute inset-y-0 left-0 z-20"
+  [attr.aria-busy]="videoExporting()"
+  [attr.inert]="videoExporting() ? '' : null"
+>
   <section
     class="absolute bottom-0 left-16 top-0 w-[min(360px,calc(100vw-4rem))] overflow-hidden border-r border-white/70 bg-white/82 shadow-2xl shadow-stone-900/10 backdrop-blur-xl transition-[transform,opacity] duration-[320ms] ease-out will-change-transform motion-reduce:transition-none"
     [class.translate-x-0]="menuOpen()"
@@ -187,7 +191,7 @@
               class="icon-button h-9! w-full! rounded-lg! border border-stone-200 bg-white"
               [class.border-emerald-950]="activeVaseId() === vase.id"
               [class.bg-emerald-950]="activeVaseId() === vase.id"
-              [class.text-white]="activeVaseId() === vase.id"
+              [class.text-stone-600]="activeVaseId() === vase.id"
               [class.text-stone-500]="activeVaseId() !== vase.id"
               type="button"
               [matTooltip]="vase.name"
@@ -206,7 +210,7 @@
               class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white px-1 py-2 text-[8px] font-semibold text-stone-500 transition-colors hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-950"
               [class.border-emerald-950]="activeVaseMaterialId() === material.id"
               [class.bg-emerald-950]="activeVaseMaterialId() === material.id"
-              [class.text-white]="activeVaseMaterialId() === material.id"
+              [class.text-stone-600]="activeVaseMaterialId() === material.id"
               type="button"
               [matTooltip]="material.name"
               [attr.aria-label]="'Vasenoptik ' + material.name + ' auswählen'"
@@ -224,6 +228,25 @@
       </div>
 
       <div class="mt-4 grid shrink-0 grid-cols-2 gap-2 border-t border-stone-200/70 pt-4">
+        <button
+          class="relative col-span-2 flex h-10 min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-teal-800 bg-teal-700 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
+          type="button"
+          [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
+          [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden quadratisch als nahtloses 360°-Loop-Video aufnehmen'"
+          (click)="videoExport.emit()"
+        >
+          @if (videoExporting()) {
+            <span
+              class="absolute inset-y-0 left-0 bg-teal-500/45 transition-[width] duration-100"
+              [style.width.%]="videoExportProgress()"
+            ></span>
+            <mat-icon class="relative text-[19px]!">videocam</mat-icon>
+            <span class="relative truncate">Loop wird aufgenommen · {{ videoExportProgress() }}%</span>
+          } @else {
+            <mat-icon class="text-[19px]!">video_file</mat-icon>
+            <span class="truncate">Quadratisches Loop-Video exportieren</span>
+          }
+        </button>
         <label
           class="panel-button cursor-pointer"
         >

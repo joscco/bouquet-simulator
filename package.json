@@ -7,6 +7,7 @@
     "start": "node tools/dev.mjs",
     "start:angular": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
+    "media:turntable": "npm run build && node tools/render-turntable.mjs",
     "test": "ng test"
   },
   "dependencies": {

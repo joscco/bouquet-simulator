@@ -1,16 +1,17 @@
 <section class="relative h-dvh min-h-[480px] overflow-hidden bg-[#f8f7f2]">
   <app-bouquet-canvas
     class="absolute inset-0 block h-full w-full"
+    [class.pointer-events-none]="videoExporting()"
     [state]="store.state()"
     [definitions]="store.materializedDefinitions()"
     [selectedId]="selectedId()"
     [overlappingIds]="overlappingFlowerIds()"
-    [flowerMoveEnabled]="true"
+    [flowerMoveEnabled]="!videoExporting()"
     [vaseEnabled]="true"
-    [orbitEnabled]="true"
+    [orbitEnabled]="!videoExporting()"
     [orbitPitch]="bouquetPitch()"
     [zoom]="zoom()"
-    [zoomEnabled]="true"
+    [zoomEnabled]="!videoExporting()"
     [fitToContent]="true"
     [viewportInsets]="previewInsets()"
     viewMode="rotate"
@@ -39,6 +40,9 @@
     [activeVaseId]="activeVaseId()"
     [vaseMaterialOptions]="vaseMaterialOptions"
     [activeVaseMaterialId]="activeVaseMaterialId()"
+    [videoExportSupported]="videoExportSupported"
+    [videoExporting]="videoExporting()"
+    [videoExportProgress]="videoExportProgress()"
     (pickerOpen)="pickerOpen.set(true)"
     (shuffle)="shuffleBouquet()"
     (viewReset)="resetView()"
@@ -59,6 +63,7 @@
     (bouquetSelect)="selectBouquet($event)"
     (bouquetDelete)="deleteBouquet($event)"
     (bouquetNameChange)="store.renameActiveBouquet($event)"
+    (videoExport)="exportTurntableVideo()"
   />
 </section>
 

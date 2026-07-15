@@ -64,6 +64,10 @@ import {
 } from '../../core/data/vases';
 import {resolvedStemWidths} from '../../core/models/flower-connections';
 import {isFlowerTemplateHighlighted} from '../../core/rendering/flower-highlights';
+import {
+  CanvasVideoRecording,
+  recordCanvasVideo,
+} from '../media/canvas-video-recorder';
 
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const FIT_PADDING = 48;
@@ -72,6 +76,7 @@ const ORBIT_LIMIT = Math.PI * 0.46;
 const VASE_BRANCH_CLEARANCE = 34;
 const SELECTION_GLOW_COLOR = '#14b8a6';
 const SELECTION_GLOW_INTENSITY = 0.48;
+const TURNTABLE_VIDEO_SIZE = 1080;
 
 interface PickData {
   instanceId: string;
@@ -94,6 +99,12 @@ interface StemRenderEdge {
 }
 
 export type BouquetCanvasViewMode = 'pan' | 'rotate';
+
+export interface BouquetTurntableRecordingOptions {
+  durationSeconds?: number;
+  fps?: number;
+  onProgress?: (progressPercent: number) => void;
+}
 
 interface VaseRenderDefinition {
   profile: Array<[number, number]>;
@@ -333,6 +344,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private readonly zoomTouches = new Map<number, {x: number; y: number}>();
   private zoomPinchDistance: number | null = null;
   private emittedSnapshotKey: string | null = null;
+  private recordingViewport: {width: number; height: number} | null = null;
 
   constructor() {
     effect(() => {
@@ -503,6 +515,61 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   endZoomGesture(event: PointerEvent): void {
     this.zoomTouches.delete(event.pointerId);
     if (this.zoomTouches.size < 2) this.zoomPinchDistance = null;
+  }
+
+  async recordTurntable(
+    options: BouquetTurntableRecordingOptions = {},
+  ): Promise<CanvasVideoRecording> {
+    const renderer = this.renderer;
+    if (!renderer) throw new Error('Die 3D-Ansicht ist noch nicht bereit.');
+
+    const durationSeconds = options.durationSeconds ?? 6;
+    const fps = options.fps ?? 30;
+    const frames = Math.round(durationSeconds * fps);
+    const initialRotation = this.state().rotation;
+    const initialBackground = this.scene.background;
+    const recordingRenderer = new WebGLRenderer({
+      alpha: false,
+      antialias: true,
+      powerPreference: 'high-performance',
+    });
+    recordingRenderer.setPixelRatio(1);
+    recordingRenderer.setSize(TURNTABLE_VIDEO_SIZE, TURNTABLE_VIDEO_SIZE, false);
+    recordingRenderer.outputColorSpace = SRGBColorSpace;
+    recordingRenderer.toneMapping = ACESFilmicToneMapping;
+    recordingRenderer.toneMappingExposure = 1.08;
+    recordingRenderer.shadowMap.enabled = true;
+    recordingRenderer.shadowMap.type = PCFSoftShadowMap;
+    const hiddenHelpers: Box3Helper[] = [];
+    this.bouquet.traverse((object) => {
+      if (object instanceof Box3Helper && object.visible) {
+        object.visible = false;
+        hiddenHelpers.push(object);
+      }
+    });
+    this.recordingViewport = {width: TURNTABLE_VIDEO_SIZE, height: TURNTABLE_VIDEO_SIZE};
+    this.scene.background = new Color('#f8f7f2');
+
+    try {
+      return await recordCanvasVideo(recordingRenderer.domElement, {
+        frames,
+        fps,
+        onProgress: options.onProgress,
+        drawFrame: (frame) => {
+          this.bouquet.rotation.y = initialRotation + frame / frames * Math.PI * 2;
+          this.resizeCamera();
+          recordingRenderer.render(this.scene, this.camera);
+        },
+      });
+    } finally {
+      this.recordingViewport = null;
+      this.scene.background = initialBackground;
+      for (const helper of hiddenHelpers) helper.visible = true;
+      this.bouquet.rotation.y = this.state().rotation;
+      this.resizeCamera();
+      renderer.render(this.scene, this.camera);
+      recordingRenderer.dispose();
+    }
   }
 
   private requestRebuild(): void {
@@ -901,7 +968,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
   private resizeCamera(): void {
     if (!this.renderer) return;
-    const host = this.canvasHost.nativeElement;
+    const viewport = this.viewportSize();
     this.camera.near = 0.1;
     this.camera.far = 2400;
     const elevation = clamp(0.08 + this.orbitPitch(), -ORBIT_LIMIT, ORBIT_LIMIT);
@@ -912,13 +979,15 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.camera.updateMatrixWorld();
 
     const zoom = this.effectiveZoom();
-    this.camera.left = -host.clientWidth / 2 / zoom;
-    this.camera.right = host.clientWidth / 2 / zoom;
-    this.camera.top = host.clientHeight / 2 / zoom;
-    this.camera.bottom = -host.clientHeight / 2 / zoom;
+    this.camera.left = -viewport.width / 2 / zoom;
+    this.camera.right = viewport.width / 2 / zoom;
+    this.camera.top = viewport.height / 2 / zoom;
+    this.camera.bottom = -viewport.height / 2 / zoom;
     this.camera.updateProjectionMatrix();
-    const offset = this.viewOffset();
-    const center = this.sceneCenter.clone().applyQuaternion(this.bouquet.quaternion);
+    const offset = this.recordingViewport ? {x: 0, y: 0} : this.viewOffset();
+    const center = this.vaseEnabled()
+      ? new Vector3(0, this.sceneCenter.y, 0)
+      : this.sceneCenter.clone().applyQuaternion(this.bouquet.quaternion);
     const insets = this.resolvedInsets();
     const viewportCenter = this.screenOffset(
       (insets.left - insets.right) / 2 / zoom,
@@ -935,13 +1004,13 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private fitZoom(): number {
-    const host = this.canvasHost.nativeElement;
-    if (!this.fitToContent() || this.fitBounds.isEmpty() || !host.clientWidth || !host.clientHeight) return 1;
+    const viewport = this.viewportSize();
+    if (!this.fitToContent() || this.fitBounds.isEmpty() || !viewport.width || !viewport.height) return 1;
 
     const projectedSize = this.projectedFitSize();
     const insets = this.resolvedInsets();
-    const visibleWidth = Math.max(1, host.clientWidth - insets.left - insets.right);
-    const visibleHeight = Math.max(1, host.clientHeight - insets.top - insets.bottom);
+    const visibleWidth = Math.max(1, viewport.width - insets.left - insets.right);
+    const visibleHeight = Math.max(1, viewport.height - insets.top - insets.bottom);
     const horizontalPadding = Math.min(FIT_PADDING, visibleWidth * 0.08);
     const verticalPadding = Math.min(FIT_PADDING, visibleHeight * 0.08);
     const availableWidth = Math.max(120, visibleWidth - horizontalPadding * 2);
@@ -955,6 +1024,17 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private projectedFitSize(): {width: number; height: number} {
     const right = new Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
     const up = new Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+    if (this.vaseEnabled()) {
+      const radialExtent = Math.hypot(
+        Math.max(Math.abs(this.fitBounds.min.x), Math.abs(this.fitBounds.max.x)),
+        Math.max(Math.abs(this.fitBounds.min.z), Math.abs(this.fitBounds.max.z)),
+      );
+      return {
+        width: radialExtent * 2,
+        height: (this.fitBounds.max.y - this.fitBounds.min.y) * Math.abs(up.y)
+          + radialExtent * 2 * Math.hypot(up.x, up.z),
+      };
+    }
     const point = new Vector3();
     let minimumX = Number.POSITIVE_INFINITY;
     let maximumX = Number.NEGATIVE_INFINITY;
@@ -982,6 +1062,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private resolvedInsets(): {left: number; right: number; top: number; bottom: number} {
+    if (this.recordingViewport) return {left: 0, right: 0, top: 0, bottom: 0};
     const host = this.canvasHost.nativeElement;
     const insets = this.viewportInsets();
     return {
@@ -990,6 +1071,12 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       top: clamp(insets.top, 0, Math.max(0, host.clientHeight - 1)),
       bottom: clamp(insets.bottom, 0, Math.max(0, host.clientHeight - 1)),
     };
+  }
+
+  private viewportSize(): {width: number; height: number} {
+    if (this.recordingViewport) return this.recordingViewport;
+    const host = this.canvasHost.nativeElement;
+    return {width: host.clientWidth, height: host.clientHeight};
   }
 
   private screenOffset(x: number, y: number): Vector3 {

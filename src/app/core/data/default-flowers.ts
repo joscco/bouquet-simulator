@@ -83,7 +83,19 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 0,
             "max": 0
           },
-          "randomness": 0.25
+          "randomness": 0.25,
+          "stem": {
+            "color": "#477348",
+            "width": 10,
+            "startWidth": 3,
+            "endWidth": 3,
+            "bend": 0,
+            "curve": 14,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
         },
         "connections": [
           {
@@ -418,7 +430,17 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "rotationBase": 90,
           "rotationSpread": 15,
           "bendCross": 17,
-          "paint": []
+          "paint": [],
+          "patterns": [
+            {
+              "id": "veins",
+              "type": "veins",
+              "color": "#315c3a",
+              "opacity": 0.65,
+              "density": 5,
+              "size": 0.012
+            }
+          ]
         },
         "connections": [],
         "incoming": {
@@ -1498,7 +1520,15 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 90
           },
           "bendMain": 21,
-          "bendCross": 18
+          "bendCross": 18,
+          "bendMainProfile": {
+            "base": 16,
+            "tip": -65
+          },
+          "bendCrossProfile": {
+            "base": -2,
+            "tip": 18
+          }
         },
         "connections": [],
         "incoming": {
@@ -2083,7 +2113,19 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 0,
             "max": 0
           },
-          "randomness": 0.25
+          "randomness": 0.25,
+          "stem": {
+            "color": "#477348",
+            "width": 10,
+            "startWidth": 3,
+            "endWidth": 3,
+            "bend": 0,
+            "curve": 14,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
         }
       },
       {
