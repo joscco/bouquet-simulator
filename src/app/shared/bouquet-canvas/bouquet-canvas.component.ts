@@ -14,9 +14,11 @@ import {
   ACESFilmicToneMapping,
   Box3,
   Box3Helper,
+  BufferAttribute,
   BufferGeometry,
   CatmullRomCurve3,
   Color,
+  Curve,
   CylinderGeometry,
   DirectionalLight,
   DoubleSide,
@@ -32,7 +34,6 @@ import {
   OrthographicCamera,
   PCFSoftShadowMap,
   PlaneGeometry,
-  QuadraticBezierCurve3,
   Raycaster,
   Scene,
   SRGBColorSpace,
@@ -49,14 +50,12 @@ import {
   FlowerDefinition,
   FlowerNodeGraphic,
 } from '../../core/models/flower.models';
-import {effectiveConnection} from '../../core/models/flower-connections';
 import {createBuiltInGeometry} from '../../core/rendering/graphic-geometries';
 import {createGraphicPaintTexture} from '../../core/rendering/graphic-paint';
 import {graphicOrientationQuaternion} from '../../core/rendering/graphic-orientation';
 import {FlowerTree, FlowerTreeEdge, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
 import {DEFAULT_VASE_ID} from '../../core/data/vases';
 
-const UP = new Vector3(0, 1, 0);
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const FIT_PADDING = 48;
 const FIT_MARGIN = 1.08;
@@ -66,6 +65,20 @@ const VASE_BRANCH_CLEARANCE = 34;
 interface PickData {
   instanceId: string;
   scale?: number;
+}
+
+interface StemRenderEdge {
+  edge: FlowerTreeEdge;
+  from: FlowerTreeNode;
+  to: FlowerTreeNode;
+  startWidth: number;
+  endWidth: number;
+  color: string;
+  bend: number;
+  curve: number;
+  highlighted: boolean;
+  capStart: boolean;
+  capEnd: boolean;
 }
 
 export type BouquetCanvasViewMode = 'pan' | 'rotate';
@@ -482,31 +495,82 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.vaseEnabled()) tree = pruneLowerBranches(tree, VASE_BRANCH_CLEARANCE);
     const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
     const graphicPrototypes = new Map<string, Mesh>();
+    const outgoingCounts = new Map<string, number>();
+    for (const edge of tree.edges) {
+      outgoingCounts.set(edge.from, (outgoingCounts.get(edge.from) ?? 0) + 1);
+    }
+    const stemEdges: StemRenderEdge[] = [];
+    const jointWidths = new Map<string, number>();
 
     for (const edge of tree.edges) {
       const from = nodes.get(edge.from);
       const to = nodes.get(edge.to);
       if (!from || !to) continue;
-      const legacyConnection = templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex];
-      const connection = legacyConnection
-        ? effectiveConnection(definition, legacyConnection)
-        : undefined;
-      const baseWidth = connection?.stem?.width ?? definition.stem.width;
+      const connection = edge.connection;
+      const baseWidth = connection.stem?.width ?? definition.stem.width;
       const startWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** from.depth));
       const endWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** to.depth));
       const highlighted = this.highlightedConnection()?.sourceId === edge.connectionSourceId
         && this.highlightedConnection()?.index === edge.connectionIndex;
-      if (highlighted) {
-        group.add(this.createStem(from, to, startWidth + 3, endWidth + 3, '#eab308', 0.72, connection?.stem?.bend ?? definition.stem.bend ?? 0));
-      }
-      const stem = this.createStem(
+      const stemColor = connection.stem?.color ?? definition.stem.color;
+      const stemCurve = connection.stem?.curve ?? definition.stem.curve ?? 14;
+      const stemBend = connection.stem?.bend ?? definition.stem.bend ?? 0;
+      const capStart = from.parentId === null;
+      const capEnd = (outgoingCounts.get(to.id) ?? 0) === 0;
+      stemEdges.push({
+        edge,
         from,
         to,
         startWidth,
         endWidth,
-        connection?.stem?.color ?? definition.stem.color,
+        color: stemColor,
+        bend: stemBend,
+        curve: stemCurve,
+        highlighted,
+        capStart,
+        capEnd,
+      });
+      jointWidths.set(from.id, Math.max(jointWidths.get(from.id) ?? 0, startWidth));
+      jointWidths.set(to.id, Math.max(jointWidths.get(to.id) ?? 0, endWidth));
+    }
+    const jointTangents = createStemJointTangents(stemEdges);
+
+    for (const stemEdge of stemEdges) {
+      const startJointWidth = jointWidths.get(stemEdge.from.id) ?? stemEdge.startWidth;
+      const endJointWidth = jointWidths.get(stemEdge.to.id) ?? stemEdge.endWidth;
+      if (stemEdge.highlighted) {
+        group.add(this.createStem(
+          stemEdge.from,
+          stemEdge.to,
+          stemEdge.startWidth + 3,
+          stemEdge.endWidth + 3,
+          startJointWidth + 3,
+          endJointWidth + 3,
+          '#eab308',
+          0.72,
+          stemEdge.bend,
+          stemEdge.curve,
+          jointTangents.get(stemEdge.from.id),
+          jointTangents.get(stemEdge.to.id),
+          stemEdge.capStart,
+          stemEdge.capEnd,
+        ));
+      }
+      const stem = this.createStem(
+        stemEdge.from,
+        stemEdge.to,
+        stemEdge.startWidth,
+        stemEdge.endWidth,
+        startJointWidth,
+        endJointWidth,
+        stemEdge.color,
         1,
-        connection?.stem?.bend ?? definition.stem.bend ?? 0,
+        stemEdge.bend,
+        stemEdge.curve,
+        jointTangents.get(stemEdge.from.id),
+        jointTangents.get(stemEdge.to.id),
+        stemEdge.capStart,
+        stemEdge.capEnd,
       );
       stem.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
       group.add(stem);
@@ -628,32 +692,44 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     to: FlowerTreeNode,
     startWidth: number,
     endWidth: number,
+    startJointWidth: number,
+    endJointWidth: number,
     color: string,
     opacity: number,
     bend: number,
-  ): Object3D {
+    curve: number,
+    startTangent: Vector3 | undefined,
+    endTangent: Vector3 | undefined,
+    capStart: boolean,
+    capEnd: boolean,
+  ): Mesh {
     const start = treePosition(from);
     const end = treePosition(to);
     const direction = end.clone().sub(start);
     const length = Math.max(0.01, direction.length());
     const bendAmount = clamp(bend, -100, 100) / 100;
-    if (Math.abs(bendAmount) > 0.01 && length > 8) {
-      return this.createCurvedStem(start, end, startWidth, endWidth, color, opacity, bendAmount);
-    }
-    return this.createStemSegment(start, end, startWidth, endWidth, color, opacity);
-  }
-
-  private createStemSegment(
-    start: Vector3,
-    end: Vector3,
-    startWidth: number,
-    endWidth: number,
-    color: string,
-    opacity: number,
-  ): Mesh {
-    const direction = end.clone().sub(start);
-    const length = Math.max(0.01, direction.length());
-    const geometry = new CylinderGeometry(endWidth / 2, startWidth / 2, length, 7, 1, false);
+    const curveAmount = clamp(curve, 0, 100) / 100;
+    const variation = hashUnit(`${from.id}->${to.id}`);
+    const stemCurve = createNaturalStemCurve(
+      start,
+      end,
+      bendAmount,
+      curveAmount,
+      variation,
+      startTangent,
+      endTangent,
+    );
+    const geometry = createTaperedStemGeometry(
+      stemCurve,
+      startWidth / 2,
+      endWidth / 2,
+      startJointWidth / 2,
+      endJointWidth / 2,
+      Math.max(6, Math.min(24, Math.ceil(length / 8))),
+      12,
+      capStart,
+      capEnd,
+    );
     const material = new MeshStandardMaterial({
       color,
       roughness: 0.78,
@@ -661,47 +737,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       opacity,
       side: DoubleSide,
     });
-    const stem = new Mesh(geometry, material);
-    stem.position.copy(start).add(end).multiplyScalar(0.5);
-    stem.quaternion.setFromUnitVectors(UP, direction.normalize());
-    return stem;
-  }
-
-  private createCurvedStem(
-    start: Vector3,
-    end: Vector3,
-    startWidth: number,
-    endWidth: number,
-    color: string,
-    opacity: number,
-    bendAmount: number,
-  ): Group {
-    const direction = end.clone().sub(start);
-    const length = Math.max(0.01, direction.length());
-    const axis = Math.abs(direction.clone().normalize().dot(new Vector3(0, 0, 1))) > 0.94
-      ? new Vector3(1, 0, 0)
-      : new Vector3(0, 0, 1);
-    const side = direction.clone().cross(axis).normalize().multiplyScalar(length * 0.28 * bendAmount);
-    const curve = new QuadraticBezierCurve3(
-      start,
-      start.clone().add(end).multiplyScalar(0.5).add(side),
-      end,
-    );
-    const points = curve.getPoints(8);
-    const group = new Group();
-    for (let index = 0; index < points.length - 1; index++) {
-      const progress = index / (points.length - 2);
-      const nextProgress = (index + 1) / (points.length - 2);
-      group.add(this.createStemSegment(
-        points[index]!,
-        points[index + 1]!,
-        lerp(startWidth, endWidth, progress),
-        lerp(startWidth, endWidth, nextProgress),
-        color,
-        opacity,
-      ));
-    }
-    return group;
+    return new Mesh(geometry, material);
   }
 
   private createGraphic(graphic: FlowerNodeGraphic): Mesh {
@@ -1044,6 +1080,235 @@ function isHighlightedTemplate(templateId: string, highlightedNodeId: string | n
     && (templateId === highlightedNodeId || templateId.startsWith(`${highlightedNodeId}::`));
 }
 
+function createNaturalStemCurve(
+  start: Vector3,
+  end: Vector3,
+  bendAmount: number,
+  curveAmount: number,
+  variation: number,
+  startTangent?: Vector3,
+  endTangent?: Vector3,
+): Curve<Vector3> {
+  const direction = end.clone().sub(start);
+  const length = Math.max(0.01, direction.length());
+  const tangent = direction.clone().normalize();
+  const axis = Math.abs(tangent.dot(new Vector3(0, 0, 1))) > 0.94
+    ? new Vector3(1, 0, 0)
+    : new Vector3(0, 0, 1);
+  const twist = (variation - 0.5) * Math.PI * 0.82 * Math.max(0.2, curveAmount);
+  const side = tangent.clone().cross(axis).normalize().applyAxisAngle(tangent, twist);
+  const lift = side.clone().cross(tangent).normalize();
+  const bendScale = 0.78 + variation * 0.42;
+  const organicBias = (variation - 0.5) * 0.18 * curveAmount;
+  const effectiveBend = bendAmount * bendScale + organicBias;
+  return new NaturalStemCurve(
+    start,
+    end,
+    normalizedTangent(startTangent, tangent),
+    normalizedTangent(endTangent, tangent),
+    side,
+    lift,
+    effectiveBend,
+    curveAmount,
+    variation,
+  );
+}
+
+function createTaperedStemGeometry(
+  curve: Curve<Vector3>,
+  startRadius: number,
+  endRadius: number,
+  startJointRadius: number,
+  endJointRadius: number,
+  lengthSegments: number,
+  radialSegments: number,
+  capStart: boolean,
+  capEnd: boolean,
+): BufferGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+  const startFrameNormal = initialStemNormal(curve.getTangent(0).normalize());
+  const endFrameNormal = initialStemNormal(curve.getTangent(1).normalize());
+  if (startFrameNormal.dot(endFrameNormal) < 0) endFrameNormal.multiplyScalar(-1);
+
+  for (let ring = 0; ring <= lengthSegments; ring++) {
+    const t = ring / lengthSegments;
+    const center = curve.getPoint(t);
+    const tangent = curve.getTangent(t).normalize();
+    const referenceNormal = startFrameNormal.clone().lerp(endFrameNormal, t);
+    const projectedNormal = referenceNormal.sub(tangent.clone().multiplyScalar(referenceNormal.dot(tangent)));
+    const normal = projectedNormal.lengthSq() > 1e-6
+      ? projectedNormal.normalize()
+      : initialStemNormal(tangent);
+    const binormal = tangent.clone().cross(normal).normalize();
+    const baseRadius = lerp(startRadius, endRadius, t);
+    const startBlend = smoothEndpointBlend(1 - t / 0.22);
+    const endBlend = smoothEndpointBlend(1 - (1 - t) / 0.22);
+    const jointRadius = Math.max(
+      baseRadius,
+      startJointRadius * startBlend,
+      endJointRadius * endBlend,
+    );
+    const radius = Math.max(0.05, jointRadius);
+
+    for (let segment = 0; segment < radialSegments; segment++) {
+      const angle = segment / radialSegments * Math.PI * 2;
+      const radial = normal.clone().multiplyScalar(Math.cos(angle))
+        .add(binormal.clone().multiplyScalar(Math.sin(angle)))
+        .normalize();
+      const point = center.clone().add(radial.clone().multiplyScalar(radius));
+      positions.push(point.x, point.y, point.z);
+      normals.push(radial.x, radial.y, radial.z);
+    }
+  }
+
+  for (let ring = 0; ring < lengthSegments; ring++) {
+    const current = ring * radialSegments;
+    const next = (ring + 1) * radialSegments;
+    for (let segment = 0; segment < radialSegments; segment++) {
+      const a = current + segment;
+      const b = current + (segment + 1) % radialSegments;
+      const c = next + segment;
+      const d = next + (segment + 1) % radialSegments;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+
+  if (capStart) {
+    const startCenter = positions.length / 3;
+    const startPoint = curve.getPoint(0);
+    positions.push(startPoint.x, startPoint.y, startPoint.z);
+    const startTangent = curve.getTangent(0).normalize().multiplyScalar(-1);
+    normals.push(startTangent.x, startTangent.y, startTangent.z);
+    for (let segment = 0; segment < radialSegments; segment++) {
+      indices.push(startCenter, (segment + 1) % radialSegments, segment);
+    }
+  }
+
+  if (capEnd) {
+    const endCenter = positions.length / 3;
+    const endPoint = curve.getPoint(1);
+    positions.push(endPoint.x, endPoint.y, endPoint.z);
+    const endTangent = curve.getTangent(1).normalize();
+    normals.push(endTangent.x, endTangent.y, endTangent.z);
+    const endRing = lengthSegments * radialSegments;
+    for (let segment = 0; segment < radialSegments; segment++) {
+      indices.push(endCenter, endRing + segment, endRing + (segment + 1) % radialSegments);
+    }
+  }
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+class NaturalStemCurve extends Curve<Vector3> {
+  private readonly length: number;
+
+  constructor(
+    private readonly start: Vector3,
+    private readonly end: Vector3,
+    private readonly startTangent: Vector3,
+    private readonly endTangent: Vector3,
+    private readonly side: Vector3,
+    private readonly lift: Vector3,
+    private readonly bend: number,
+    private readonly curveAmount: number,
+    private readonly variation: number,
+  ) {
+    super();
+    this.length = Math.max(0.01, start.distanceTo(end));
+  }
+
+  override getPoint(t: number, target = new Vector3()): Vector3 {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const tangentScale = this.length * (0.56 + this.curveAmount * 0.16);
+    const h00 = 2 * t3 - 3 * t2 + 1;
+    const h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 = t3 - t2;
+    target
+      .copy(this.start).multiplyScalar(h00)
+      .addScaledVector(this.startTangent, h10 * tangentScale)
+      .addScaledVector(this.end, h01)
+      .addScaledVector(this.endTangent, h11 * tangentScale);
+
+    // This offset has a zero derivative at both ends, so adjacent stems retain
+    // their shared tangent while each segment still gets an individual shape.
+    const envelope = 16 * t2 * (1 - t) * (1 - t);
+    const asymmetry = (t - 0.5) * (0.7 + this.variation * 0.6);
+    const sideOffset = this.length * envelope
+      * (0.13 * this.bend + 0.035 * this.curveAmount * asymmetry);
+    const liftDirection = this.variation < 0.5 ? -1 : 1;
+    const liftOffset = this.length * envelope * this.curveAmount
+      * (0.018 * liftDirection + 0.018 * asymmetry);
+    return target
+      .addScaledVector(this.side, sideOffset)
+      .addScaledVector(this.lift, liftOffset);
+  }
+}
+
+function createStemJointTangents(edges: StemRenderEdge[]): Map<string, Vector3> {
+  const incoming = new Map<string, Vector3>();
+  const outgoing = new Map<string, Vector3[]>();
+  for (const edge of edges) {
+    const direction = treePosition(edge.to).sub(treePosition(edge.from)).normalize();
+    incoming.set(edge.to.id, direction);
+    const directions = outgoing.get(edge.from.id) ?? [];
+    directions.push(direction);
+    outgoing.set(edge.from.id, directions);
+  }
+
+  const nodeIds = new Set([...incoming.keys(), ...outgoing.keys()]);
+  const tangents = new Map<string, Vector3>();
+  for (const nodeId of nodeIds) {
+    const incomingDirection = incoming.get(nodeId);
+    const outgoingDirections = outgoing.get(nodeId) ?? [];
+    if (!incomingDirection) {
+      if (outgoingDirections.length) tangents.set(nodeId, outgoingDirections[0].clone());
+      continue;
+    }
+    if (!outgoingDirections.length) {
+      tangents.set(nodeId, incomingDirection.clone());
+      continue;
+    }
+    const continuation = outgoingDirections.reduce((best, candidate) =>
+      candidate.dot(incomingDirection) > best.dot(incomingDirection) ? candidate : best);
+    const blended = incomingDirection.clone().add(continuation);
+    tangents.set(nodeId, blended.lengthSq() > 1e-6 ? blended.normalize() : incomingDirection.clone());
+  }
+  return tangents;
+}
+
+function normalizedTangent(candidate: Vector3 | undefined, fallback: Vector3): Vector3 {
+  return candidate?.lengthSq() ? candidate.clone().normalize() : fallback.clone();
+}
+
+function initialStemNormal(tangent: Vector3): Vector3 {
+  const axis = Math.abs(tangent.dot(new Vector3(0, 0, 1))) > 0.94
+    ? new Vector3(1, 0, 0)
+    : new Vector3(0, 0, 1);
+  return tangent.clone().cross(axis).normalize();
+}
+
+function smoothEndpointBlend(value: number): number {
+  const clamped = clamp(value, 0, 1);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+function hashUnit(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 10000) / 10000;
+}
+
 function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
   const ratio = clamp(cutRatio, 0, 0.98);
   if (ratio <= 0.001) return tree;
@@ -1114,7 +1379,13 @@ function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
     rootId: tree.rootId,
     nodes: [root, ...cutNodes],
     edges: [
-      {from: tree.rootId, to: cutEdge.to, connectionSourceId: cutEdge.connectionSourceId, connectionIndex: cutEdge.connectionIndex},
+      {
+        from: tree.rootId,
+        to: cutEdge.to,
+        connectionSourceId: cutEdge.connectionSourceId,
+        connectionIndex: cutEdge.connectionIndex,
+        connection: structuredClone(cutEdge.connection),
+      },
       ...tree.edges.filter((edge) => keptIds.has(edge.from) && keptIds.has(edge.to)),
     ],
   };
