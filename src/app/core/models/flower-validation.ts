@@ -146,7 +146,11 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       if (connection.repeat.min < 0 || connection.repeat.max < 0) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine negative Wiederholungszahl.`});
       }
-      if (connection.stem && connection.stem.width <= 0) {
+      if (connection.stem && (
+        connection.stem.width <= 0
+        || (connection.stem.startWidth ?? 1) <= 0
+        || (connection.stem.endWidth ?? 1) <= 0
+      )) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängeldicke.`});
       }
       if (Math.abs(connection.stem?.bend ?? 0) > 100) {
@@ -154,6 +158,9 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       }
       if ((connection.stem?.curve ?? 0) < 0 || (connection.stem?.curve ?? 0) > 100) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängelkrümmung.`});
+      }
+      if (invalidDegreeRange(connection.roll) || invalidDegreeRange(connection.stem?.bendRotation)) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige lokale Drehung.`});
       }
     }
   }
@@ -193,4 +200,13 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
     }
   }
   return issues;
+}
+
+function invalidDegreeRange(range: {min: number; max: number} | undefined): boolean {
+  return !!range && (
+    !Number.isFinite(range.min)
+    || !Number.isFinite(range.max)
+    || Math.abs(range.min) > 360
+    || Math.abs(range.max) > 360
+  );
 }

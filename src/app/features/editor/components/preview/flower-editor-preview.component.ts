@@ -16,7 +16,7 @@ import {Point} from '../../graph/flower-editor-graph';
 export class FlowerEditorPreviewComponent {
   readonly definition = input.required<FlowerDefinition>();
   readonly catalogDefinitions = input.required<FlowerDefinition[]>();
-  readonly highlightedNodeId = input<string | null>(null);
+  readonly highlightedNodeIds = input<ReadonlySet<string>>(new Set<string>());
   readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
 
   readonly zoom = signal(1);

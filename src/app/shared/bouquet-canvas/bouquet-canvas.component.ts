@@ -22,7 +22,6 @@ import {
   CylinderGeometry,
   DirectionalLight,
   DoubleSide,
-  EdgesGeometry,
   Group,
   HemisphereLight,
   LatheGeometry,
@@ -54,13 +53,18 @@ import {createBuiltInGeometry} from '../../core/rendering/graphic-geometries';
 import {createGraphicPaintTexture} from '../../core/rendering/graphic-paint';
 import {graphicOrientationQuaternion} from '../../core/rendering/graphic-orientation';
 import {FlowerTree, FlowerTreeEdge, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
+import {cutFlowerTree} from '../../core/rendering/flower-tree-cut';
 import {DEFAULT_VASE_ID} from '../../core/data/vases';
+import {resolvedStemWidths} from '../../core/models/flower-connections';
+import {isFlowerTemplateHighlighted} from '../../core/rendering/flower-highlights';
 
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const FIT_PADDING = 48;
 const FIT_MARGIN = 1.08;
 const ORBIT_LIMIT = Math.PI * 0.46;
 const VASE_BRANCH_CLEARANCE = 34;
+const SELECTION_GLOW_COLOR = '#14b8a6';
+const SELECTION_GLOW_INTENSITY = 0.48;
 
 interface PickData {
   instanceId: string;
@@ -76,6 +80,7 @@ interface StemRenderEdge {
   color: string;
   bend: number;
   curve: number;
+  curveRotation: number;
   highlighted: boolean;
   capStart: boolean;
   capEnd: boolean;
@@ -226,6 +231,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly state = input.required<BouquetState>();
   readonly definitions = input.required<FlowerDefinition[]>();
   readonly selectedId = input<string | null>(null);
+  readonly overlappingIds = input<ReadonlySet<string>>(new Set<string>());
+  readonly snapshotKey = input<string | null>(null);
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
   readonly fitToContent = input(false);
@@ -241,7 +248,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly viewOffset = input<{x: number; y: number}>({x: 0, y: 0});
   readonly flowerMoveEnabled = input(false);
   readonly vaseEnabled = input(false);
-  readonly highlightedNodeId = input<string | null>(null);
+  readonly highlightedNodeIds = input<ReadonlySet<string>>(new Set<string>());
   readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
 
   @Output() readonly flowerDrag = new EventEmitter<{
@@ -250,11 +257,13 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     dy: number;
     dz: number;
   }>();
+  @Output() readonly flowerDragEnd = new EventEmitter<string>();
   @Output() readonly rotateDrag = new EventEmitter<number>();
   @Output() readonly orbitDrag = new EventEmitter<{yaw: number; pitch: number}>();
   @Output() readonly viewPan = new EventEmitter<{dx: number; dy: number}>();
   @Output() readonly selectionChange = new EventEmitter<string | null>();
   @Output() readonly zoomChange = new EventEmitter<number>();
+  @Output() readonly snapshotReady = new EventEmitter<{key: string; dataUrl: string}>();
 
   @ViewChild('canvasHost', {static: true}) private readonly canvasHost!: ElementRef<HTMLDivElement>;
 
@@ -271,7 +280,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private lastDefinitions: FlowerDefinition[] | null = null;
   private lastFlowerCount: number | null = null;
   private lastSelectedId: string | null = null;
-  private lastHighlightedNodeId: string | null = null;
+  private lastOverlappingIdsSignature = '';
+  private lastHighlightedNodeIdsSignature = '';
   private lastHighlightedConnection: {sourceId: string; index: number} | null = null;
   private lastVaseEnabled: boolean | null = null;
   private lastVaseId: string | null = null;
@@ -294,13 +304,16 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   } | null = null;
   private readonly zoomTouches = new Map<number, {x: number; y: number}>();
   private zoomPinchDistance: number | null = null;
+  private emittedSnapshotKey: string | null = null;
 
   constructor() {
     effect(() => {
       const state = this.state();
       const definitions = this.definitions();
       const selectedId = this.selectedId();
-      const highlightedNodeId = this.highlightedNodeId();
+      const overlappingIdsSignature = [...this.overlappingIds()].sort().join('|');
+      const snapshotKey = this.snapshotKey();
+      const highlightedNodeIdsSignature = [...this.highlightedNodeIds()].sort().join('|');
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
       const vaseId = state.vaseId ?? DEFAULT_VASE_ID;
@@ -326,7 +339,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const structureChanged = state.flowers !== this.lastFlowers
         || definitions !== this.lastDefinitions
         || selectedId !== this.lastSelectedId
-        || highlightedNodeId !== this.lastHighlightedNodeId
+        || overlappingIdsSignature !== this.lastOverlappingIdsSignature
+        || highlightedNodeIdsSignature !== this.lastHighlightedNodeIdsSignature
         || highlightedConnection?.sourceId !== this.lastHighlightedConnection?.sourceId
         || highlightedConnection?.index !== this.lastHighlightedConnection?.index
         || vaseEnabled !== this.lastVaseEnabled
@@ -336,7 +350,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastDefinitions = definitions;
       this.lastFlowerCount = state.flowers.length;
       this.lastSelectedId = selectedId;
-      this.lastHighlightedNodeId = highlightedNodeId;
+      this.lastOverlappingIdsSignature = overlappingIdsSignature;
+      this.lastHighlightedNodeIdsSignature = highlightedNodeIdsSignature;
       this.lastHighlightedConnection = highlightedConnection;
       this.lastVaseEnabled = vaseEnabled;
       this.lastVaseId = vaseId;
@@ -345,12 +360,18 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         this.recenterOnNextRebuild ||= shouldRecenter;
         this.requestRebuild();
       }
+      if (snapshotKey !== this.emittedSnapshotKey) this.requestRender();
       this.updateView();
     });
   }
 
   ngAfterViewInit(): void {
-    const renderer = new WebGLRenderer({alpha: true, antialias: true, powerPreference: 'high-performance'});
+    const renderer = new WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: this.snapshotKey() !== null,
+    });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.toneMapping = ACESFilmicToneMapping;
@@ -507,9 +528,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const to = nodes.get(edge.to);
       if (!from || !to) continue;
       const connection = edge.connection;
-      const baseWidth = connection.stem?.width ?? definition.stem.width;
-      const startWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** from.depth));
-      const endWidth = Math.max(1.1, baseWidth * Math.max(0.18, definition.stem.taper ** to.depth));
+      const resolvedWidths = resolvedStemWidths(definition, connection, from.depth, to.depth);
+      const startWidth = Math.max(1.1, resolvedWidths.startWidth);
+      const endWidth = Math.max(1.1, resolvedWidths.endWidth);
       const highlighted = this.highlightedConnection()?.sourceId === edge.connectionSourceId
         && this.highlightedConnection()?.index === edge.connectionIndex;
       const stemColor = connection.stem?.color ?? definition.stem.color;
@@ -526,6 +547,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         color: stemColor,
         bend: stemBend,
         curve: stemCurve,
+        curveRotation: (to.attachmentAzimuth ?? 0) + (to.roll ?? 0) + (to.bendRotation ?? 0),
         highlighted,
         capStart,
         capEnd,
@@ -538,24 +560,6 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     for (const stemEdge of stemEdges) {
       const startJointWidth = jointWidths.get(stemEdge.from.id) ?? stemEdge.startWidth;
       const endJointWidth = jointWidths.get(stemEdge.to.id) ?? stemEdge.endWidth;
-      if (stemEdge.highlighted) {
-        group.add(this.createStem(
-          stemEdge.from,
-          stemEdge.to,
-          stemEdge.startWidth + 3,
-          stemEdge.endWidth + 3,
-          startJointWidth + 3,
-          endJointWidth + 3,
-          '#eab308',
-          0.72,
-          stemEdge.bend,
-          stemEdge.curve,
-          jointTangents.get(stemEdge.from.id),
-          jointTangents.get(stemEdge.to.id),
-          stemEdge.capStart,
-          stemEdge.capEnd,
-        ));
-      }
       const stem = this.createStem(
         stemEdge.from,
         stemEdge.to,
@@ -567,11 +571,16 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         1,
         stemEdge.bend,
         stemEdge.curve,
+        stemEdge.curveRotation,
         jointTangents.get(stemEdge.from.id),
         jointTangents.get(stemEdge.to.id),
         stemEdge.capStart,
         stemEdge.capEnd,
       );
+      if (stemEdge.highlighted
+        || isFlowerTemplateHighlighted(stemEdge.to.templateId, this.highlightedNodeIds())) {
+        applySelectionGlow(stem);
+      }
       stem.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies PickData;
       group.add(stem);
     }
@@ -603,11 +612,12 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         scale: flower.scale,
       } satisfies PickData;
       group.add(graphic);
-      if (isHighlightedTemplate(node.templateId, this.highlightedNodeId())) {
-        this.addGraphicOutline(group, graphic);
+      if (isFlowerTemplateHighlighted(node.templateId, this.highlightedNodeIds())) {
+        applySelectionGlow(graphic);
       }
     }
 
+    const overlapping = this.overlappingIds().has(flower.instanceId);
     if (this.selectedId() === flower.instanceId) {
       const bounds = new Box3().setFromObject(group);
       const helper = new Box3Helper(bounds, new Color('#2f6251'));
@@ -620,6 +630,16 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       if (object instanceof Mesh) {
         object.castShadow = true;
         object.receiveShadow = true;
+        if (overlapping) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            if (!(material instanceof MeshStandardMaterial)) continue;
+            if (!material.userData['editorSelection']) {
+              material.emissive.set('#d97706');
+              material.emissiveIntensity = 0.18;
+            }
+          }
+        }
       }
     });
     group.rotation.x = flower.leanX ?? 0;
@@ -699,6 +719,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     opacity: number,
     bend: number,
     curve: number,
+    curveRotation: number,
     startTangent: Vector3 | undefined,
     endTangent: Vector3 | undefined,
     capStart: boolean,
@@ -716,6 +737,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       end,
       bendAmount,
       curveAmount,
+      curveRotation,
       variation,
       startTangent,
       endTangent,
@@ -790,17 +812,6 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       material.map = createGraphicPaintTexture(graphic);
     }
     return new Mesh(geometry, material);
-  }
-
-  private addGraphicOutline(group: Group, graphic: Mesh): void {
-    const outline = new LineSegments(
-      new EdgesGeometry(graphic.geometry, 28),
-      new LineBasicMaterial({color: 0xeab308, transparent: true, opacity: 0.75}),
-    );
-    outline.position.copy(graphic.position);
-    outline.quaternion.copy(graphic.quaternion);
-    outline.scale.copy(graphic.scale).multiplyScalar(1.045);
-    group.add(outline);
   }
 
   private updateView(): void {
@@ -939,6 +950,14 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.renderFrame = requestAnimationFrame(() => {
       this.renderFrame = null;
       this.renderer?.render(this.scene, this.camera);
+      const snapshotKey = this.snapshotKey();
+      if (snapshotKey && snapshotKey !== this.emittedSnapshotKey && this.renderer) {
+        this.emittedSnapshotKey = snapshotKey;
+        this.snapshotReady.emit({
+          key: snapshotKey,
+          dataUrl: this.renderer.domElement.toDataURL('image/webp', 0.86),
+        });
+      }
     });
   }
 
@@ -1011,7 +1030,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   };
 
   private readonly onPointerUp = (event: PointerEvent): void => {
-    if (this.flowerDragState?.pointerId === event.pointerId) this.flowerDragState = null;
+    if (this.flowerDragState?.pointerId === event.pointerId) {
+      this.flowerDragEnd.emit(this.flowerDragState.instanceId);
+      this.flowerDragState = null;
+    }
     if (this.backgroundDrag?.pointerId === event.pointerId) this.backgroundDrag = null;
   };
 
@@ -1076,9 +1098,14 @@ function treePosition(node: FlowerTreeNode): Vector3 {
   return new Vector3(node.x, -node.y, node.z);
 }
 
-function isHighlightedTemplate(templateId: string, highlightedNodeId: string | null): boolean {
-  return !!highlightedNodeId
-    && (templateId === highlightedNodeId || templateId.startsWith(`${highlightedNodeId}::`));
+function applySelectionGlow(mesh: Mesh): void {
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (const material of materials) {
+    if (!(material instanceof MeshStandardMaterial)) continue;
+    material.emissive.set(SELECTION_GLOW_COLOR);
+    material.emissiveIntensity = SELECTION_GLOW_INTENSITY;
+    material.userData['editorSelection'] = true;
+  }
 }
 
 function createNaturalStemCurve(
@@ -1086,6 +1113,7 @@ function createNaturalStemCurve(
   end: Vector3,
   bendAmount: number,
   curveAmount: number,
+  curveRotation: number,
   variation: number,
   startTangent?: Vector3,
   endTangent?: Vector3,
@@ -1096,7 +1124,8 @@ function createNaturalStemCurve(
   const axis = Math.abs(tangent.dot(new Vector3(0, 0, 1))) > 0.94
     ? new Vector3(1, 0, 0)
     : new Vector3(0, 0, 1);
-  const twist = (variation - 0.5) * Math.PI * 0.82 * Math.max(0.2, curveAmount);
+  const twist = curveRotation
+    + (variation - 0.5) * Math.PI * 0.82 * Math.max(0.2, curveAmount);
   const side = tangent.clone().cross(axis).normalize().applyAxisAngle(tangent, twist);
   const lift = side.clone().cross(tangent).normalize();
   const bendScale = 0.78 + variation * 0.42;
@@ -1308,113 +1337,6 @@ function hashUnit(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return ((hash >>> 0) % 10000) / 10000;
-}
-
-function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
-  const ratio = clamp(cutRatio, 0, 0.98);
-  if (ratio <= 0.001) return tree;
-
-  const nodes = new Map(tree.nodes.map((node) => [node.id, node]));
-  const childEdges = new Map<string, typeof tree.edges>();
-  for (const edge of tree.edges) {
-    const edges = childEdges.get(edge.from) ?? [];
-    edges.push(edge);
-    childEdges.set(edge.from, edges);
-  }
-
-  const longestCache = new Map<string, number>();
-  const longestFrom = (nodeId: string): number => {
-    const cached = longestCache.get(nodeId);
-    if (cached !== undefined) return cached;
-    const length = Math.max(0, ...(childEdges.get(nodeId) ?? []).map((edge) => {
-      const from = nodes.get(edge.from);
-      const to = nodes.get(edge.to);
-      return from && to ? nodeDistance(from, to) + longestFrom(edge.to) : 0;
-    }));
-    longestCache.set(nodeId, length);
-    return length;
-  };
-
-  const totalLength = longestFrom(tree.rootId);
-  if (totalLength <= 0) return tree;
-
-  let remaining = totalLength * ratio;
-  let currentId = tree.rootId;
-  let cutEdge = longestChildEdge(currentId);
-  while (cutEdge) {
-    const from = nodes.get(cutEdge.from);
-    const to = nodes.get(cutEdge.to);
-    if (!from || !to) break;
-    const length = nodeDistance(from, to);
-    if (remaining <= length) break;
-    remaining -= length;
-    currentId = cutEdge.to;
-    cutEdge = longestChildEdge(currentId);
-  }
-  if (!cutEdge) return tree;
-
-  const from = nodes.get(cutEdge.from);
-  const to = nodes.get(cutEdge.to);
-  if (!from || !to) return tree;
-  const amount = nodeDistance(from, to) > 0 ? clamp(remaining / nodeDistance(from, to), 0, 1) : 1;
-  const cutPoint = {
-    x: lerp(from.x, to.x, amount),
-    y: lerp(from.y, to.y, amount),
-    z: lerp(from.z, to.z, amount),
-  };
-  const keptIds = collectDescendants(cutEdge.to);
-  const depthOffset = Math.max(0, to.depth - 1);
-  const root = {...tree.nodes.find((node) => node.id === tree.rootId)!, x: 0, y: 0, z: 0, depth: 0};
-  const cutNodes = tree.nodes
-    .filter((node) => keptIds.has(node.id))
-    .map((node) => ({
-      ...node,
-      parentId: node.id === cutEdge.to ? tree.rootId : node.parentId,
-      x: node.x - cutPoint.x,
-      y: node.y - cutPoint.y,
-      z: node.z - cutPoint.z,
-      depth: Math.max(1, node.depth - depthOffset),
-    }));
-
-  return {
-    rootId: tree.rootId,
-    nodes: [root, ...cutNodes],
-    edges: [
-      {
-        from: tree.rootId,
-        to: cutEdge.to,
-        connectionSourceId: cutEdge.connectionSourceId,
-        connectionIndex: cutEdge.connectionIndex,
-        connection: structuredClone(cutEdge.connection),
-      },
-      ...tree.edges.filter((edge) => keptIds.has(edge.from) && keptIds.has(edge.to)),
-    ],
-  };
-
-  function longestChildEdge(nodeId: string): FlowerTree['edges'][number] | null {
-    const candidates = childEdges.get(nodeId) ?? [];
-    let best: FlowerTree['edges'][number] | null = null;
-    let bestLength = -1;
-    for (const edge of candidates) {
-      const from = nodes.get(edge.from);
-      const to = nodes.get(edge.to);
-      if (!from || !to) continue;
-      const length = nodeDistance(from, to) + longestFrom(edge.to);
-      if (length > bestLength) {
-        best = edge;
-        bestLength = length;
-      }
-    }
-    return best;
-  }
-
-  function collectDescendants(nodeId: string): Set<string> {
-    const ids = new Set<string>([nodeId]);
-    for (const edge of childEdges.get(nodeId) ?? []) {
-      for (const childId of collectDescendants(edge.to)) ids.add(childId);
-    }
-    return ids;
-  }
 }
 
 function nodeDistance(from: FlowerTreeNode, to: FlowerTreeNode): number {

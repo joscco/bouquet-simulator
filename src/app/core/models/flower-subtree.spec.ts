@@ -66,6 +66,93 @@ describe('flower subtrees', () => {
     expect([...selection!.nodeIds].sort()).toEqual(['branch', 'left', 'right']);
   });
 
+  it('includes all members of selected loops recursively', () => {
+    const loopDefinition: FlowerDefinition = {
+      ...definition,
+      nodes: [
+        {
+          ...definition.nodes[0],
+          connections: [connection('outer-loop')],
+        },
+        {
+          id: 'outer-loop',
+          name: 'Outer loop',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [],
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'outer-member',
+            endNodeId: 'inner-loop',
+            memberNodeIds: ['outer-member', 'inner-loop'],
+          },
+        },
+        {
+          id: 'outer-member',
+          name: 'Outer member',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [connection('inner-loop')],
+        },
+        {
+          id: 'inner-loop',
+          name: 'Inner loop',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [],
+          loop: {
+            repeat: {min: 3, max: 3},
+            startNodeId: 'inner-member',
+            endNodeId: 'inner-member',
+            memberNodeIds: ['inner-member'],
+          },
+        },
+        {
+          id: 'inner-member',
+          name: 'Inner member',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [],
+        },
+      ],
+    };
+
+    const selection = resolveFlowerSubtreeSelection(loopDefinition, ['outer-loop']);
+
+    expect(selection?.rootNodeId).toBe('outer-loop');
+    expect([...selection!.nodeIds].sort()).toEqual([
+      'inner-loop',
+      'inner-member',
+      'outer-loop',
+      'outer-member',
+    ]);
+  });
+
+  it('does not include loop members after their loop anchor is deselected', () => {
+    const loopDefinition: FlowerDefinition = {
+      ...definition,
+      nodes: definition.nodes.map((node) => node.id === 'branch'
+        ? {
+          ...node,
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'left',
+            endNodeId: 'left',
+            memberNodeIds: ['left'],
+          },
+        }
+        : node),
+    };
+
+    const selection = resolveFlowerSubtreeSelection(loopDefinition, ['right']);
+
+    expect([...selection!.nodeIds]).toEqual(['right']);
+  });
+
   it('exports only internal connections and relative positions', () => {
     const selection = resolveFlowerSubtreeSelection(definition, ['left', 'right'])!;
     const tree = createFlowerSubtree(definition, positions, selection, {

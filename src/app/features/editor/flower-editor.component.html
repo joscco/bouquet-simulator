@@ -34,41 +34,6 @@
 
     <div class="w-full sm:w-auto ml-auto flex min-w-0 items-center justify-end gap-2">
       <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm">
-        <details class="relative">
-        <summary class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 list-none" matTooltip="Stängelstandard" aria-label="Stängelstandard"><mat-icon>grass</mat-icon></summary>
-        <div class="fixed left-2 right-2 top-42 max-h-[calc(100dvh-11rem)] w-auto overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:max-h-none sm:w-[min(360px,calc(100vw-1rem))] sm:overflow-y-visible z-30 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">Stängelstandard</div>
-            <span class="rounded-lg bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-900">{{ draft().stem.width }} px</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <app-numeric-field label="Dicke" unit="px" [value]="draft().stem.width" [minimum]="1" [maximum]="30" [step]="0.5" (valueChange)="updateStem('width', $event)" />
-            <app-numeric-field label="Verjüngung" [value]="draft().stem.taper" [minimum]="0.1" [maximum]="1" [step]="0.05" (valueChange)="updateStem('taper', $event)" />
-            <label>
-              <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
-              <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
-                <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.color"></span>
-                <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.color }}</code>
-                <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color" aria-label="Standard-Stängelfarbe" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)">
-              </span>
-            </label>
-            <label>
-              <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Licht</span>
-              <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
-                <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.highlightColor"></span>
-                <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.highlightColor }}</code>
-                <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color" aria-label="Standard-Stängellicht" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)">
-              </span>
-            </label>
-          </div>
-          <div class="mt-3 space-y-2 border-t border-stone-100 pt-3">
-            <app-numeric-slider label="Kurvenrichtung" unit="%" [value]="draft().stem.bend ?? 0"
-              [minimum]="-100" [maximum]="100" (valueChange)="updateStem('bend', $event)" />
-            <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="draft().stem.curve ?? 14"
-              [minimum]="0" [maximum]="100" (valueChange)="updateStem('curve', $event)" />
-          </div>
-        </div>
-      </details>
       <label class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" matTooltip="Definition laden" aria-label="Definition laden">
         <mat-icon>upload_file</mat-icon>
         <input class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
@@ -213,7 +178,7 @@
       <app-flower-editor-preview
         [definition]="draft()"
         [catalogDefinitions]="store.definitions()"
-        [highlightedNodeId]="selectedNodeId()"
+        [highlightedNodeIds]="previewHighlightedNodeIds()"
         [highlightedConnection]="selectedIncoming()"
       />
 

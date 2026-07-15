@@ -72,10 +72,19 @@
           }
         </div>
         <div class="space-y-2">
-          <app-interval-slider label="Anzahl" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
-          <app-interval-slider label="Länge" unit=" px" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
-          <app-interval-slider label="Neigung zum Elternstängel" unit="°" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
-          <app-interval-slider label="Drehung um den Stängel" unit="°" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+          <app-interval-slider label="Anzahl" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
+          <app-interval-slider label="Länge" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
+          <div class="space-y-2 border-t border-stone-100 pt-3">
+            <div>
+              <div class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Ausrichtung & Drehung</div>
+              <p class="mb-0 mt-1 text-[8px] leading-relaxed text-stone-400">
+                Neigung und Neigungsrichtung legen zwei lokale Richtungsachsen fest; Roll dreht den Bestandteil unabhängig um seine eigene Wachstumsachse.
+              </p>
+            </div>
+            <app-interval-slider label="Neigung zum Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
+            <app-interval-slider label="Neigungsrichtung um den Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+            <app-interval-slider label="Individuelle Roll-Drehung" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
+          </div>
           <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
             [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
           <div class="grid grid-cols-[88px_1fr] items-end gap-3 border-t border-stone-100 pt-3">
@@ -89,16 +98,22 @@
                   (ngModelChange)="updateIncomingStem('color', $event)">
               </span>
             </label>
-            <app-numeric-slider label="Stängeldicke" unit="px" [value]="incomingStemWidth(incoming)"
+            <app-numeric-slider label="Anfangsdicke" unit="px" [value]="incomingStemStartWidth(incoming)"
               [minimum]="1" [maximum]="30" [step]="0.5"
-              (valueChange)="updateIncomingStem('width', $event)" />
+              (valueChange)="updateIncomingStem('startWidth', $event)" />
           </div>
+          <app-numeric-slider label="Enddicke" unit="px" [value]="incomingStemEndWidth(incoming)"
+            [minimum]="1" [maximum]="30" [step]="0.5"
+            (valueChange)="updateIncomingStem('endWidth', $event)" />
           <div class="border-t border-stone-100 pt-3">
-            <app-numeric-slider label="Kurvenrichtung" unit="%" [value]="incomingStemBend(incoming)"
+            <app-numeric-slider label="Gezielte Krümmung" unit="%" [value]="incomingStemBend(incoming)"
               [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
           </div>
           <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
             [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
+          <app-interval-slider label="Kurvenrotation relativ zur Roll-Drehung" unit="°" [modeSelectable]="true"
+            [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
+            (valueChange)="updateIncomingStemBendRotation($event)" />
         </div>
       </section>
     }
@@ -121,7 +136,7 @@
             (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
         </div>
       }
-      <app-interval-slider label="Wiederholungen" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
+      <app-interval-slider label="Wiederholungen" [modeSelectable]="true" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
       @if (node.loop.memberNodeIds?.length) {
         <div class="mt-3 border-t border-amber-100 pt-2">
           <div class="mb-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">Fortsetzungsoutputs</div>
@@ -224,8 +239,14 @@
       </div>
     }
     <div class="mt-3 space-y-3 border-t border-stone-100 pt-3">
+      <div>
+        <div class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Ausrichtung & Drehung</div>
+        <p class="mb-0 mt-1 text-[8px] leading-relaxed text-stone-400">
+          Die Ausrichtung legt die Bezugsachse fest; die Eigendrehung rollt die Grafik um ihre Wachstumsrichtung.
+        </p>
+      </div>
       <label class="block">
-        <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Ausrichtung</span>
+        <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Bezugsachse</span>
         <select
           class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 w-full"
           [ngModel]="graphic.orientation ?? 'connection'"
@@ -235,10 +256,9 @@
           <option value="toward-parent">Zur Mitte / Elternachse</option>
         </select>
       </label>
-      <app-numeric-slider label="Konstante Grunddrehung" unit="°" [value]="graphicRotationBase(graphic)"
-        [minimum]="-180" [maximum]="180" (valueChange)="updateGraphicRotationBase($event)" />
-      <app-numeric-slider label="Zufällige Streuung" unit="°" [value]="graphicRotationSpread(graphic)"
-        [minimum]="0" [maximum]="180" (valueChange)="updateGraphicRotationSpread($event)" />
+      <app-interval-slider label="Eigendrehung" unit="°" [modeSelectable]="true"
+        [value]="graphicRotationRange(graphic)" [minimum]="-360" [maximum]="360"
+        (valueChange)="updateGraphicRotationRange($event)" />
     </div>
   }
   }

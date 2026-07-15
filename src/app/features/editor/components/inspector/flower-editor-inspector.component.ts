@@ -187,22 +187,17 @@ export class FlowerEditorInspectorComponent {
       : node);
   }
 
-  graphicRotationBase(graphic: FlowerNodeGraphic): number {
-    return Math.round(graphicRotationSettings(graphic).base);
+  graphicRotationRange(graphic: FlowerNodeGraphic): NumberRange {
+    const {base, spread} = graphicRotationSettings(graphic);
+    return {min: Math.round(base - spread), max: Math.round(base + spread)};
   }
 
-  graphicRotationSpread(graphic: FlowerNodeGraphic): number {
-    return Math.round(graphicRotationSettings(graphic).spread);
-  }
-
-  updateGraphicRotationBase(base: number): void {
-    this.updateGraphicRotationSettings(Number(base), this.graphicRotationSpread(this.selectedNode()!.graphic!));
-  }
-
-  updateGraphicRotationSpread(spread: number): void {
+  updateGraphicRotationRange(rotation: NumberRange): void {
+    const minimum = Math.min(rotation.min, rotation.max);
+    const maximum = Math.max(rotation.min, rotation.max);
     this.updateGraphicRotationSettings(
-      this.graphicRotationBase(this.selectedNode()!.graphic!),
-      Math.max(0, Math.min(180, Number(spread))),
+      (minimum + maximum) / 2,
+      Math.min(180, (maximum - minimum) / 2),
     );
   }
 
@@ -212,7 +207,7 @@ export class FlowerEditorInspectorComponent {
       : node);
   }
 
-  updateIncomingRange(group: 'repeat' | 'length' | 'angle' | 'azimuth', value: NumberRange): void {
+  updateIncomingRange(group: 'repeat' | 'length' | 'angle' | 'azimuth' | 'roll', value: NumberRange): void {
     this.updateIncoming((incoming) => ({...incoming, [group]: value}));
   }
 
@@ -286,8 +281,15 @@ export class FlowerEditorInspectorComponent {
     return incoming.stem?.color ?? this.definition().stem.color;
   }
 
-  incomingStemWidth(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.width ?? this.definition().stem.width;
+  incomingStemStartWidth(incoming: FlowerNodeIncomingConnection): number {
+    return incoming.stem?.startWidth ?? incoming.stem?.width ?? this.definition().stem.width;
+  }
+
+  incomingStemEndWidth(incoming: FlowerNodeIncomingConnection): number {
+    return incoming.stem?.endWidth
+      ?? (incoming.stem?.startWidth !== undefined
+        ? incoming.stem.startWidth
+        : (incoming.stem?.width ?? this.definition().stem.width) * this.definition().stem.taper);
   }
 
   incomingStemBend(incoming: FlowerNodeIncomingConnection): number {
@@ -298,14 +300,36 @@ export class FlowerEditorInspectorComponent {
     return incoming.stem?.curve ?? this.definition().stem.curve ?? 14;
   }
 
-  updateIncomingStem(key: 'color' | 'width' | 'bend' | 'curve', value: string | number): void {
+  incomingStemBendRotation(incoming: FlowerNodeIncomingConnection): NumberRange {
+    return incoming.stem?.bendRotation ?? {min: 0, max: 0};
+  }
+
+  updateIncomingStem(key: 'color' | 'startWidth' | 'endWidth' | 'bend' | 'curve', value: string | number): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
       stem: {
         color: key === 'color' ? String(value) : this.incomingStemColor(incoming),
-        width: key === 'width' ? Number(value) : this.incomingStemWidth(incoming),
+        width: incoming.stem?.width ?? this.definition().stem.width,
+        startWidth: key === 'startWidth' ? Number(value) : this.incomingStemStartWidth(incoming),
+        endWidth: key === 'endWidth' ? Number(value) : this.incomingStemEndWidth(incoming),
         bend: key === 'bend' ? Number(value) : this.incomingStemBend(incoming),
         curve: key === 'curve' ? Number(value) : this.incomingStemCurve(incoming),
+        bendRotation: this.incomingStemBendRotation(incoming),
+      },
+    }));
+  }
+
+  updateIncomingStemBendRotation(bendRotation: NumberRange): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
+      stem: {
+        color: this.incomingStemColor(incoming),
+        width: incoming.stem?.width ?? this.definition().stem.width,
+        startWidth: this.incomingStemStartWidth(incoming),
+        endWidth: this.incomingStemEndWidth(incoming),
+        bend: this.incomingStemBend(incoming),
+        curve: this.incomingStemCurve(incoming),
+        bendRotation,
       },
     }));
   }
@@ -335,13 +359,14 @@ export class FlowerEditorInspectorComponent {
 
   private updateGraphicRotationSettings(base: number, spread: number): void {
     const normalizedBase = Math.max(-180, Math.min(180, base));
+    const normalizedSpread = Math.max(0, Math.min(180, spread));
     this.updateSelectedNode((node) => node.graphic ? {
       ...node,
       graphic: {
         ...node.graphic,
         rotationBase: normalizedBase,
-        rotationSpread: spread,
-        rotation: {min: normalizedBase - spread, max: normalizedBase + spread},
+        rotationSpread: normalizedSpread,
+        rotation: {min: normalizedBase - normalizedSpread, max: normalizedBase + normalizedSpread},
       },
     } : node);
   }

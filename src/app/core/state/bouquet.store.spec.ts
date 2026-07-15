@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
+import {detectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
 
 describe('bouquet flower placement', () => {
   it('moves and tilts the complete flower while keeping its insertion point in the vase', () => {
@@ -55,6 +56,17 @@ describe('bouquet flower placement', () => {
     expect(flowers[1]!.instanceId).not.toBe(source.instanceId);
     expect(flowers[1]!.cutRatio).toBeCloseTo(0.42);
     expect(flowers[1]!.seed).toBe(source.seed);
+  });
+
+  it('automatically separates crowns after copying a flower', () => {
+    const store = new BouquetStore();
+
+    store.copyFlower(store.state().flowers[0]!.instanceId);
+
+    expect(detectBouquetFlowerOverlaps(
+      store.state(),
+      store.materializedDefinitions(),
+    ).overlaps).toEqual([]);
   });
 
   it('clamps flower shortening per instance', () => {

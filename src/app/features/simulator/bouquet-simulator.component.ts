@@ -24,6 +24,7 @@ import {
 import {BouquetFlowerPickerComponent} from './bouquet-flower-picker.component';
 import {BouquetProjectStorage} from './bouquet-project-storage.service';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
+import {detectBouquetFlowerOverlaps} from '../../core/rendering/bouquet-flower-overlaps';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -61,9 +62,15 @@ export class BouquetSimulatorComponent implements OnDestroy {
     bottom: 0,
   }));
   readonly bouquetDefinitions = computed(() =>
-    this.store.definitions().filter(isAvailableInBouquet));
+    this.store.materializedDefinitions().filter(isAvailableInBouquet));
+  readonly flowerOverlaps = computed(() => detectBouquetFlowerOverlaps(
+    this.store.state(),
+    this.store.materializedDefinitions(),
+  ));
+  readonly overlappingFlowerIds = computed(() => this.flowerOverlaps().flowerIds);
   readonly usedFlowers = computed<BouquetFlowerListItem[]>(() => {
     const definitions = new Map(this.store.definitions().map((definition) => [definition.id, definition]));
+    const overlappingIds = this.overlappingFlowerIds();
     return this.store.state().flowers
       .map((flower) => {
         const definition = definitions.get(flower.definitionId);
@@ -74,6 +81,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
           color: definition?.catalogIcon?.color ?? '#5b8d53',
           lengthPercent: Math.round((1 - (flower.cutRatio ?? 0)) * 100),
           rotationDegrees: normalizedDegrees(flower.rotationY ?? 0),
+          overlapping: overlappingIds.has(flower.instanceId),
         };
       })
       .sort((left, right) =>

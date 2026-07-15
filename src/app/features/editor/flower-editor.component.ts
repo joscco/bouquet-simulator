@@ -24,8 +24,6 @@ import {
   normalizeConnectionReferences,
 } from '../../core/models/flower-connections';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
-import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
-import {NumericFieldComponent} from '../../shared/numeric-field/numeric-field.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
@@ -77,8 +75,6 @@ import {
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
-    NumericSliderComponent,
-    NumericFieldComponent,
     ViewSwitcherComponent,
     FlowerEditorTreeComponent,
     FlowerEditorPreviewComponent,
@@ -143,6 +139,10 @@ export class FlowerEditorComponent {
   readonly subtreeSelection = computed(() =>
     resolveFlowerSubtreeSelection(this.draft(), this.subtreeAnchorIds()));
   readonly subtreeNodeIds = computed(() => this.subtreeSelection()?.nodeIds ?? new Set<string>());
+  readonly previewHighlightedNodeIds = computed<ReadonlySet<string>>(() => {
+    if (this.subtreeAnchorIds().size) return this.subtreeNodeIds();
+    return new Set([this.selectedNodeId()]);
+  });
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.draft(), this.selectedNodeId()));
   readonly graphLayout = computed(() => createGraphLayout(this.draft(), this.graphPositions()));
@@ -151,11 +151,6 @@ export class FlowerEditorComponent {
   constructor() {
     this.graphPositions.set(materializePositions(this.draft()));
   }
-
-  updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
-    this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
-  }
-
 
   createNewDefinition(): void {
     const id = this.uniqueDefinitionId('neue-blume');
@@ -167,7 +162,7 @@ export class FlowerEditorComponent {
       availableInBouquet: true,
       availableAsComponent: true,
       rootNodeId: 'base',
-      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 0.72, bend: 0, curve: 14},
+      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 1, bend: 0, curve: 14},
       nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
       editor: {nodePositions: {base: {x: 500, y: 840}}},
     };

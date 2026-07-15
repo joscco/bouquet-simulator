@@ -74,7 +74,38 @@ export function resolveFlowerSubtreeSelection(
       selected.add(id);
     }
   }
+  includeNestedLoopMembers(definition, selected);
   return {rootNodeId, nodeIds: selected};
+}
+
+/**
+ * Eine Schleife ist im Editor ein einzelner sichtbarer Strukturknoten, besitzt
+ * aber fachlich weitere Knoten. Sobald der Schleifenknoten Teil einer Auswahl
+ * ist, gehören deshalb auch seine Mitglieder und die Mitglieder darin
+ * verschachtelter Schleifen zur selben Auswahl.
+ */
+function includeNestedLoopMembers(
+  definition: FlowerDefinition,
+  selectedIds: Set<string>,
+): void {
+  const nodesById = new Map(definition.nodes.map((node) => [node.id, node]));
+  const pending = [...selectedIds];
+  const visitedLoops = new Set<string>();
+
+  while (pending.length) {
+    const id = pending.pop()!;
+    const node = nodesById.get(id);
+    if (!node?.loop || visitedLoops.has(id)) continue;
+    visitedLoops.add(id);
+
+    for (const memberId of node.loop.memberNodeIds ?? []) {
+      if (!nodesById.has(memberId)) continue;
+      if (!selectedIds.has(memberId)) {
+        selectedIds.add(memberId);
+      }
+      pending.push(memberId);
+    }
+  }
 }
 
 export function createFlowerSubtree(

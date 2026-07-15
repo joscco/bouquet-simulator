@@ -16,6 +16,7 @@ export interface BouquetFlowerListItem {
   color: string;
   lengthPercent: number;
   rotationDegrees: number;
+  overlapping: boolean;
 }
 
 @Component({
@@ -180,6 +181,7 @@ export class BouquetSidePanelComponent {
   readonly activeBouquetName = input.required<string>();
   readonly canAddBouquet = input.required<boolean>();
   readonly flowers = input.required<BouquetFlowerListItem[]>();
+  readonly overlapCount = input.required<number>();
   readonly selectedId = input.required<string | null>();
   readonly rotationDegrees = input.required<number>();
   readonly vaseOptions = input.required<readonly VaseOption[]>();
@@ -192,6 +194,7 @@ export class BouquetSidePanelComponent {
   readonly selectionChange = output<string>();
   readonly lengthChange = output<{instanceId: string; lengthPercent: number}>();
   readonly flowerRotationChange = output<{instanceId: string; rotationDegrees: number}>();
+  readonly overlapCorrection = output<void>();
   readonly flowerCopy = output<string>();
   readonly flowerRemove = output<string>();
   readonly rotationChange = output<number>();

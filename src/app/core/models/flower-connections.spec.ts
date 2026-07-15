@@ -5,6 +5,7 @@ import {
   incomingConnectionReference,
   migrateIncomingConnections,
   normalizeConnectionReferences,
+  resolvedStemWidths,
 } from './flower-connections';
 import {validateFlowerDefinition} from './flower-validation';
 
@@ -69,6 +70,34 @@ describe('node-owned incoming connections', () => {
 
     expect(validateFlowerDefinition(definition).some((issue) =>
       issue.message.includes('mehr als eine Eingangsverbindung'))).toBe(true);
+  });
+
+  it('preserves legacy depth tapering when local widths are missing', () => {
+    const definition = structuredClone(daisyComponentDefinition());
+    definition.stem.width = 10;
+    definition.stem.taper = 0.5;
+    const connection = effectiveConnection(definition, definition.nodes[0]!.connections[0]!);
+    connection.stem = {...(connection.stem ?? {color: '#000000', width: 10}), width: 10};
+
+    expect(resolvedStemWidths(definition, connection, 1, 2)).toEqual({
+      startWidth: 5,
+      endWidth: 2.5,
+    });
+  });
+
+  it('uses explicit segment widths independently of graph depth', () => {
+    const definition = structuredClone(daisyComponentDefinition());
+    const connection = effectiveConnection(definition, definition.nodes[0]!.connections[0]!);
+    connection.stem = {
+      ...(connection.stem ?? {color: '#000000', width: 10}),
+      startWidth: 7,
+      endWidth: 3,
+    };
+
+    expect(resolvedStemWidths(definition, connection, 8, 9)).toEqual({
+      startWidth: 7,
+      endWidth: 3,
+    });
   });
 });
 

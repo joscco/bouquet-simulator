@@ -13,6 +13,7 @@ import {DEFAULT_VASE_ID, isVaseId, vaseInsertionRadius} from '../data/vases';
 import {materializeDefinitionComponents} from '../models/flower-components';
 import {normalizeConnectionReferences} from '../models/flower-connections';
 import {normalizeFlowerCatalogCapabilities} from '../models/flower-catalog';
+import {autoCorrectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -131,12 +132,12 @@ export class BouquetStore {
         x: clamp(source.x + 4, -30, 30),
         z: clamp(source.z + 4, -30, 30),
       };
-      return {...state, flowers: [...state.flowers, copy]};
+      return this.withResolvedFlowerOverlaps({...state, flowers: [...state.flowers, copy]});
     });
   }
 
   setFlowerCut(instanceId: string, cutRatio: number): void {
-    this.updateActiveBouquetState((state) => ({
+    this.updateActiveBouquetState((state) => this.withResolvedFlowerOverlaps({
       ...state,
       flowers: state.flowers.map((flower) =>
         flower.instanceId === instanceId
@@ -147,7 +148,7 @@ export class BouquetStore {
 
   setFlowerRotation(instanceId: string, rotationY: number): void {
     if (!Number.isFinite(rotationY)) return;
-    this.updateActiveBouquetState((state) => ({
+    this.updateActiveBouquetState((state) => this.withResolvedFlowerOverlaps({
       ...state,
       flowers: state.flowers.map((flower) =>
         flower.instanceId === instanceId ? {...flower, rotationY} : flower),
@@ -175,6 +176,10 @@ export class BouquetStore {
           ? moveFlowerInsideVase(flower, deltaX, deltaY, deltaZ, state.rotation, vaseInsertionRadius(state.vaseId))
           : flower),
     }));
+  }
+
+  autoCorrectFlowerOverlaps(): void {
+    this.updateActiveBouquetState((state) => this.withResolvedFlowerOverlaps(state));
   }
 
   replaceDefinition(definition: FlowerDefinition): void {
@@ -317,7 +322,7 @@ export class BouquetStore {
   }
 
   private createInitialBouquet(): BouquetState {
-    return {
+    return this.withResolvedFlowerOverlaps({
       schemaVersion: 2,
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
@@ -326,7 +331,7 @@ export class BouquetStore {
         this.createPlacement('meadow-daisy', 16, -15, -9, 0.92, -0.08, -0.14),
         this.createPlacement('lilac', 2, -17, 18, 1, 0.13, -0.02),
       ],
-    };
+    });
   }
 
   private updateActiveBouquetState(updater: (state: BouquetState) => BouquetState): void {
@@ -374,7 +379,7 @@ export class BouquetStore {
       .map((bouquet, index) => ({
         id: bouquet.id || this.createBouquetId(),
         name: bouquet.name.trim() || `Strauß ${index + 1}`,
-        state: this.normalizedBouquetState(bouquet.state),
+        state: this.withResolvedFlowerOverlaps(this.normalizedBouquetState(bouquet.state)),
       }));
     if (!nextBouquets.length) return;
 
@@ -405,7 +410,7 @@ export class BouquetStore {
     const count = state.flowers.length;
     if (!count) return state;
     const maximumRadius = Math.max(0, vaseInsertionRadius(state.vaseId) - 2);
-    return {
+    return this.withResolvedFlowerOverlaps({
       ...state,
       flowers: state.flowers.map((flower, index) => {
         const angle = index * Math.PI * (3 - Math.sqrt(5)) + flower.seed * Math.PI * 2;
@@ -422,7 +427,15 @@ export class BouquetStore {
           scale: 0.96 + seedWave * 0.035,
         };
       }),
-    };
+    });
+  }
+
+  private withResolvedFlowerOverlaps(state: BouquetState): BouquetState {
+    return autoCorrectBouquetFlowerOverlaps(
+      state,
+      this.materializedDefinitions(),
+      vaseInsertionRadius(state.vaseId),
+    );
   }
 
   private createPlacement(

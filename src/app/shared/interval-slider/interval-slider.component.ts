@@ -14,11 +14,37 @@ import {NumberRange} from '../../core/models/flower.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block'},
   template: `
-    <span class="range-slider__label">{{ label() }}</span>
+    <div class="mb-[5px] flex min-h-6 items-center justify-between gap-2">
+      <span class="range-slider__label mb-0!">{{ label() }}</span>
+      @if (modeSelectable()) {
+        <span class="inline-flex shrink-0 rounded-md bg-stone-100 p-0.5" role="group" [attr.aria-label]="label() + ' Eingabemodus'">
+          <button
+            class="rounded px-1.5 py-1 text-[8px] font-bold transition"
+            type="button"
+            [class.bg-white]="fixedMode()"
+            [class.text-emerald-900]="fixedMode()"
+            [class.shadow-sm]="fixedMode()"
+            [class.text-stone-500]="!fixedMode()"
+            [attr.aria-pressed]="fixedMode()"
+            (click)="setMode('fixed')"
+          >Festwert</button>
+          <button
+            class="rounded px-1.5 py-1 text-[8px] font-bold transition"
+            type="button"
+            [class.bg-white]="!fixedMode()"
+            [class.text-emerald-900]="!fixedMode()"
+            [class.shadow-sm]="!fixedMode()"
+            [class.text-stone-500]="fixedMode()"
+            [attr.aria-pressed]="!fixedMode()"
+            (click)="setMode('interval')"
+          >Intervall</button>
+        </span>
+      }
+    </div>
     <div class="range-slider__row">
       <div
         class="range-slider"
-        [style.--range-start]="startPercentage() + '%'"
+        [style.--range-start]="fixedMode() && modeSelectable() ? '0%' : startPercentage() + '%'"
         [style.--range-end]="endPercentage() + '%'"
       >
         <div class="range-slider__track"></div>
@@ -31,53 +57,57 @@ import {NumberRange} from '../../core/models/flower.models';
           [max]="maximum()"
           [step]="step()"
           [value]="firstHandle()"
-          (input)="setFirst(+$any($event.target).value)"
+          (input)="fixedMode() && modeSelectable() ? setFixed(+$any($event.target).value) : setFirst(+$any($event.target).value)"
           (pointerdown)="startDrag('first')"
           (pointerup)="stopDrag()"
           (pointercancel)="stopDrag()"
           (keydown)="startDrag('first')"
           (keyup)="stopDrag()"
         >
-        <input
-          class="range-slider__input"
-          type="range"
-          [attr.aria-label]="label() + ' zweiter Wert'"
-          [min]="minimum()"
-          [max]="maximum()"
-          [step]="step()"
-          [value]="secondHandle()"
-          (input)="setSecond(+$any($event.target).value)"
-          (pointerdown)="startDrag('second')"
-          (pointerup)="stopDrag()"
-          (pointercancel)="stopDrag()"
-          (keydown)="startDrag('second')"
-          (keyup)="stopDrag()"
-        >
+        @if (!fixedMode() || !modeSelectable()) {
+          <input
+            class="range-slider__input"
+            type="range"
+            [attr.aria-label]="label() + ' zweiter Wert'"
+            [min]="minimum()"
+            [max]="maximum()"
+            [step]="step()"
+            [value]="secondHandle()"
+            (input)="setSecond(+$any($event.target).value)"
+            (pointerdown)="startDrag('second')"
+            (pointerup)="stopDrag()"
+            (pointercancel)="stopDrag()"
+            (keydown)="startDrag('second')"
+            (keyup)="stopDrag()"
+          >
+        }
       </div>
       <div class="range-slider__values">
         <input
           #minimumInput
           class="range-slider__number"
           type="number"
-          [attr.aria-label]="label() + ' Minimum'"
+          [attr.aria-label]="label() + (fixedMode() && modeSelectable() ? ' Wert' : ' Minimum')"
           [min]="minimum()"
           [max]="maximum()"
           [step]="step()"
           [value]="sortedValue().min"
-          (input)="setMinimum(minimumInput.valueAsNumber)"
+          (input)="fixedMode() && modeSelectable() ? setFixed(minimumInput.valueAsNumber) : setMinimum(minimumInput.valueAsNumber)"
         >
-        <span class="range-slider__separator">–</span>
-        <input
-          #maximumInput
-          class="range-slider__number"
-          type="number"
-          [attr.aria-label]="label() + ' Maximum'"
-          [min]="minimum()"
-          [max]="maximum()"
-          [step]="step()"
-          [value]="sortedValue().max"
-          (input)="setMaximum(maximumInput.valueAsNumber)"
-        >
+        @if (!fixedMode() || !modeSelectable()) {
+          <span class="range-slider__separator">–</span>
+          <input
+            #maximumInput
+            class="range-slider__number"
+            type="number"
+            [attr.aria-label]="label() + ' Maximum'"
+            [min]="minimum()"
+            [max]="maximum()"
+            [step]="step()"
+            [value]="sortedValue().max"
+            (input)="setMaximum(maximumInput.valueAsNumber)"
+          >
+        }
         @if (unit().trim()) {
           <span class="range-slider__unit">{{ unit().trim() }}</span>
         }
@@ -239,11 +269,13 @@ export class IntervalSliderComponent {
   readonly maximum = input.required<number>();
   readonly step = input(1);
   readonly unit = input('');
+  readonly modeSelectable = input(false);
   readonly valueChange = output<NumberRange>();
 
   readonly firstHandle = signal(0);
   readonly secondHandle = signal(0);
   readonly sortedValue = computed(() => sortedRange(this.firstHandle(), this.secondHandle()));
+  readonly fixedMode = computed(() => this.sortedValue().min === this.sortedValue().max);
   readonly startPercentage = computed(() =>
     rangePercentage(this.sortedValue().min, this.minimum(), this.maximum()));
   readonly endPercentage = computed(() =>
@@ -268,6 +300,32 @@ export class IntervalSliderComponent {
   setSecond(value: number): void {
     this.secondHandle.set(value);
     this.valueChange.emit(this.sortedValue());
+  }
+
+  setFixed(value: number): void {
+    if (!Number.isFinite(value)) return;
+    const fixed = clampValue(value, this.minimum(), this.maximum());
+    this.firstHandle.set(fixed);
+    this.secondHandle.set(fixed);
+    this.valueChange.emit({min: fixed, max: fixed});
+  }
+
+  setMode(mode: 'fixed' | 'interval'): void {
+    if (mode === 'fixed') {
+      const current = this.sortedValue();
+      this.setFixed(roundToStep((current.min + current.max) / 2, this.step()));
+      return;
+    }
+    if (!this.fixedMode()) return;
+    const expanded = expandedRange(
+      this.sortedValue().min,
+      this.minimum(),
+      this.maximum(),
+      this.step(),
+    );
+    this.firstHandle.set(expanded.min);
+    this.secondHandle.set(expanded.max);
+    this.valueChange.emit(expanded);
   }
 
   setMinimum(value: number): void {
@@ -307,4 +365,25 @@ export function rangePercentage(value: number, minimum: number, maximum: number)
 
 function clampValue(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+export function expandedRange(
+  value: number,
+  minimum: number,
+  maximum: number,
+  step: number,
+): NumberRange {
+  const expansion = Math.max(step, (maximum - minimum) * 0.1);
+  let min = clampValue(roundToStep(value - expansion / 2, step), minimum, maximum);
+  let max = clampValue(roundToStep(value + expansion / 2, step), minimum, maximum);
+  if (min === max) {
+    if (max < maximum) max = clampValue(max + step, minimum, maximum);
+    else min = clampValue(min - step, minimum, maximum);
+  }
+  return sortedRange(min, max);
+}
+
+function roundToStep(value: number, step: number): number {
+  if (step <= 0) return value;
+  return Math.round(value / step) * step;
 }

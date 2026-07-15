@@ -11,6 +11,7 @@ export const DEFAULT_INCOMING_CONNECTION: FlowerNodeIncomingConnection = {
   length: {min: 50, max: 70},
   angle: {min: 0, max: 10},
   azimuth: {min: 0, max: 360},
+  roll: {min: 0, max: 0},
   randomness: 0.25,
 };
 
@@ -95,6 +96,27 @@ export function withoutChildId(connection: FlowerNodeConnection): FlowerNodeInco
 
 export function nodeIncomingOrDefault(node: FlowerNodeDefinition): FlowerNodeIncomingConnection {
   return structuredClone(node.incoming ?? DEFAULT_INCOMING_CONNECTION);
+}
+
+export function resolvedStemWidths(
+  definition: FlowerDefinition,
+  connection: ResolvedFlowerNodeConnection,
+  fromDepth: number,
+  toDepth: number,
+): {startWidth: number; endWidth: number} {
+  const stem = connection.stem;
+  const legacyWidth = stem?.width ?? definition.stem.width;
+  if (stem?.startWidth !== undefined || stem?.endWidth !== undefined) {
+    const startWidth = stem.startWidth ?? legacyWidth;
+    return {
+      startWidth,
+      endWidth: stem.endWidth ?? startWidth,
+    };
+  }
+  return {
+    startWidth: legacyWidth * Math.max(0.18, definition.stem.taper ** fromDepth),
+    endWidth: legacyWidth * Math.max(0.18, definition.stem.taper ** toDepth),
+  };
 }
 
 function incomingFromConnection(connection: FlowerNodeConnection): FlowerNodeIncomingConnection {

@@ -52,6 +52,30 @@ describe('graphic orientation', () => {
       rotationSpread: 5,
     })).toEqual({base: 35, spread: 5});
   });
+
+  it.each([0, Math.PI])('keeps repeated leaves radially distinct at the polar angle %s', (angle) => {
+    const parent = treeNode('parent', 0, 0);
+    const first = {...treeNode('first', angle, 0), parentId: parent.id, attachmentAzimuth: 0};
+    const second = {...treeNode('second', angle, 0), parentId: parent.id, attachmentAzimuth: Math.PI / 2};
+    const firstNormal = new Vector3(0, 0, 1)
+      .applyQuaternion(graphicOrientationQuaternion(first, parent, graphic, 0.5));
+    const secondNormal = new Vector3(0, 0, 1)
+      .applyQuaternion(graphicOrientationQuaternion(second, parent, graphic, 0.5));
+
+    expect(Math.abs(firstNormal.dot(secondNormal))).toBeLessThan(1e-6);
+  });
+
+  it('applies an individual node roll independently of its growth direction', () => {
+    const parent = treeNode('parent', 0, 0);
+    const first = {...treeNode('first', Math.PI / 3, Math.PI / 4), parentId: parent.id, roll: 0};
+    const second = {...first, id: 'second', roll: Math.PI / 2};
+    const firstNormal = new Vector3(0, 0, 1)
+      .applyQuaternion(graphicOrientationQuaternion(first, parent, graphic, 0.5));
+    const secondNormal = new Vector3(0, 0, 1)
+      .applyQuaternion(graphicOrientationQuaternion(second, parent, graphic, 0.5));
+
+    expect(Math.abs(firstNormal.dot(secondNormal))).toBeLessThan(1e-6);
+  });
 });
 
 function treeNode(id: string, angle: number, azimuth: number): FlowerTreeNode {

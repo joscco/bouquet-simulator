@@ -183,6 +183,31 @@ describe('procedural flower tree generator', () => {
     expect(new Set(branches.map((node) => node.parentId)).size).toBeGreaterThan(0);
   });
 
+  it.each([0, 180])('preserves the radial distribution at a polar inclination of %s°', (angle) => {
+    const definition = radialDefinition({randomness: 0});
+    definition.nodes[0]!.connections[0]!.angle = {min: angle, max: angle};
+    const branches = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+
+    expect(new Set(branches.map((node) => node.attachmentAzimuth)).size).toBe(branches.length);
+  });
+
+  it('samples roll and curvature rotation per generated part', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.roll = {min: -180, max: 180};
+    connection.stem = {
+      color: '#000000',
+      width: 4,
+      bendRotation: {min: -90, max: 90},
+    };
+    const branches = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+
+    expect(new Set(branches.map((node) => node.roll)).size).toBe(branches.length);
+    expect(new Set(branches.map((node) => node.bendRotation)).size).toBe(branches.length);
+  });
+
   it('makes a fully uniform distribution independent of the seed', () => {
     const definition: FlowerDefinition = {
       schemaVersion: 2,

@@ -27,11 +27,18 @@ export interface GraphicPaintStroke {
 
 export interface FlowerStemSettings {
   color: string;
+  /** @deprecated Legacy-Fallback für Definitionen ohne lokale Segmentdicken. */
   width: number;
+  /** Gewünschte Dicke am Anfang des Segments. */
+  startWidth?: number;
+  /** Gewünschte Dicke am Ende des Segments. */
+  endWidth?: number;
   /** Seitliche Biegung des Stängelsegments, -100 bis 100. */
   bend?: number;
   /** Stärke einer leichten organischen Eigenkrümmung, 0 bis 100. */
   curve?: number;
+  /** Drehung der Krümmungsebene relativ zur individuellen Roll-Achse. */
+  bendRotation?: NumberRange;
 }
 
 export interface FlowerNodeIncomingConnection {
@@ -41,6 +48,8 @@ export interface FlowerNodeIncomingConnection {
   angle: NumberRange;
   /** Drehung um die Wachstumsrichtung des Elternknotens, in Grad. */
   azimuth?: NumberRange;
+  /** Individuelle Roll-Drehung um die eigene Wachstumsrichtung, in Grad. */
+  roll?: NumberRange;
   /** 0 verteilt Wiederholungen gleichmäßig, 1 vollständig zufällig. */
   randomness?: number;
   stem?: FlowerStemSettings;
@@ -140,7 +149,9 @@ export interface FlowerDefinition {
   stem: {
     color: string;
     highlightColor: string;
+    /** @deprecated Legacy-Fallback für Verbindungen ohne lokale Segmentdicken. */
     width: number;
+    /** @deprecated Wird nur noch zur verlustfreien Darstellung alter Definitionen verwendet. */
     taper: number;
     /** Standard-Biegung neuer Stängelsegmente, -100 bis 100. */
     bend?: number;

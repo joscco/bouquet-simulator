@@ -21,6 +21,12 @@ export interface FlowerTreeNode {
   z: number;
   angle: number;
   azimuth: number;
+  /** Gewählter Azimut um die Elternachse; bleibt auch an den Polen 0°/180° erhalten. */
+  attachmentAzimuth?: number;
+  /** Individuelle Drehung um die eigene Wachstumsachse, in Radiant. */
+  roll?: number;
+  /** Zusätzliche Drehung der lokalen Krümmungsebene, in Radiant. */
+  bendRotation?: number;
   depth: number;
   draggable: boolean;
 }
@@ -78,6 +84,9 @@ export function generateFlowerTree(
     z: 0,
     angle: 0,
     azimuth: 0,
+    attachmentAzimuth: 0,
+    roll: 0,
+    bendRotation: 0,
     depth: 0,
     draggable: rootTemplate.draggable,
   }];
@@ -517,6 +526,12 @@ export function generateFlowerTree(
     const evenCircularUnit = repeatCount > 1 ? repeatIndex / repeatCount : 0.5;
     const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
     const aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
+    const roll = connection.roll
+      ? rangeValue(connection.roll, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
+      : 0;
+    const bendRotation = connection.stem?.bendRotation
+      ? rangeValue(connection.stem.bendRotation, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
+      : 0;
     const parentDirection = sphericalDirection(parent.angle, parent.azimuth);
     const reference = Math.abs(parentDirection.y) > 0.98
       ? {x: 1, y: 0, z: 0}
@@ -547,6 +562,9 @@ export function generateFlowerTree(
       z: parent.z + direction.z * length,
       angle,
       azimuth,
+      attachmentAzimuth: aroundParent,
+      roll,
+      bendRotation,
       depth: parent.depth + 1,
       draggable: template.draggable,
     };

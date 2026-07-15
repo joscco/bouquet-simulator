@@ -1,30 +1,9 @@
 # Roadmap
 
-Diese Roadmap enthält nur noch offene Arbeit. Die Reihenfolge richtet sich nach
-Dringlichkeit und Abhängigkeiten: Zuerst werden Persistenz und Zuverlässigkeit des
-Editors geklärt, danach Graph- und Straußinteraktionen. Neue Grafikfunktionen und
-Präsentationsaufgaben bauen auf diesem Stand auf.
+Diese Roadmap enthält nur offene Arbeit. Die Reihenfolge richtet sich nach
+Dringlichkeit und fachlichen Abhängigkeiten.
 
-## 3. Straußinteraktion verbessern
-
-- [ ] **BOUQUET-01: Blumen einzeln im Strauß drehen**
-  - Drehung als Instanzeigenschaft modellieren und im JSON speichern.
-  - Eine ergonomische Steuerung für die relevanten Rotationsachsen ergänzen.
-  - Abnahme: Jede Blume ist unabhängig drehbar; die Drehung bleibt nach Export, Import und Neuladen erhalten und verändert keine Blumendefinition.
-
-- [ ] **BOUQUET-02: Starkes Ineinanderliegen von Blumen reduzieren**
-  - Zunächst die gewünschte Strategie festlegen: Warnung, automatische Entflechtung oder manuelle Korrekturhilfen.
-  - Für die Prüfung vereinfachte räumliche Hüllen verwenden; keine teure Dreiecks-Kollision pro Frame.
-  - Abnahme: Neue beziehungsweise verschobene Blumen können ohne deutliche Hauptblüten-Überschneidungen angeordnet werden.
-  - Abhängigkeit: Baut auf der Instanzrotation aus `BOUQUET-01` auf.
-
-- [ ] **BOUQUET-03: Blumenauswahl mit echten Vorschaubildern darstellen**
-  - Generische Icons aus der Blumenauswahl entfernen.
-  - Für jede Definition einen reproduzierbaren Snapshot der tatsächlichen 3D-Generierung erzeugen.
-  - Snapshots cachen und nur bei geänderter Definition neu erzeugen.
-  - Abnahme: Die Auswahl zeigt die konkrete Blume schnell und ohne sichtbares Nachrendern statt eines abstrakten Icons.
-
-## 4. Grafische Ausdrucksmöglichkeiten erweitern
+## 1. Grafische Ausdrucksmöglichkeiten erweitern
 
 - [ ] **GRAPHICS-01: Weitere 3D-Grundelemente ergänzen**
   - Benötigte Formen anhand konkreter Blumenkomponenten priorisieren.
@@ -40,7 +19,7 @@ Präsentationsaufgaben bauen auf diesem Stand auf.
 
 - [ ] Mehr Blumen vorbereiten
 
-## 5. Dokumentation und Präsentation
+## 2. Dokumentation und Präsentation
 
 - [ ] **DOCS-01: README auf Englisch überarbeiten**
   - Projektziel, lokale Entwicklung, Tests, Build und GitHub-Pages-Deployment dokumentieren.
@@ -54,11 +33,10 @@ Präsentationsaufgaben bauen auf diesem Stand auf.
 - [ ] **MEDIA-01: Drehendes Straußvideo erstellen**
   - Repräsentativen Strauß, Kamerawinkel, Hintergrund, Dauer und Ausgabeformat festlegen.
   - Deterministische Turntable-Drehung rendern und für Website beziehungsweise Präsentation exportieren.
-  - Abhängigkeit: Nach `BOUQUET-01`, `BOUQUET-02` und den gewünschten Grafikergänzungen umsetzen.
+  - Abhängigkeit: Nach den gewünschten Grafikergänzungen umsetzen.
 
 ## Vorgeschlagener nächster Block
 
-1. `EDITOR-03` umsetzen, damit Speichern auf GitHub Pages eindeutig und dauerhaft funktioniert.
-2. `EDITOR-01` vollständig visuell prüfen und `EDITOR-02` direkt mit bereinigen.
-3. `BOUQUET-01` für echte unabhängige Instanzrotation vervollständigen.
-4. Danach `BOUQUET-02` konzipieren und parallel die Problemfälle für `GRAPH-01` sammeln.
+1. `GRAPHICS-01` anhand konkreter Blumen priorisieren; Dornen sind der erste benannte Anwendungsfall.
+2. Danach das Muster- und Mal-Konzept fachlich klären.
+3. Anschließend Dokumentation und Präsentationsaufgaben vervollständigen.

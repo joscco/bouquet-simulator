@@ -17,11 +17,14 @@ export function graphicOrientationQuaternion(
   seed: number,
 ): Quaternion {
   const direction = directionVector(node);
+  const parentDirection = parent ? directionVector(parent) : null;
+  const collinearWithParent = parentDirection
+    ? Math.abs(Math.abs(parentDirection.dot(direction)) - 1) < 1e-6
+    : false;
   let alignment: Quaternion;
 
   if (graphic.orientation === 'toward-parent' && parent) {
-    const parentDirection = directionVector(parent);
-    let normal = new Vector3().crossVectors(parentDirection, direction);
+    let normal = new Vector3().crossVectors(parentDirection!, direction);
     if (normal.lengthSq() < 1e-8) {
       const reference = Math.abs(direction.dot(UP)) > 0.98 ? FORWARD : UP;
       normal = new Vector3().crossVectors(reference, direction);
@@ -41,7 +44,10 @@ export function graphicOrientationQuaternion(
     17,
   );
   const unit = Math.abs(Math.sin(hash + seed * 9973) * 43758.5453) % 1;
-  const twist = (base - spread + unit * spread * 2) * Math.PI / 180;
+  const polarAttachmentTwist = collinearWithParent ? node.attachmentAzimuth ?? 0 : 0;
+  const twist = (base - spread + unit * spread * 2) * Math.PI / 180
+    + polarAttachmentTwist
+    + (node.roll ?? 0);
   return alignment.multiply(new Quaternion().setFromAxisAngle(UP, twist));
 }
 
