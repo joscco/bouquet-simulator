@@ -186,6 +186,25 @@ export class BouquetStore {
     });
   }
 
+  restoreDefinitions(value: unknown): boolean {
+    if (!Array.isArray(value) || value.length === 0) return false;
+    try {
+      const definitions = value.map((definition) => {
+        if (!isFlowerDefinition(definition)) {
+          throw new Error('Ungültige Blumendefinition.');
+        }
+        const error = validateFlowerDefinition(definition)
+          .find((issue) => issue.severity === 'error');
+        if (error) throw new Error(error.message);
+        return structuredClone(definition);
+      });
+      this.definitions.set(normalizeDefinitions(definitions));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   definitionUsage(definitionId: string): DefinitionUsage {
     const componentDefinitions = this.definitions()
       .filter((definition) => definition.id !== definitionId)
@@ -261,12 +280,23 @@ export class BouquetStore {
     }
   }
 
-  restoreProjectState(project: unknown): boolean {
+  restoreProjectState(project: unknown, discardMissingDefinitions = false): boolean {
     if (!isProjectExport(project)) return false;
     const definitionIds = new Set(this.definitions().map((definition) => definition.id));
-    const bouquets = this.projectBouquets(project);
-    if (bouquets.some((bouquet) => bouquet.state.flowers.some((flower) => !definitionIds.has(flower.definitionId)))) {
+    let bouquets = this.projectBouquets(project);
+    const hasMissingDefinitions = bouquets.some((bouquet) =>
+      bouquet.state.flowers.some((flower) => !definitionIds.has(flower.definitionId)));
+    if (hasMissingDefinitions && !discardMissingDefinitions) {
       return false;
+    }
+    if (hasMissingDefinitions) {
+      bouquets = bouquets.map((bouquet) => ({
+        ...bouquet,
+        state: {
+          ...bouquet.state,
+          flowers: bouquet.state.flowers.filter((flower) => definitionIds.has(flower.definitionId)),
+        },
+      }));
     }
     this.setBouquets(bouquets, project.activeBouquetId);
     return true;
@@ -496,6 +526,17 @@ function isBouquetState(value: unknown): value is BouquetState {
     && (flower['rotationY'] === undefined || isFiniteNumber(flower['rotationY']))
     && (flower['cutRatio'] === undefined || isFiniteNumber(flower['cutRatio']))
     && (flower['nodeOffsets'] === undefined || isRecord(flower['nodeOffsets'])));
+}
+
+function isFlowerDefinition(value: unknown): value is FlowerDefinition {
+  return isRecord(value)
+    && value['schemaVersion'] === 2
+    && typeof value['id'] === 'string'
+    && value['id'].length > 0
+    && typeof value['name'] === 'string'
+    && typeof value['rootNodeId'] === 'string'
+    && isRecord(value['stem'])
+    && Array.isArray(value['nodes']);
 }
 
 function isBouquetProject(value: unknown): value is BouquetProject {

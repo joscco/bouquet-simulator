@@ -7,16 +7,17 @@ export class BouquetProjectStorage {
 
   private readonly store = inject(BouquetStore);
 
-  restoreProject(): void {
+  restoreProject(preferCurrentDefinitions = false): void {
     try {
       const serialized = globalThis.localStorage?.getItem(BouquetProjectStorage.BOUQUET_STORAGE_KEY);
       if (!serialized) return;
       const parsed = JSON.parse(serialized) as unknown;
-      if (
-        !this.store.restoreProjectState(parsed)
-        && !this.store.restoreProject(parsed)
-        && !this.store.restoreBouquet(parsed)
-      ) {
+      const restored = preferCurrentDefinitions
+        ? this.store.restoreProjectState(parsed, true) || this.store.restoreBouquet(parsed)
+        : this.store.restoreProjectState(parsed)
+          || this.store.restoreProject(parsed)
+          || this.store.restoreBouquet(parsed);
+      if (!restored) {
         globalThis.localStorage?.removeItem(BouquetProjectStorage.BOUQUET_STORAGE_KEY);
       }
     } catch {

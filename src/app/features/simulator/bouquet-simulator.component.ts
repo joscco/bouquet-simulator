@@ -23,6 +23,7 @@ import {
 } from './bouquet-side-panel.component';
 import {BouquetFlowerPickerComponent} from './bouquet-flower-picker.component';
 import {BouquetProjectStorage} from './bouquet-project-storage.service';
+import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -42,6 +43,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly store = inject(BouquetStore);
   private readonly snackBar = inject(MatSnackBar);
   private readonly projectStorage = inject(BouquetProjectStorage);
+  private readonly definitionStorage = inject(FlowerDefinitionStorage);
   private readonly flowerNameCollator = new Intl.Collator('de', {numeric: true, sensitivity: 'base'});
   readonly vaseOptions = VASE_OPTIONS;
   readonly pickerOpen = signal(false);
@@ -87,7 +89,8 @@ export class BouquetSimulatorComponent implements OnDestroy {
   private menuLayoutTween: {kill: () => void} | null = null;
 
   constructor() {
-    this.projectStorage.restoreProject();
+    this.projectStorage.restoreProject(this.definitionStorage.restoredFromStorage);
+    effect(() => this.definitionStorage.trySaveDefinitions(this.store.definitions()));
     effect(() => this.projectStorage.persistProject(this.store.exportProject()));
   }
 

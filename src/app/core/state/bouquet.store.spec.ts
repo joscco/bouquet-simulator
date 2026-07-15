@@ -149,6 +149,40 @@ describe('bouquet flower placement', () => {
     expect(store.state()).toEqual(persisted.bouquet);
   });
 
+  it('keeps compatible bouquet instances when local definitions are authoritative', () => {
+    const store = new BouquetStore();
+    const persisted = store.exportProject();
+    const removedDefinitionId = persisted.bouquet.flowers[0]!.definitionId;
+    const remainingInstanceIds = persisted.bouquet.flowers
+      .filter((flower) => flower.definitionId !== removedDefinitionId)
+      .map((flower) => flower.instanceId);
+    store.removeDefinition(removedDefinitionId);
+
+    expect(store.restoreProjectState(persisted, true)).toBe(true);
+    expect(store.definitions().some((definition) => definition.id === removedDefinitionId)).toBe(false);
+    expect(store.state().flowers.map((flower) => flower.instanceId)).toEqual(remainingInstanceIds);
+  });
+
+  it('restores a valid definition catalog without changing the bouquet state', () => {
+    const store = new BouquetStore();
+    const bouquet = structuredClone(store.state());
+    const definitions = structuredClone(store.definitions());
+    definitions[0]!.name = 'Browserlokale Rose';
+
+    expect(store.restoreDefinitions(definitions)).toBe(true);
+    expect(store.definitions()[0]!.name).toBe('Browserlokale Rose');
+    expect(store.state()).toEqual(bouquet);
+  });
+
+  it('rejects an invalid definition catalog', () => {
+    const store = new BouquetStore();
+    const definitions = structuredClone(store.definitions());
+
+    expect(store.restoreDefinitions([])).toBe(false);
+    expect(store.restoreDefinitions([{schemaVersion: 2, id: 'broken'}])).toBe(false);
+    expect(store.definitions()).toEqual(definitions);
+  });
+
   it('rejects invalid or outdated persisted bouquets', () => {
     const store = new BouquetStore();
     const previous = structuredClone(store.state());
