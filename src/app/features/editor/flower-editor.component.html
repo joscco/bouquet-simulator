@@ -2,9 +2,9 @@
   <app-view-switcher activeView="components" />
 
   <header class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200 bg-white px-4 pb-3 pt-16 sm:px-6 xl:py-3 xl:pl-6 xl:pr-48">
-    <div class="editor-toolbar editor-definition-toolbar">
+    <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm w-full max-w-full flex-wrap min-[480px]:flex-nowrap sm:w-auto">
       <select
-        class="editor-select editor-catalog-select border-0! bg-stone-50!"
+        class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 w-full flex-[1_0_100%] min-[480px]:w-0 min-[480px]:flex-[1_1_auto] sm:w-[280px] sm:flex-[0_1_280px] border-0! bg-stone-50!"
         [ngModel]="selectedCatalogKey()"
         aria-label="Komponente oder Blume"
         (ngModelChange)="selectCatalogEntry($event)"
@@ -15,12 +15,12 @@
           </option>
         }
       </select>
-      <span class="mx-1 h-6 w-px bg-stone-200"></span>
-      <button class="editor-icon-button" type="button" matTooltip="Neue Definition erstellen" aria-label="Neue Definition erstellen" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
-      <button class="editor-icon-button" type="button" matTooltip="Aktuelle Definition duplizieren" aria-label="Aktuelle Definition duplizieren" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
+      <span class="hidden min-[480px]:block mx-1 h-6 w-px bg-stone-200"></span>
+      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 ml-auto min-[480px]:ml-0" type="button" matTooltip="Neue Definition erstellen" aria-label="Neue Definition erstellen" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
+      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Aktuelle Definition duplizieren" aria-label="Aktuelle Definition duplizieren" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
       @if (selectedCatalogEntry()) {
         <button
-          class="editor-icon-button editor-icon-button--danger"
+          class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
           type="button"
           matTooltip="Ganzen Eintrag löschen"
           aria-label="Ganzen Eintrag löschen"
@@ -32,11 +32,11 @@
       }
     </div>
 
-    <div class="editor-header-actions ml-auto flex min-w-0 items-center justify-end gap-2">
-      <div class="editor-toolbar">
+    <div class="w-full sm:w-auto ml-auto flex min-w-0 items-center justify-end gap-2">
+      <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm">
         <details class="relative">
-        <summary class="editor-icon-button list-none" matTooltip="Stängelstandard" aria-label="Stängelstandard"><mat-icon>grass</mat-icon></summary>
-        <div class="absolute right-0 z-30 mt-2 w-[min(360px,calc(100vw-1rem))] rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
+        <summary class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 list-none" matTooltip="Stängelstandard" aria-label="Stängelstandard"><mat-icon>grass</mat-icon></summary>
+        <div class="fixed left-2 right-2 top-42 max-h-[calc(100dvh-11rem)] w-auto overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:max-h-none sm:w-[min(360px,calc(100vw-1rem))] sm:overflow-y-visible z-30 rounded-2xl border border-stone-200 bg-white p-3 shadow-xl">
           <div class="mb-3 flex items-center justify-between">
             <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">Stängelstandard</div>
             <span class="rounded-lg bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-900">{{ draft().stem.width }} px</span>
@@ -45,19 +45,19 @@
             <app-numeric-field label="Dicke" unit="px" [value]="draft().stem.width" [minimum]="1" [maximum]="30" [step]="0.5" (valueChange)="updateStem('width', $event)" />
             <app-numeric-field label="Verjüngung" [value]="draft().stem.taper" [minimum]="0.1" [maximum]="1" [step]="0.05" (valueChange)="updateStem('taper', $event)" />
             <label>
-              <span class="editor-field-label">Farbe</span>
-              <span class="editor-color-field">
+              <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
+              <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
                 <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.color"></span>
                 <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.color }}</code>
-                <input class="sr-only" type="color" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)">
+                <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color" aria-label="Standard-Stängelfarbe" [ngModel]="draft().stem.color" (ngModelChange)="updateStem('color', $event)">
               </span>
             </label>
             <label>
-              <span class="editor-field-label">Licht</span>
-              <span class="editor-color-field">
+              <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Licht</span>
+              <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
                 <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="draft().stem.highlightColor"></span>
                 <code class="min-w-0 truncate text-[9px] text-stone-500">{{ draft().stem.highlightColor }}</code>
-                <input class="sr-only" type="color" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)">
+                <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color" aria-label="Standard-Stängellicht" [ngModel]="draft().stem.highlightColor" (ngModelChange)="updateStem('highlightColor', $event)">
               </span>
             </label>
           </div>
@@ -69,31 +69,26 @@
           </div>
         </div>
       </details>
-      <label class="editor-icon-button" matTooltip="Definition laden" aria-label="Definition laden">
+      <label class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" matTooltip="Definition laden" aria-label="Definition laden">
         <mat-icon>upload_file</mat-icon>
         <input class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
       </label>
-      <button class="editor-icon-button" type="button" matTooltip="Definition exportieren" aria-label="Definition exportieren" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
+      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Definition exportieren" aria-label="Definition exportieren" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
       </div>
-      <button class="editor-primary-button" type="button" matTooltip="In den lokalen Defaults speichern" (click)="saveToCatalog()"><mat-icon>save</mat-icon>Speichern</button>
+      @if (isDevelopment) {
+        <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" matTooltip="Katalog in die Entwickler-Defaults übernehmen" (click)="saveToDefaults()">
+          <mat-icon>code</mat-icon><span class="hidden sm:inline">In Defaults</span>
+        </button>
+      }
+      <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40" type="button" matTooltip="Definitionen in diesem Browser speichern" aria-label="Definitionen in diesem Browser speichern" (click)="saveToCatalog()"><mat-icon>save</mat-icon><span class="max-[359px]:hidden">Speichern</span></button>
     </div>
   </header>
 
   <div class="grid min-h-0 flex-1 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
     <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1">
-      <div class="editor-toolbar absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
+      <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
         <button
-          class="editor-icon-button"
-          [class.editor-icon-button--active]="lassoMode()"
-          type="button"
-          matTooltip="Teilbaum per Lasso auswählen"
-          aria-label="Teilbaum per Lasso auswählen"
-          (click)="toggleLassoMode()"
-        >
-          <mat-icon>gesture</mat-icon>
-        </button>
-        <button
-          class="editor-icon-button"
+          class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30"
           type="button"
           matTooltip="Auswahl als Komponente bearbeiten"
           aria-label="Auswahl als Komponente bearbeiten"
@@ -102,10 +97,11 @@
         >
           <mat-icon>inventory_2</mat-icon>
         </button>
-        <button class="editor-icon-button" type="button" matTooltip="Knoten oder Komponente hinzufügen" aria-label="Knoten oder Komponente hinzufügen" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
-        <button class="editor-icon-button" type="button" matTooltip="Wiederholung hinzufügen" aria-label="Wiederholung hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
+        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten oder Komponente hinzufügen" aria-label="Knoten oder Komponente hinzufügen" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
+        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Wiederholung hinzufügen" aria-label="Wiederholung hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
-        <button class="editor-icon-button" type="button" matTooltip="Graph automatisch anordnen" aria-label="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
+        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Graph automatisch anordnen" aria-label="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
+        <span class="hidden text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
         @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
           <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
             {{ subtreeNodeIds().size }} gewählt
@@ -120,11 +116,11 @@
               <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
               <div class="text-[9px] text-stone-400">Leer starten oder vorhandene Komponente einfügen.</div>
             </div>
-            <button class="editor-icon-button" type="button" matTooltip="Menü schließen" aria-label="Menü schließen" (click)="addMenuOpen.set(false)">
+            <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Menü schließen" aria-label="Menü schließen" (click)="addMenuOpen.set(false)">
               <mat-icon>close</mat-icon>
             </button>
           </div>
-          <button class="editor-primary-button mb-3 w-full" type="button" (click)="addNode()">
+          <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40 mb-3 w-full" type="button" (click)="addNode()">
             <mat-icon>fiber_manual_record</mat-icon>
             Neuer Basisknoten
           </button>
@@ -133,7 +129,7 @@
             <label class="block text-[9px] font-bold uppercase tracking-wider text-stone-400">
               Vorhandene Komponente
               <input
-                class="editor-text-field mt-1 w-full"
+                class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 mt-1 w-full"
                 type="search"
                 placeholder="Komponente suchen"
                 [ngModel]="componentSearch()"
@@ -171,7 +167,7 @@
             <div class="min-w-0 flex-1">
               <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
               <p class="mb-0 mt-1 text-[10px] leading-relaxed text-stone-500">
-                Mit dem Lasso Knoten berühren. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.
+                Mit Shift-Klick Knoten hinzufügen oder entfernen. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.
               </p>
             </div>
             <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
@@ -180,510 +176,56 @@
           </div>
           <div class="flex gap-2">
             <input
-              class="editor-text-field min-w-0 flex-1"
+              class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 min-w-0 flex-1"
               type="text"
               placeholder="Name der Komponente"
               [ngModel]="subtreeName()"
               (ngModelChange)="subtreeName.set($event)"
             >
-            <button class="editor-primary-button" type="button"
+            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40" type="button"
                     [disabled]="!subtreeSelection()" (click)="extractSelectedSubtree()">
               <mat-icon>inventory_2</mat-icon>
               Extrahieren
             </button>
           </div>
           <div class="mt-2 flex justify-end gap-1">
-            <button class="editor-secondary-button" type="button" (click)="clearSubtreeSelection()">Auswahl leeren</button>
-            <button class="editor-secondary-button" type="button" (click)="exportSelectedSubtree()">Nur exportieren</button>
+            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" (click)="clearSubtreeSelection()">Auswahl leeren</button>
+            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" (click)="exportSelectedSubtree()">Nur exportieren</button>
           </div>
         </section>
       }
 
-      <svg
-        #graphCanvas
-        class="h-full min-h-[620px] w-full touch-none select-none"
-        [attr.viewBox]="graphViewBox()"
-        role="application"
-        aria-label="Interaktiver Knotengraph"
-        (pointermove)="graphPointerMove($event)"
-        (pointerup)="graphPointerUp($event)"
-        (pointercancel)="graphPointerUp($event)"
-        (pointerdown)="graphPointerDown($event)"
-        (wheel)="graphWheel($event)"
-      >
-        <defs>
-          <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
-          </pattern>
-        </defs>
-        <rect width="1000" height="1000" fill="url(#graph-grid)" />
-        @if (lassoPath()) {
-          <path
-            [attr.d]="lassoPath()"
-            fill="none"
-            stroke="#0f766e"
-            stroke-width="3"
-            stroke-dasharray="8 6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="pointer-events-none"
-          />
-        }
-
-        @for (node of graphLayout().nodes; track node.id) {
-          @if (node.loop) {
-            <rect
-              [attr.x]="node.x - node.width / 2"
-              [attr.y]="node.y - node.height / 2"
-              [attr.width]="node.width"
-              [attr.height]="node.height"
-              rx="24"
-              [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? '#fffbeb' : '#fffcf2'"
-              stroke="none"
-              class="pointer-events-none"
-            />
-            <rect
-              [attr.x]="node.x - node.width / 2"
-              [attr.y]="node.y - node.height / 2"
-              [attr.width]="node.width"
-              [attr.height]="node.height"
-              rx="24"
-              fill="#ffffff"
-              fill-opacity="0.001"
-              stroke="none"
-              class="cursor-grab active:cursor-grabbing"
-              pointer-events="all"
-              (pointerdown)="startNodeDrag($event, node.id)"
-              (pointerup)="finishConnection($event, node.id)"
-            />
-          }
-        }
-
-        @for (edge of graphLayout().edges; track edge.key) {
-          <path
-            [attr.d]="edge.path"
-            fill="none"
-            stroke="transparent"
-            stroke-width="28"
-            [class.cursor-pointer]="edge.selectable"
-            (pointerdown)="edge.selectable && selectConnection($event, edge.targetId)"
-          />
-          <path
-            [attr.d]="edge.path"
-            fill="none"
-            [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : edge.color"
-            [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 6 : selectedNodeId() === edge.targetId ? 5 : 4"
-            stroke-linecap="round"
-            class="pointer-events-none"
-          />
-          @if (edge.label) {
-            <g
-              class="pointer-events-none"
-              [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'"
-            >
-              <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" />
-              <text y="3" class="fill-stone-500 text-[10px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
-            </g>
-          }
-        }
-
-        @if (connectionDrag(); as pending) {
-          <path
-            [attr.d]="pendingConnectionPath()"
-            fill="none"
-            stroke="#047857"
-            stroke-width="5"
-            stroke-dasharray="7 6"
-            stroke-linecap="round"
-            class="pointer-events-none"
-          />
-        }
-
-        @for (node of graphLayout().nodes; track node.id) {
-          <g
-            class="cursor-grab outline-none active:cursor-grabbing"
-            [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
-            tabindex="0"
-            role="button"
-            (pointerdown)="startNodeDrag($event, node.id)"
-            (pointerup)="finishConnection($event, node.id)"
-            (keydown.enter)="selectNode(node.id)"
-          >
-            @if (node.loop) {
-              <rect
-                [attr.x]="-node.width / 2"
-                [attr.y]="-node.height / 2"
-                [attr.width]="node.width"
-                [attr.height]="node.height"
-                rx="24"
-                fill="none"
-                [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? '#d97706' : '#f59e0b'"
-                [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
-                class="pointer-events-none drop-shadow-sm"
-              />
-              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
-              <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
-              @if (node.memberIds.length) {
-                <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
-                <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
-                @for (port of node.outputPorts; track $index) {
-                  <g>
-                    <circle
-                      [attr.cx]="port.x - node.x"
-                      [attr.cy]="port.y - node.y"
-                      r="11"
-                      fill="#064e3b"
-                      stroke="#ffffff"
-                      stroke-width="3"
-                      class="cursor-crosshair"
-                      (pointerdown)="startConnection($event, node.id, $index)"
-                    />
-                    <text
-                      [attr.x]="port.x - node.x"
-                      [attr.y]="port.y - node.y + 4"
-                      class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
-                    >{{ node.outputPortLabels[$index] }}</text>
-                    <title>Ausgang {{ node.outputPortLabels[$index] }} · {{ node.outputPortNames[$index] }}</title>
-                  </g>
-                }
-                <text x="0" [attr.y]="-node.height / 2 + 18" class="pointer-events-none fill-stone-500 text-[8px] font-bold [text-anchor:middle]">
-                  {{ node.outputPorts.length === 1 ? 'AUSGANG' : 'AUSGÄNGE' }}
-                </text>
-              } @else {
-                <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
-                <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
-                <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)" />
-                <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
-              }
-            } @else {
-              <rect
-                [attr.x]="-node.width / 2" [attr.y]="-node.height / 2" [attr.width]="node.width" [attr.height]="node.height" rx="20"
-                [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? (node.component ? '#e0e7ff' : '#ecfdf5') : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
-                [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? (node.component ? '#4338ca' : '#047857') : node.component ? '#6366f1' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
-                [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
-                class="drop-shadow-sm"
-              />
-              <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
-              <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
-              <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
-                {{ node.root ? 'BASIS' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
-              </text>
-              @for (port of node.outputPorts; track $index) {
-                <g>
-                  <circle
-                    [attr.cx]="port.x - node.x"
-                    [attr.cy]="port.y - node.y"
-                    [attr.r]="node.component ? 8 : 12"
-                    fill="#064e3b"
-                    stroke="#ffffff"
-                    stroke-width="3"
-                    class="cursor-crosshair"
-                    (pointerdown)="startConnection($event, node.id, $index)"
-                  />
-                  @if (node.outputPortLabels[$index]) {
-                    <text
-                      [attr.x]="port.x - node.x"
-                      [attr.y]="port.y - node.y + 4"
-                      class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
-                    >{{ node.outputPortLabels[$index] }}</text>
-                  }
-                </g>
-              }
-            }
-          </g>
-        }
-      </svg>
-
-      @if (validationIssues().length) {
-        <div class="absolute bottom-4 left-4 max-w-sm space-y-1">
-          @for (issue of validationIssues(); track issue.message) {
-            <div
-              class="rounded-lg px-3 py-2 text-[10px] shadow-sm"
-              [class.bg-rose-100]="issue.severity === 'error'"
-              [class.text-rose-800]="issue.severity === 'error'"
-              [class.bg-amber-100]="issue.severity === 'warning'"
-              [class.text-amber-800]="issue.severity === 'warning'"
-            >{{ issue.message }}</div>
-          }
-        </div>
-      }
+      <app-flower-editor-tree
+        #graphTree
+        [definition]="draft()"
+        [positions]="graphPositions()"
+        [selectedNodeId]="selectedNodeId()"
+        [subtreeAnchorIds]="subtreeAnchorIds()"
+        [subtreeNodeIds]="subtreeNodeIds()"
+        (definitionChange)="draft.set($event)"
+        (positionsChange)="graphPositions.set($event)"
+        (nodeSelection)="selectNode($event.id, $event.additive)"
+        (message)="showTreeMessage($event)"
+      />
     </main>
 
     <aside class="min-h-0 border-l border-stone-200 bg-white p-3 lg:contents">
-      <section class="relative mb-3 h-[520px] shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2] lg:col-start-3 lg:row-start-1 lg:m-3 lg:h-auto lg:min-h-0">
-        <span class="pointer-events-none absolute left-3 top-3 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">Vorschau</span>
-        <div class="editor-toolbar absolute right-3 top-3 z-20 bg-white/90!">
-          <button class="editor-icon-button" type="button" matTooltip="Ansicht zentrieren" aria-label="Ansicht zentrieren"
-                  (click)="resetPreviewView()"><mat-icon>center_focus_strong</mat-icon></button>
-          <button class="editor-icon-button" type="button" matTooltip="Neue Vorschau generieren" aria-label="Neue Vorschau generieren"
-                  (click)="regeneratePreview()"><mat-icon>refresh</mat-icon></button>
-        </div>
-        <app-bouquet-canvas
-          class="block h-full"
-          [state]="previewState()"
-          [definitions]="previewDefinitions()"
-          [zoom]="previewZoom()"
-          [zoomEnabled]="true"
-          [fitToContent]="true"
-          [orbitEnabled]="true"
-          [orbitPitch]="previewPitch()"
-          viewMode="rotate"
-          [viewOffset]="previewViewOffset()"
-          (zoomChange)="previewZoom.set($event)"
-          (orbitDrag)="orbitPreview($event)"
-          (viewPan)="panPreview($event)"
-          [highlightedNodeId]="selectedNodeId()"
-          [highlightedConnection]="selectedIncoming()"
-        />
-      </section>
+      <app-flower-editor-preview
+        [definition]="draft()"
+        [catalogDefinitions]="store.definitions()"
+        [highlightedNodeId]="selectedNodeId()"
+        [highlightedConnection]="selectedIncoming()"
+      />
 
-      <div class="min-w-0 overflow-x-hidden bg-white lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-scroll lg:border-r lg:border-stone-200 lg:p-3 [scrollbar-gutter:stable]">
-        <section class="editor-section">
-          <div class="editor-section-title">Definition</div>
-          <label>
-            <span class="editor-field-label">Name</span>
-            <input class="editor-text-field w-full" [ngModel]="draft().name" (ngModelChange)="updateRoot('name', $event)">
-          </label>
-          <div class="mt-3 grid gap-2">
-            <label class="editor-checkbox">
-              <input
-                type="checkbox"
-                [checked]="draft().availableInBouquet ?? true"
-                (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)"
-              >
-              Im Strauß nutzbar
-            </label>
-            <label class="editor-checkbox">
-              <input
-                type="checkbox"
-                [checked]="draft().availableAsComponent ?? true"
-                (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)"
-              >
-              Als Komponente nutzbar
-            </label>
-          </div>
-        </section>
-        @if (draft().availableAsComponent ?? true) {
-          <section class="editor-section">
-            <div class="editor-section-title">Komponentenausgänge</div>
-            <div class="space-y-1">
-              @for (outputId of componentOutputOptions(); track outputId) {
-                <label class="editor-checkbox editor-checkbox--compact">
-                  <input
-                    type="checkbox"
-                    [checked]="componentOutputEnabled(outputId)"
-                    (change)="toggleComponentOutput(outputId, $any($event.target).checked)"
-                  >
-                  {{ nodeName(outputId) }}
-                </label>
-              } @empty {
-                <div class="rounded-lg border border-dashed border-stone-300 px-2 py-3 text-center text-[10px] text-stone-400">
-                  Keine offenen Endknoten
-                </div>
-              }
-            </div>
-          </section>
-        }
-        @if (selectedNode(); as node) {
-        <section class="editor-section border-b-0!">
-          <div class="editor-section-title">Knoten</div>
-          <div class="mb-3 flex items-center gap-2">
-            <input class="editor-text-field min-w-0 flex-1" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
-            <button class="editor-icon-button" type="button" matTooltip="Knoten kopieren" aria-label="Knoten kopieren" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-            @if (node.id !== draft().rootNodeId) {
-              <button class="editor-icon-button editor-icon-button--danger" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
-            }
-          </div>
-
-          @if (node.id !== draft().rootNodeId && !node.loop) {
-            @if (incomingSettings(); as incoming) {
-              <section class="mb-3 border-t border-stone-200 pt-3">
-                <div class="mb-3 flex items-center justify-between gap-2">
-                  <div>
-                    <div class="editor-section-title mb-0!">Eingangsverbindung</div>
-                    <div class="text-[8px] text-stone-400">
-                      {{ selectedIncoming() ? 'Mit dem Elternknoten verbunden' : 'Wird beim Anschließen verwendet' }}
-                    </div>
-                  </div>
-                  @if (selectedIncoming()) {
-                    <button class="editor-icon-button editor-icon-button--danger" type="button"
-                      matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
-                      (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
-                  }
-                </div>
-                <div class="space-y-2">
-                  <app-interval-slider label="Anzahl" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
-                  <app-interval-slider label="Länge" unit=" px" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
-                  <app-interval-slider label="Neigung zum Elternstängel" unit="°" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
-                  <app-interval-slider label="Drehung um den Stängel" unit="°" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
-                  <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
-                    [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
-                  <div class="grid grid-cols-[88px_1fr] items-end gap-3 border-t border-stone-100 pt-3">
-                    <label>
-                      <span class="editor-field-label">Farbe</span>
-                      <span class="editor-color-field">
-                        <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="incomingStemColor(incoming)"></span>
-                        <input class="sr-only" type="color"
-                          aria-label="Stängelfarbe der Eingangsverbindung"
-                          [ngModel]="incomingStemColor(incoming)"
-                          (ngModelChange)="updateIncomingStem('color', $event)">
-                      </span>
-                    </label>
-                    <app-numeric-slider label="Stängeldicke" unit="px" [value]="incomingStemWidth(incoming)"
-                      [minimum]="1" [maximum]="30" [step]="0.5"
-                      (valueChange)="updateIncomingStem('width', $event)" />
-                  </div>
-                  <div class="border-t border-stone-100 pt-3">
-                    <app-numeric-slider label="Kurvenrichtung" unit="%" [value]="incomingStemBend(incoming)"
-                      [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
-                  </div>
-                  <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
-                    [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
-                </div>
-              </section>
-            }
-          }
-
-          @if (node.component) {
-            <div class="border-t border-stone-200 pt-3">
-              <div class="editor-section-title">Komponente</div>
-              <div class="mt-1 text-xs font-semibold text-stone-800">{{ node.component.name }}</div>
-              <p class="mb-0 mt-2 text-[9px] leading-relaxed text-teal-900/70">
-                Dieser Knoten referenziert {{ node.component.name }}. 3D-Ansichten materialisieren die Referenz temporär; die Definition bleibt referenziell.
-              </p>
-            </div>
-          } @else if (node.loop) {
-            <div class="border-t border-stone-200 pt-3">
-              @if (selectedIncoming()) {
-                <div class="mb-2 flex justify-end">
-                  <button class="editor-icon-button editor-icon-button--danger" type="button"
-                    matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
-                    (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
-                </div>
-              }
-              <app-interval-slider label="Wiederholungen" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
-              @if (node.loop.memberNodeIds?.length) {
-                <div class="mt-3 border-t border-amber-100 pt-2">
-                  <div class="mb-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">Fortsetzungsoutputs</div>
-                  <div class="space-y-1">
-                    @for (outputId of loopOutputOptions(node); track outputId) {
-                      <label class="editor-checkbox editor-checkbox--compact">
-                        <input
-                          type="checkbox"
-                          [checked]="loopOutputEnabled(node, outputId)"
-                          (change)="toggleLoopOutput(outputId, $any($event.target).checked)"
-                        >
-                        {{ nodeName(outputId) }}
-                      </label>
-                    }
-                  </div>
-                </div>
-              }
-              <p class="mb-0 mt-2 text-[9px] leading-relaxed text-amber-900/70">
-                Der gerahmte Teilbaum wird wiederholt. Ausgewählte Outputs dienen als Ansatzpunkte für die nächste Wiederholung.
-              </p>
-            </div>
-          } @else {
-          <div class="mb-3">
-            <label class="editor-checkbox editor-checkbox--switch">
-              Grafik
-              <input type="checkbox" [ngModel]="!!node.graphic" (ngModelChange)="setHasGraphic($event)">
-            </label>
-          </div>
-
-          @if (node.graphic; as graphic) {
-            <fieldset>
-              <legend class="text-[9px] font-bold uppercase text-stone-400">Grundform</legend>
-              <div class="mt-1 grid grid-cols-3 gap-1.5">
-                @for (primitive of graphicPrimitives; track primitive.value) {
-                  <button
-                    class="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[8px] font-semibold"
-                    type="button"
-                    [class.border-emerald-700]="graphicPrimitive(graphic) === primitive.value"
-                    [class.bg-emerald-50]="graphicPrimitive(graphic) === primitive.value"
-                    [class.text-emerald-900]="graphicPrimitive(graphic) === primitive.value"
-                    [class.border-stone-200]="graphicPrimitive(graphic) !== primitive.value"
-                    [class.text-stone-500]="graphicPrimitive(graphic) !== primitive.value"
-                    [attr.aria-pressed]="graphicPrimitive(graphic) === primitive.value"
-                    (click)="updateGraphicPrimitive(primitive.value)"
-                  >
-                    <svg viewBox="0 0 44 30" class="h-7 w-11" aria-hidden="true">
-                      @switch (primitive.value) {
-                        @case ('leaf-pointed') {
-                          <path d="M22 28 C5 22 7 7 22 2 C37 7 39 22 22 28Z" fill="currentColor" />
-                        }
-                        @case ('leaf-serrated') {
-                          <path d="M22 28 L13 24 L16 20 L7 17 L14 13 L8 9 L18 7 L22 2 L26 7 L36 9 L30 13 L37 17 L28 20 L31 24Z" fill="currentColor" />
-                        }
-                        @case ('sphere') {
-                          <circle cx="22" cy="15" r="11" fill="currentColor" />
-                          <circle cx="18" cy="11" r="3" fill="white" opacity=".45" />
-                        }
-                        @case ('rod') {
-                          <rect x="17" y="2" width="10" height="26" rx="5" fill="currentColor" />
-                        }
-                      }
-                    </svg>
-                    <span>{{ primitive.label }}</span>
-                  </button>
-                }
-              </div>
-            </fieldset>
-            <label class="mt-3 block">
-              <span class="editor-field-label">Farbe</span>
-              <span class="editor-color-field">
-                <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="graphic.color ?? '#5b8d53'"></span>
-                <code class="min-w-0 flex-1 text-[9px] text-stone-500">{{ graphic.color ?? '#5b8d53' }}</code>
-                <input class="sr-only"
-                  type="color"
-                  [ngModel]="graphic.color ?? '#5b8d53'"
-                  (ngModelChange)="updateGraphicColor($event)">
-              </span>
-            </label>
-            <div class="mt-2 grid grid-cols-2 gap-2">
-              <app-numeric-field label="Breite" unit="px" [value]="graphic.width" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('width', $event)" />
-              <app-numeric-field label="Höhe" unit="px" [value]="graphic.height" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('height', $event)" />
-              <app-numeric-field label="Tiefe" unit="px" [value]="graphic.depth ?? 6" [minimum]="0.5" [maximum]="500" [step]="0.5" (valueChange)="updateGraphic('depth', $event)" />
-              <app-numeric-field label="Skalierung" [value]="graphic.scale ?? 1" [minimum]="0.01" [maximum]="20" [step]="0.05" (valueChange)="updateGraphic('scale', $event)" />
-            </div>
-            <div class="mt-3 border-t border-stone-100 pt-3">
-              <div class="editor-section-title">Grafikoffset</div>
-              <div class="grid grid-cols-3 gap-2">
-                <app-numeric-field label="X" unit="px" [value]="graphic.offset?.x ?? 0" (valueChange)="updateGraphicOffset('x', $event)" />
-                <app-numeric-field label="Y" unit="px" [value]="graphic.offset?.y ?? 0" (valueChange)="updateGraphicOffset('y', $event)" />
-                <app-numeric-field label="Z" unit="px" [value]="graphic.offset?.z ?? 0" (valueChange)="updateGraphicOffset('z', $event)" />
-              </div>
-            </div>
-            @if (isPaintableGraphic(graphic)) {
-              <div class="mt-3 space-y-2 border-t border-stone-100 pt-3">
-                <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
-                  [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendMain', $event)" />
-                <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
-                  [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendCross', $event)" />
-              </div>
-            }
-            <div class="mt-3 space-y-3 border-t border-stone-100 pt-3">
-              <label class="block">
-                <span class="editor-field-label">Ausrichtung</span>
-                <select
-                  class="editor-select w-full"
-                  [ngModel]="graphic.orientation ?? 'connection'"
-                  (ngModelChange)="updateGraphicOrientation($event)"
-                >
-                  <option value="connection">Nur entlang der Verbindung</option>
-                  <option value="toward-parent">Zur Mitte / Elternachse</option>
-                </select>
-              </label>
-              <app-numeric-slider label="Konstante Grunddrehung" unit="°" [value]="graphicRotationBase(graphic)"
-                [minimum]="-180" [maximum]="180" (valueChange)="updateGraphicRotationBase($event)" />
-              <app-numeric-slider label="Zufällige Streuung" unit="°" [value]="graphicRotationSpread(graphic)"
-                [minimum]="0" [maximum]="180" (valueChange)="updateGraphicRotationSpread($event)" />
-            </div>
-          }
-          }
-        </section>
-        }
-      </div>
+      <app-flower-editor-inspector
+        [definition]="draft()"
+        [positions]="graphPositions()"
+        [selectedNodeId]="selectedNodeId()"
+        (definitionChange)="draft.set($event)"
+        (positionsChange)="graphPositions.set($event)"
+        (nodeSelection)="selectNode($event)"
+        (message)="showInspectorMessage($event)"
+      />
     </aside>
   </div>
 </section>

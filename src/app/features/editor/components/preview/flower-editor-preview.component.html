@@ -1,0 +1,28 @@
+<section class="relative mb-3 h-[520px] shrink-0 overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2] lg:col-start-3 lg:row-start-1 lg:m-3 lg:h-auto lg:min-h-0">
+  <span class="pointer-events-none absolute left-3 top-3 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">Vorschau</span>
+  <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute right-3 top-3 z-20 bg-white/90!">
+    <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Ansicht zentrieren" aria-label="Ansicht zentrieren" (click)="resetView()">
+      <mat-icon>center_focus_strong</mat-icon>
+    </button>
+    <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Neue Vorschau generieren" aria-label="Neue Vorschau generieren" (click)="regenerate()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+  <app-bouquet-canvas
+    class="block h-full"
+    [state]="state()"
+    [definitions]="definitions()"
+    [zoom]="zoom()"
+    [zoomEnabled]="true"
+    [fitToContent]="true"
+    [orbitEnabled]="true"
+    [orbitPitch]="pitch()"
+    viewMode="rotate"
+    [viewOffset]="viewOffset()"
+    (zoomChange)="zoom.set($event)"
+    (orbitDrag)="orbit($event)"
+    (viewPan)="pan($event)"
+    [highlightedNodeId]="highlightedNodeId()"
+    [highlightedConnection]="highlightedConnection()"
+  />
+</section>

@@ -1,0 +1,212 @@
+<svg
+  #graphCanvas
+  class="h-full min-h-[620px] w-full touch-none select-none"
+  [attr.viewBox]="graphViewBox()"
+  role="application"
+  aria-label="Interaktiver Knotengraph"
+  (pointermove)="graphPointerMove($event)"
+  (pointerup)="graphPointerUp($event)"
+  (pointercancel)="graphPointerUp($event)"
+  (pointerdown)="graphPointerDown($event)"
+  (wheel)="graphWheel($event)"
+>
+  <defs>
+    <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
+    </pattern>
+  </defs>
+  <rect x="-5000" y="-5000" width="11000" [attr.height]="graphLayout().height + 10000" fill="url(#graph-grid)" />
+  @for (node of graphLayout().nodes; track node.id) {
+    @if (node.loop) {
+      <rect
+        [attr.x]="node.x - node.width / 2"
+        [attr.y]="node.y - node.height / 2"
+        [attr.width]="node.width"
+        [attr.height]="node.height"
+        rx="24"
+        [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? '#fffbeb' : '#fffcf2'"
+        stroke="none"
+        class="pointer-events-none"
+      />
+      <rect
+        [attr.x]="node.x - node.width / 2"
+        [attr.y]="node.y - node.height / 2"
+        [attr.width]="node.width"
+        [attr.height]="node.height"
+        rx="24"
+        fill="#ffffff"
+        fill-opacity="0.001"
+        stroke="none"
+        class="cursor-grab active:cursor-grabbing"
+        pointer-events="all"
+        (pointerdown)="startNodeDrag($event, node.id)"
+        (pointerup)="finishConnection($event, node.id)"
+      />
+    }
+  }
+
+  @for (edge of graphLayout().edges; track edge.key) {
+    <path
+      [attr.d]="edge.path"
+      fill="none"
+      stroke="transparent"
+      stroke-width="28"
+      [class.cursor-pointer]="edge.selectable"
+      (pointerdown)="edge.selectable && selectConnection($event, edge.targetId)"
+    />
+    <path
+      [attr.d]="edge.path"
+      fill="none"
+      [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : edge.color"
+      [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 6 : selectedNodeId() === edge.targetId ? 5 : 4"
+      stroke-linecap="round"
+      class="pointer-events-none"
+    />
+    @if (edge.label) {
+      <g class="pointer-events-none" [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'">
+        <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" />
+        <text y="3" class="fill-stone-500 text-[10px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
+      </g>
+    }
+  }
+
+  @if (connectionDrag(); as pending) {
+    <path
+      [attr.d]="pendingConnectionPath()"
+      fill="none"
+      stroke="#047857"
+      stroke-width="5"
+      stroke-dasharray="7 6"
+      stroke-linecap="round"
+      class="pointer-events-none"
+    />
+  }
+
+  @for (node of graphLayout().nodes; track node.id) {
+    <g
+      class="cursor-grab outline-none active:cursor-grabbing"
+      [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+      tabindex="0"
+      role="button"
+      (pointerdown)="startNodeDrag($event, node.id)"
+      (pointerup)="finishConnection($event, node.id)"
+      (keydown.enter)="selectNodeFromKeyboard($event, node.id)"
+    >
+      @if (node.loop) {
+        <rect
+          [attr.x]="-node.width / 2"
+          [attr.y]="-node.height / 2"
+          [attr.width]="node.width"
+          [attr.height]="node.height"
+          rx="24"
+          fill="none"
+          [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? '#d97706' : '#f59e0b'"
+          [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
+          class="pointer-events-none drop-shadow-sm"
+        />
+        <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
+        <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
+        @if (node.memberIds.length) {
+          <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
+          <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
+          @for (port of node.outputPorts; track $index) {
+            <g>
+              <circle
+                [attr.cx]="port.x - node.x"
+                [attr.cy]="port.y - node.y"
+                r="11"
+                fill="#064e3b"
+                stroke="#ffffff"
+                stroke-width="3"
+                class="cursor-crosshair"
+                (pointerdown)="startConnection($event, node.id, $index)"
+              />
+              <text
+                [attr.x]="port.x - node.x"
+                [attr.y]="port.y - node.y + 4"
+                class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
+              >{{ node.outputPortLabels[$index] }}</text>
+              <title>Ausgang {{ node.outputPortLabels[$index] }} · {{ node.outputPortNames[$index] }}</title>
+            </g>
+          }
+          <text x="0" [attr.y]="-node.height / 2 + 18" class="pointer-events-none fill-stone-500 text-[8px] font-bold [text-anchor:middle]">
+            {{ node.outputPorts.length === 1 ? 'AUSGANG' : 'AUSGÄNGE' }}
+          </text>
+        } @else {
+          <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
+          <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
+          <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)" />
+          <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
+        }
+      } @else {
+        <rect
+          [attr.x]="-node.width / 2" [attr.y]="-node.height / 2" [attr.width]="node.width" [attr.height]="node.height" rx="20"
+          [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? (node.component ? '#e0e7ff' : '#ecfdf5') : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
+          [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? (node.component ? '#4338ca' : '#047857') : node.component ? '#6366f1' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
+          [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
+          class="drop-shadow-sm"
+        />
+        <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+        <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
+        <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
+          {{ node.root ? 'BASIS' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
+        </text>
+        @for (port of node.outputPorts; track $index) {
+          <g>
+            <circle
+              [attr.cx]="port.x - node.x"
+              [attr.cy]="port.y - node.y"
+              [attr.r]="node.component ? 8 : 12"
+              fill="#064e3b"
+              stroke="#ffffff"
+              stroke-width="3"
+              class="cursor-crosshair"
+              (pointerdown)="startConnection($event, node.id, $index)"
+            />
+            @if (node.outputPortLabels[$index]) {
+              <text
+                [attr.x]="port.x - node.x"
+                [attr.y]="port.y - node.y + 4"
+                class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]"
+              >{{ node.outputPortLabels[$index] }}</text>
+            }
+          </g>
+        }
+      }
+    </g>
+  }
+</svg>
+
+@if (validationIssues().length) {
+  <div class="group absolute bottom-4 left-4 z-30">
+    <button
+      class="inline-flex h-[34px] min-w-[38px] cursor-help items-center justify-center gap-1 rounded-full border border-amber-500 bg-amber-50 px-[9px] text-[10px] font-extrabold text-amber-700 shadow-[0_2px_8px_rgb(0_0_0/10%)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current [&_mat-icon]:size-[18px] [&_mat-icon]:text-[18px]"
+      [class.border-rose-400]="validationErrorCount() > 0"
+      [class.bg-rose-50]="validationErrorCount() > 0"
+      [class.text-rose-700]="validationErrorCount() > 0"
+      type="button"
+      aria-describedby="editor-validation-details"
+      [attr.aria-label]="validationIssues().length + ' Probleme in der Definition'"
+    >
+      <mat-icon>{{ validationErrorCount() ? 'error' : 'warning_amber' }}</mat-icon>
+      <span>{{ validationIssues().length }}</span>
+    </button>
+    <div id="editor-validation-details" class="invisible pointer-events-none absolute bottom-[calc(100%+8px)] left-0 max-h-[min(360px,calc(100dvh-120px))] w-[min(360px,calc(100vw-32px))] translate-y-1 overflow-y-auto rounded-xl border border-stone-200 bg-white/95 p-2.5 opacity-0 shadow-[0_12px_30px_rgb(0_0_0/16%)] transition-[opacity,transform,visibility] group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100" role="tooltip">
+      <div class="mb-[7px] text-[10px] font-extrabold uppercase tracking-[.04em] text-stone-700">
+        {{ validationIssues().length }} {{ validationIssues().length === 1 ? 'Problem' : 'Probleme' }}
+      </div>
+      <ul class="m-0 grid list-none gap-[5px] p-0">
+        @for (issue of validationIssues(); track $index) {
+          <li
+            class="grid grid-cols-[18px_minmax(0,1fr)] items-start gap-[7px] rounded-lg bg-amber-50 px-2 py-[7px] text-[10px] leading-[1.4] text-amber-800 [&_mat-icon]:mt-px [&_mat-icon]:size-4 [&_mat-icon]:text-base"
+            [class.bg-rose-50]="issue.severity === 'error'"
+            [class.text-rose-800]="issue.severity === 'error'"
+          >
+            <mat-icon>{{ issue.severity === 'error' ? 'error' : 'warning_amber' }}</mat-icon>
+            <span>{{ issue.message }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+}

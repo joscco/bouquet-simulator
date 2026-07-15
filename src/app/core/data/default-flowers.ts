@@ -27,7 +27,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "stem",
-        "name": "Gewachsener Stängel",
+        "name": "Blatt-Hub",
         "draggable": false,
         "graphic": null,
         "connections": [
@@ -44,8 +44,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 50,
-            "max": 70
+            "min": 0,
+            "max": 0
           },
           "angle": {
             "min": 0,
@@ -58,7 +58,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "randomness": 0.25,
           "stem": {
             "color": "#477348",
-            "width": 5.5,
+            "width": 4,
             "bend": 0,
             "curve": 47
           }
@@ -66,12 +66,12 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "leaf",
-        "name": "Blattgrafik",
+        "name": "Blatt",
         "draggable": false,
         "graphic": {
           "primitive": "leaf-pointed",
           "color": "#477b49",
-          "width": 50,
+          "width": 30,
           "height": 44,
           "depth": 3,
           "start": {
@@ -86,8 +86,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 85,
             "max": 95
           },
-          "bendMain": -42,
-          "bendCross": 6,
+          "bendMain": -60,
+          "bendCross": 41,
           "orientation": "toward-parent",
           "rotationBase": 90,
           "rotationSpread": 5
@@ -113,7 +113,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "randomness": 0.27,
           "stem": {
             "color": "#477348",
-            "width": 6,
+            "width": 4,
             "bend": 0,
             "curve": 14
           }
@@ -130,8 +130,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 36,
-            "max": 45
+            "min": 0,
+            "max": 21
           },
           "angle": {
             "min": 0,
@@ -143,7 +143,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#477348",
-            "width": 6,
+            "width": 4,
             "bend": 0,
             "curve": 14
           }
@@ -158,7 +158,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "loop-1",
-        "name": "Wiederholung 1",
+        "name": "Stängel",
         "draggable": false,
         "graphic": null,
         "incoming": {
@@ -196,9 +196,10 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 2,
             "max": 2
           },
-          "startNodeId": "stem",
-          "endNodeId": "leaf",
+          "startNodeId": "loop-2",
+          "endNodeId": "node-6",
           "memberNodeIds": [
+            "loop-2",
             "stem",
             "leaf",
             "node-6"
@@ -233,45 +234,211 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "randomness": 0.25,
           "stem": {
             "color": "#477348",
+            "width": 4,
+            "bend": 0,
+            "curve": 14
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-7",
+        "name": "Dorn-Hub",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 10,
+            "max": 15
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0.25,
+          "stem": {
+            "color": "#477348",
+            "width": 4,
+            "bend": 0,
+            "curve": 14
+          }
+        },
+        "connections": [
+          {
+            "childId": "node-7-copy"
+          },
+          {
+            "childId": "node-9"
+          }
+        ]
+      },
+      {
+        "id": "node-7-copy",
+        "name": "Dorn",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 10,
+            "max": 12
+          },
+          "angle": {
+            "min": 40,
+            "max": 43
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 1,
+          "stem": {
+            "color": "#477348",
+            "width": 3,
+            "bend": 0,
+            "curve": 0
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-9",
+        "name": "Out",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0.25,
+          "stem": {
+            "color": "#477348",
             "width": 4.5,
             "bend": 0,
             "curve": 14
           }
         },
         "connections": []
+      },
+      {
+        "id": "loop-2",
+        "name": "Dornen",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 50,
+            "max": 70
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0.25
+        },
+        "connections": [
+          {
+            "childId": "stem"
+          }
+        ],
+        "loop": {
+          "repeat": {
+            "min": 3,
+            "max": 3
+          },
+          "startNodeId": "node-7",
+          "endNodeId": "node-7-copy",
+          "memberNodeIds": [
+            "node-7",
+            "node-7-copy",
+            "node-9"
+          ],
+          "continuationOutputNodeIds": [
+            "node-9"
+          ]
+        }
       }
     ],
     "editor": {
       "nodePositions": {
-        "loop-1": {
-          "x": 541.5401642628203,
-          "y": 579.0392127403845
-        },
         "base": {
-          "x": 546.6838441506411,
-          "y": 892.4441606570513
+          "x": 500,
+          "y": 1073
         },
-        "stem": {
-          "x": 541.5401642628203,
-          "y": 652.0392127403845
+        "loop-1": {
+          "x": 500,
+          "y": 591
         },
         "pfingstrosenbluete": {
-          "x": 551.1690705128206,
-          "y": 245.94571314102552
-        },
-        "leaf": {
-          "x": 415.5401642628203,
-          "y": 506.0392127403845
+          "x": 500,
+          "y": 104
         },
         "node-6": {
-          "x": 667.5401642628203,
-          "y": 506.0392127403845
+          "x": 626,
+          "y": 325
+        },
+        "leaf": {
+          "x": 374,
+          "y": 325
+        },
+        "stem": {
+          "x": 500,
+          "y": 457
+        },
+        "loop-2": {
+          "x": 500,
+          "y": 723
+        },
+        "node-9": {
+          "x": 626,
+          "y": 657
+        },
+        "node-7-copy": {
+          "x": 374,
+          "y": 657
+        },
+        "node-7": {
+          "x": 500,
+          "y": 789
         }
       }
     },
     "catalogRole": "flower",
     "availableInBouquet": true,
-    "availableAsComponent": true
+    "availableAsComponent": true,
+    "outputNodeIds": []
   },
   {
     "schemaVersion": 2,
@@ -353,8 +520,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "connections": [],
         "incoming": {
           "repeat": {
-            "min": 6,
-            "max": 17
+            "min": 8,
+            "max": 10
           },
           "length": {
             "min": 0,
@@ -403,7 +570,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "incoming": {
           "repeat": {
             "min": 6,
-            "max": 13
+            "max": 8
           },
           "length": {
             "min": 0,
@@ -451,8 +618,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "connections": [],
         "incoming": {
           "repeat": {
-            "min": 6,
-            "max": 9
+            "min": 5,
+            "max": 7
           },
           "length": {
             "min": 0,
@@ -1756,5 +1923,209 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     },
     "availableInBouquet": false,
     "availableAsComponent": true
+  },
+  {
+    "schemaVersion": 2,
+    "id": "neue-blume-2",
+    "name": "Lilienblüte",
+    "catalogRole": "flower",
+    "availableInBouquet": true,
+    "availableAsComponent": true,
+    "rootNodeId": "base",
+    "stem": {
+      "color": "#426f50",
+      "highlightColor": "#82a878",
+      "width": 8,
+      "taper": 0.72,
+      "bend": 0,
+      "curve": 14
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "node-2-copy-copy"
+          },
+          {
+            "childId": "node-4"
+          }
+        ]
+      },
+      {
+        "id": "node-2",
+        "name": "Blütenblatt",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#fbd513",
+          "width": 50,
+          "height": 80,
+          "depth": 1,
+          "scale": 1,
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 27,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 27,
+            "max": 27
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          },
+          "bendMain": 79,
+          "bendCross": -40
+        },
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 98,
+            "max": 104
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0,
+          "stem": {
+            "color": "#426f50",
+            "width": 8,
+            "bend": 0,
+            "curve": 0
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-2-copy-copy",
+        "name": "Fadenknoten",
+        "draggable": false,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#8d535f",
+          "width": 3,
+          "height": 3,
+          "depth": 3,
+          "scale": 1,
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 9,
+            "max": 11
+          },
+          "length": {
+            "min": 50,
+            "max": 70
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0.25,
+          "stem": {
+            "color": "#dd8455",
+            "width": 1,
+            "bend": 0,
+            "curve": 14
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-4",
+        "name": "Knoten 4",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 5,
+            "max": 5
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 120,
+            "max": 121
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0
+        },
+        "connections": [
+          {
+            "childId": "node-2"
+          }
+        ]
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 460.98262169967006,
+          "y": 433.48798473597355
+        },
+        "node-2": {
+          "x": 374,
+          "y": 99
+        },
+        "node-2-copy-copy": {
+          "x": 626,
+          "y": 99
+        },
+        "node-4": {
+          "x": 227.2203485973597,
+          "y": 267.9173576732673
+        }
+      }
+    },
+    "outputNodeIds": []
   }
 ];

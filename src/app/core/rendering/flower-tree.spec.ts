@@ -109,6 +109,51 @@ describe('procedural flower tree generator', () => {
     expect(bloom?.parentId).toBe(stems[1]!.id);
   });
 
+  it('executes a nested loop as one member of an outer loop', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'nested-member-loop',
+      name: 'Nested member loop',
+      rootNodeId: 'root',
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
+        node('root', [connection('outer-loop')]),
+        {
+          ...node('outer-loop', []),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'inner-loop',
+            endNodeId: 'outer-stem',
+            memberNodeIds: ['inner-loop', 'outer-stem'],
+            continuationOutputNodeIds: ['outer-stem'],
+          },
+        },
+        {
+          ...node('inner-loop', [connection('outer-stem')]),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'inner-stem',
+            endNodeId: 'inner-stem',
+            memberNodeIds: ['inner-stem'],
+            continuationOutputNodeIds: ['inner-stem'],
+          },
+        },
+        node('inner-stem', []),
+        node('outer-stem', []),
+      ],
+    };
+
+    const tree = generateFlowerTree(definition, 0.2);
+    const innerStems = tree.nodes.filter((treeNode) => treeNode.templateId === 'inner-stem');
+    const outerStems = tree.nodes.filter((treeNode) => treeNode.templateId === 'outer-stem');
+
+    expect(innerStems).toHaveLength(4);
+    expect(outerStems).toHaveLength(2);
+    expect(outerStems[0]!.parentId).toBe(innerStems[1]!.id);
+    expect(innerStems[2]!.parentId).toBe(outerStems[0]!.id);
+    expect(outerStems[1]!.parentId).toBe(innerStems[3]!.id);
+  });
+
   it('applies a node offset before positioning its descendants', () => {
     const definition = branchDefinition();
     const baseTree = generateFlowerTree(definition, 0.31);

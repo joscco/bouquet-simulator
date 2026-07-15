@@ -1,48 +1,35 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   ViewChild,
   computed,
   inject,
+  isDevMode,
   signal,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {MatIconModule} from '@angular/material/icon';
-import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
+import {MatSnackBarModule} from '@angular/material/snack-bar';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {
-  BouquetState,
   FlowerDefinition,
-  FlowerNodeComponent,
-  FlowerNodeConnection,
   FlowerNodeDefinition,
-  FlowerNodeGraphic,
-  FlowerNodeIncomingConnection,
-  GraphicPrimitive,
-  NumberRange,
 } from '../../core/models/flower.models';
 import {
   DEFAULT_INCOMING_CONNECTION,
-  connectionFromIncoming,
   incomingConnectionReference,
   migrateIncomingConnections,
   nodeIncomingOrDefault,
   normalizeConnectionReferences,
 } from '../../core/models/flower-connections';
-import {
-  BUILT_IN_GRAPHICS,
-  canonicalGraphicPrimitive,
-} from '../../core/rendering/graphic-geometries';
-import {graphicRotationSettings} from '../../core/rendering/graphic-orientation';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
-import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
-import {IntervalSliderComponent} from '../../shared/interval-slider/interval-slider.component';
 import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
 import {NumericFieldComponent} from '../../shared/numeric-field/numeric-field.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
+import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
+import {EditorNotifications} from './services/editor-notifications.service';
 import {
   FlowerSubtreeDefinition,
   createFlowerDefinitionComponent,
@@ -53,7 +40,6 @@ import {
   isFlowerSubtreeDefinition,
   resolveFlowerSubtreeSelection,
 } from '../../core/models/flower-subtree';
-import {materializeDefinitionComponents} from '../../core/models/flower-components';
 import {
   isAvailableAsComponent,
   isAvailableInBouquet,
@@ -63,22 +49,26 @@ import {
   Point,
   createCompactGraphPositions,
   createGraphLayout,
-  curvedConnectionPath,
   materializePositions,
-} from './flower-editor-graph';
+} from './graph/flower-editor-graph';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
+import {loopOutputNodeIds} from './domain/flower-editor-loops';
 import {
-  absorbConnectedSubtreeIntoLoop,
-  loopOutputNodeIds,
-} from './flower-editor-loops';
-
-interface FlowerComponentCatalogEntry {
-  key: string;
-  source: 'definition' | 'saved';
-  availableInBouquet: boolean;
-  availableAsComponent: boolean;
-  tree: FlowerSubtreeDefinition;
-}
+  FlowerEditorTreeComponent,
+  FlowerEditorTreeMessage,
+} from './components/tree/flower-editor-tree.component';
+import {FlowerEditorPreviewComponent} from './components/preview/flower-editor-preview.component';
+import {FlowerEditorInspectorComponent} from './components/inspector/flower-editor-inspector.component';
+import {
+  FlowerComponentCatalogEntry,
+  catalogEntryType,
+  definitionFromComponent,
+  definitionWithEditorState,
+  nodeBounds,
+  normalizeSearch,
+  selectedExternalConnections,
+  slugify,
+} from './domain/flower-editor-definition';
 
 @Component({
   selector: 'app-flower-editor',
@@ -87,21 +77,25 @@ interface FlowerComponentCatalogEntry {
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
-    BouquetCanvasComponent,
-    IntervalSliderComponent,
     NumericSliderComponent,
     NumericFieldComponent,
     ViewSwitcherComponent,
+    FlowerEditorTreeComponent,
+    FlowerEditorPreviewComponent,
+    FlowerEditorInspectorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
-  styleUrl: './flower-editor.component.css',
+  host: {'class': 'block w-full max-w-[100vw] overflow-x-hidden'},
+  providers: [EditorNotifications],
 })
 export class FlowerEditorComponent {
-  readonly graphicPrimitives = BUILT_IN_GRAPHICS;
+  readonly catalogEntryType = catalogEntryType;
   readonly store = inject(BouquetStore);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly notifications = inject(EditorNotifications);
   private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
+  private readonly definitionStorage = inject(FlowerDefinitionStorage);
+  readonly isDevelopment = isDevMode();
   readonly draft = signal<FlowerDefinition>(
     migrateIncomingConnections(this.store.definitions()[0]),
   );
@@ -112,8 +106,6 @@ export class FlowerEditorComponent {
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
-  readonly lassoMode = signal(false);
-  readonly lassoPoints = signal<Point[]>([]);
   readonly savedTrees = this.subtreeLibrary.trees;
   readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() => [
     ...this.store.definitions().map((definition) => ({
@@ -145,104 +137,22 @@ export class FlowerEditorComponent {
     return this.componentCatalog().filter((entry) =>
       normalizeSearch(`${entry.tree.name} ${this.catalogEntryType(entry)} ${entry.source}`).includes(query));
   });
-  readonly graphZoom = signal(1);
-  readonly graphCenter = signal<Point>({x: 500, y: 500});
-  readonly previewZoom = signal(1);
-  readonly previewViewOffset = signal<Point>({x: 0, y: 0});
-  readonly previewSeed = signal(0.42);
-  readonly previewRotation = signal(0);
-  readonly previewPitch = signal(0);
   readonly graphPositions = signal<Record<string, Point>>(
     structuredClone(this.draft().editor?.nodePositions ?? {}),
   );
-  readonly connectionDrag = signal<{
-    sourceId: string;
-    start: Point;
-    end: Point;
-    loopStartId?: string;
-  } | null>(null);
-
   readonly subtreeSelection = computed(() =>
     resolveFlowerSubtreeSelection(this.draft(), this.subtreeAnchorIds()));
   readonly subtreeNodeIds = computed(() => this.subtreeSelection()?.nodeIds ?? new Set<string>());
-  readonly selectedNode = computed(() =>
-    this.draft().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.draft(), this.selectedNodeId()));
-  readonly incomingSettings = computed(() => {
-    const node = this.selectedNode();
-    return node ? nodeIncomingOrDefault(node) : structuredClone(DEFAULT_INCOMING_CONNECTION);
-  });
-  readonly validationIssues = computed(() => validateFlowerDefinition(this.draft()));
   readonly graphLayout = computed(() => createGraphLayout(this.draft(), this.graphPositions()));
-  readonly graphViewBox = computed(() => {
-    const width = 1000 / this.graphZoom();
-    const height = 1000 / this.graphZoom();
-    const center = this.graphCenter();
-    return `${center.x - width / 2} ${center.y - height / 2} ${width} ${height}`;
-  });
-  readonly pendingConnectionPath = computed(() => {
-    const pending = this.connectionDrag();
-    return pending ? curvedConnectionPath(pending.start, pending.end) : '';
-  });
-  readonly lassoPath = computed(() => {
-    const points = this.lassoPoints();
-    if (!points.length) return '';
-    return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
-  });
-  readonly previewDefinitions = computed(() => materializeDefinitionComponents([
-    this.draft(),
-    ...this.store.definitions().filter((definition) => definition.id !== this.draft().id),
-  ]));
-  readonly previewFlowers = computed<BouquetState['flowers']>(() => [{
-      instanceId: 'editor-preview',
-      definitionId: this.draft().id,
-      x: 0,
-      y: 0,
-      z: 0,
-      scale: 1,
-      seed: this.previewSeed(),
-      nodeOffsets: {},
-  }]);
-  readonly previewState = computed<BouquetState>(() => ({
-    schemaVersion: 2,
-    rotation: this.previewRotation(),
-    flowers: this.previewFlowers(),
-  }));
 
-  @ViewChild('graphCanvas', {static: false}) private graphCanvas?: ElementRef<SVGSVGElement>;
-  private nodeDrag: {pointerId: number; nodeId: string; offset: Point} | null = null;
-  private readonly graphTouches = new Map<number, Point>();
-  private graphPinchDistance: number | null = null;
-  private graphPan: {
-    pointerId: number;
-    client: Point;
-    center: Point;
-  } | null = null;
-  private lassoDrag: {pointerId: number} | null = null;
-
+  @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
   constructor() {
     this.graphPositions.set(materializePositions(this.draft()));
   }
 
-  updateRoot(key: 'id' | 'name', value: string): void {
-    this.draft.update((draft) => ({...draft, [key]: value}));
-  }
 
-  updateCatalogCapability(key: 'availableInBouquet' | 'availableAsComponent', enabled: boolean): void {
-    this.draft.update((draft) => ({
-      ...draft,
-      [key]: enabled,
-    }));
-  }
-
-  catalogEntryType(entry: FlowerComponentCatalogEntry): string {
-    if (entry.source === 'saved') return 'Extrahierte Komponente';
-    if (entry.availableInBouquet && entry.availableAsComponent) return 'Blume + Komponente';
-    if (entry.availableInBouquet) return 'Blume';
-    if (entry.availableAsComponent) return 'Komponente';
-    return 'Nur im Katalog';
-  }
 
   updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
     this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
@@ -281,92 +191,51 @@ export class FlowerEditorComponent {
     this.notify('Blumentyp dupliziert.');
   }
 
-  selectNode(id: string): void {
+  selectNode(id: string, additive = false): void {
+    if (additive) {
+      this.toggleSubtreeAnchor(id);
+      return;
+    }
     this.selectedNodeId.set(id);
     this.subtreeAnchorIds.set(new Set());
     this.subtreeActionsOpen.set(false);
-    this.lassoMode.set(false);
-    this.lassoPoints.set([]);
   }
+
 
   clearSubtreeSelection(): void {
     this.subtreeAnchorIds.set(new Set());
     this.subtreeActionsOpen.set(false);
-    this.lassoPoints.set([]);
   }
 
-  isSubtreeNodeSelected(id: string): boolean {
-    return this.subtreeNodeIds().has(id);
-  }
 
-  isSubtreeAnchor(id: string): boolean {
-    return this.subtreeAnchorIds().has(id);
-  }
-
-  isSubtreeEdge(sourceId: string, targetId: string): boolean {
-    const selected = this.subtreeNodeIds();
-    return selected.has(sourceId) && selected.has(targetId);
-  }
-
-  componentOutputCount(tree: FlowerNodeComponent): number {
-    const nodes = tree.nodes ?? [];
-    const ids = new Set(nodes.map((node) => node.id));
-    if (tree.outputNodeIds !== undefined) {
-      return tree.outputNodeIds.filter((id) => ids.has(id)).length;
-    }
-    const parents = new Set(nodes.flatMap((node) =>
-      node.connections
-        .filter((connection) => ids.has(connection.childId))
-        .map(() => node.id)));
-    return nodes.filter((node) => !parents.has(node.id)).length;
-  }
 
   toggleSubtreeAnchor(id: string): void {
-    this.selectedNodeId.set(id);
-    const wasEmpty = this.subtreeAnchorIds().size === 0;
-    this.subtreeAnchorIds.update((anchors) => {
-      const next = new Set(anchors);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    if (wasEmpty && !this.subtreeName().trim()) {
-      const selectedName = this.selectedNode()?.name ?? 'Komponente';
+    const previousId = this.selectedNodeId();
+    const anchors = new Set(this.subtreeAnchorIds());
+    const wasEmpty = anchors.size === 0;
+    if (wasEmpty && previousId !== id && this.draft().nodes.some((node) => node.id === previousId)) {
+      anchors.add(previousId);
+    }
+    if (anchors.has(id)) anchors.delete(id);
+    else anchors.add(id);
+    this.subtreeAnchorIds.set(anchors);
+    this.selectedNodeId.set(anchors.has(id) ? id : [...anchors].pop() ?? id);
+    this.subtreeActionsOpen.set(false);
+    if (wasEmpty && anchors.size && !this.subtreeName().trim()) {
+      const selectedName = this.draft().nodes.find((node) => anchors.has(node.id))?.name ?? 'Komponente';
       this.subtreeName.set(`${selectedName} Komponente`);
     }
   }
 
-  toggleLassoMode(): void {
-    this.lassoMode.update((enabled) => !enabled);
-    this.addMenuOpen.set(false);
-    this.subtreeActionsOpen.set(false);
-    this.connectionDrag.set(null);
-    this.nodeDrag = null;
-    this.lassoPoints.set([]);
-  }
-
   toggleSubtreeActions(): void {
     if (!this.subtreeSelection()) {
-      this.notify('Markiere mit dem Lasso mindestens einen zusammenhängenden Knoten.');
+      this.notify('Wähle mit Shift-Klick mindestens einen zusammenhängenden Knoten aus.');
       return;
     }
     this.addMenuOpen.set(false);
     this.subtreeActionsOpen.update((open) => !open);
   }
 
-  private setLassoSelection(ids: Set<string>): void {
-    this.subtreeAnchorIds.set(ids);
-    this.subtreeActionsOpen.set(false);
-    if (ids.size && !this.subtreeName().trim()) {
-      const first = this.draft().nodes.find((node) => ids.has(node.id));
-      this.subtreeName.set(`${first?.name ?? 'Auswahl'} Komponente`);
-    }
-  }
-
-  selectConnection(event: PointerEvent, targetId: string): void {
-    event.stopPropagation();
-    this.selectNode(targetId);
-  }
 
   addNode(): void {
     this.addMenuOpen.set(false);
@@ -481,582 +350,22 @@ export class FlowerEditorComponent {
   autoLayout(): void {
     const positions = createCompactGraphPositions(this.draft());
     this.graphPositions.set(positions);
-    this.graphCenter.set(centerOfPositions(positions));
-    this.graphZoom.set(1);
+    this.graphTree?.resetView(positions);
     this.notify('Graph automatisch angeordnet.');
   }
 
-  regeneratePreview(): void {
-    this.previewSeed.set(Math.random());
+  showTreeMessage(message: FlowerEditorTreeMessage): void {
+    if (message.error) this.notifyError(message.text);
+    else this.notify(message.text);
   }
 
-  rotatePreview(delta: number): void {
-    this.previewRotation.update((rotation) => rotation + delta);
+  showInspectorMessage(message: string): void {
+    this.notify(message);
   }
 
-  orbitPreview(delta: {yaw: number; pitch: number}): void {
-    this.previewRotation.update((rotation) => rotation + delta.yaw);
-    this.previewPitch.update((pitch) =>
-      Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, pitch + delta.pitch)));
-  }
 
-  panPreview(delta: {dx: number; dy: number}): void {
-    this.previewViewOffset.update((offset) => ({
-      x: offset.x + delta.dx,
-      y: offset.y + delta.dy,
-    }));
-  }
 
-  resetPreviewView(): void {
-    this.previewViewOffset.set({x: 0, y: 0});
-    this.previewPitch.set(0);
-    this.previewRotation.set(0);
-    this.previewZoom.set(1);
-  }
 
-  graphPointerDown(event: PointerEvent): void {
-    if (event.button !== 0 && event.pointerType !== 'touch') return;
-    if (this.lassoMode()) {
-      this.startLasso(event);
-      return;
-    }
-    if (event.pointerType === 'touch') {
-      this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
-      if (this.graphTouches.size === 2) {
-        this.graphPan = null;
-        this.graphPinchDistance = this.touchDistance(this.graphTouches);
-        return;
-      }
-    }
-    this.graphPan = {
-      pointerId: event.pointerId,
-      client: {x: event.clientX, y: event.clientY},
-      center: this.graphCenter(),
-    };
-    (event.currentTarget as SVGSVGElement).setPointerCapture(event.pointerId);
-  }
-
-  graphWheel(event: WheelEvent): void {
-    event.preventDefault();
-    const currentZoom = this.graphZoom();
-    const currentCenter = this.graphCenter();
-    const point = this.graphClientPoint(event);
-    const currentSize = 1000 / currentZoom;
-    const relative = {
-      x: (point.x - (currentCenter.x - currentSize / 2)) / currentSize,
-      y: (point.y - (currentCenter.y - currentSize / 2)) / currentSize,
-    };
-    const nextZoom = clamp(currentZoom * Math.exp(-event.deltaY * 0.0015), 0.6, 1.8);
-    const nextSize = 1000 / nextZoom;
-    this.graphZoom.set(nextZoom);
-    this.graphCenter.set({
-      x: point.x - (relative.x - 0.5) * nextSize,
-      y: point.y - (relative.y - 0.5) * nextSize,
-    });
-  }
-
-  duplicateSelectedNode(): void {
-    const source = this.selectedNode();
-    if (!source) return;
-    const existing = new Set(this.draft().nodes.map((node) => node.id));
-    let suffix = 2;
-    let id = `${source.id}-copy`;
-    while (existing.has(id)) id = `${source.id}-copy-${suffix++}`;
-    const node: FlowerNodeDefinition = {
-      ...structuredClone(source),
-      id,
-      name: `${source.name} Kopie`,
-      connections: [],
-    };
-    const sourcePosition = this.graphPositions()[source.id] ?? {x: 500, y: 300};
-    this.graphPositions.update((positions) => ({
-      ...positions,
-      [id]: {
-        x: clamp(sourcePosition.x + 44, 90, 910),
-        y: clamp(sourcePosition.y - 54, 55, 625),
-      },
-    }));
-    this.draft.update((draft) => ({...draft, nodes: [...draft.nodes, node]}));
-    this.selectNode(id);
-  }
-
-  removeSelectedNode(): void {
-    const id = this.selectedNodeId();
-    if (id === this.draft().rootNodeId) {
-      this.notify('Der Basisknoten bleibt erhalten.');
-      return;
-    }
-    this.draft.update((draft) => ({
-      ...draft,
-      nodes: draft.nodes
-        .filter((node) => node.id !== id)
-        .map((node) => ({
-          ...node,
-          connections: node.connections.filter((connection) => connection.childId !== id),
-          loop: node.loop ? {
-            ...node.loop,
-            startNodeId: node.loop.startNodeId === id ? null : node.loop.startNodeId,
-            endNodeId: node.loop.endNodeId === id ? null : node.loop.endNodeId,
-          } : undefined,
-        })),
-    }));
-    this.graphPositions.update((positions) => {
-      const next = {...positions};
-      delete next[id];
-      return next;
-    });
-    this.selectNode(this.draft().rootNodeId);
-  }
-
-  updateNodeName(value: string): void {
-    this.updateSelectedNode((node) => ({...node, name: value}));
-  }
-
-  setHasGraphic(value: boolean): void {
-    const defaultGraphic: FlowerNodeGraphic = {
-      primitive: 'leaf-pointed',
-      color: '#5b8d53',
-      width: 50,
-      height: 50,
-      depth: 8,
-      scale: 1,
-      offset: {x: 0, y: 0, z: 0},
-      orientation: 'toward-parent',
-      rotationBase: 0,
-      rotationSpread: 0,
-      rotation: {min: 0, max: 0},
-      start: {x: 0.5, y: 0.9},
-      end: {x: 0.5, y: 0.1},
-    };
-    this.updateSelectedNode((node) => ({...node, graphic: value ? node.graphic ?? defaultGraphic : null}));
-  }
-
-  updateGraphic(key: 'width' | 'height' | 'depth' | 'scale', value: number): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
-      : node);
-  }
-
-  updateGraphicOffset(key: 'x' | 'y' | 'z', value: number): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {
-          ...node,
-          graphic: {
-            ...node.graphic,
-            offset: {...(node.graphic.offset ?? {x: 0, y: 0, z: 0}), [key]: Number(value)},
-          },
-        }
-      : node);
-  }
-
-  updateGraphicPrimitive(primitive: GraphicPrimitive): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, primitive}}
-      : node);
-  }
-
-  updateGraphicColor(color: string): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, color}}
-      : node);
-  }
-
-  graphicPrimitive(graphic: FlowerNodeGraphic): GraphicPrimitive {
-    return canonicalGraphicPrimitive(graphic.primitive ?? 'leaf-pointed');
-  }
-
-  isPaintableGraphic(graphic: FlowerNodeGraphic): boolean {
-    return this.graphicPrimitives.find((entry) =>
-      entry.value === this.graphicPrimitive(graphic))?.organic ?? false;
-  }
-
-  updateGraphicBend(key: 'bendMain' | 'bendCross', value: number): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
-      : node);
-  }
-
-  graphicRotationBase(graphic: FlowerNodeGraphic): number {
-    return Math.round(graphicRotationSettings(graphic).base);
-  }
-
-  graphicRotationSpread(graphic: FlowerNodeGraphic): number {
-    return Math.round(graphicRotationSettings(graphic).spread);
-  }
-
-  updateGraphicRotationBase(base: number): void {
-    this.updateGraphicRotationSettings(Number(base), this.graphicRotationSpread(this.selectedNode()!.graphic!));
-  }
-
-  updateGraphicRotationSpread(spread: number): void {
-    this.updateGraphicRotationSettings(
-      this.graphicRotationBase(this.selectedNode()!.graphic!),
-      Math.max(0, Math.min(180, Number(spread))),
-    );
-  }
-
-  updateGraphicOrientation(orientation: NonNullable<FlowerNodeGraphic['orientation']>): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, orientation}}
-      : node);
-  }
-
-  private updateGraphicRotationSettings(base: number, spread: number): void {
-    const normalizedBase = Math.max(-180, Math.min(180, base));
-    this.updateSelectedNode((node) => node.graphic
-      ? {
-          ...node,
-          graphic: {
-            ...node.graphic,
-            rotationBase: normalizedBase,
-            rotationSpread: spread,
-            rotation: {
-              min: normalizedBase - spread,
-              max: normalizedBase + spread,
-            },
-          },
-        }
-      : node);
-  }
-
-  updateIncomingRange(
-    group: 'repeat' | 'length' | 'angle' | 'azimuth',
-    value: NumberRange,
-  ): void {
-    this.updateIncoming((incoming) => ({
-      ...incoming,
-      [group]: value,
-    }));
-  }
-
-  incomingRandomness(incoming: FlowerNodeIncomingConnection): number {
-    return Math.round((incoming.randomness ?? 0.35) * 100);
-  }
-
-  updateIncomingRandomness(percentage: number): void {
-    this.updateIncoming((incoming) => ({
-      ...incoming,
-      randomness: Math.max(0, Math.min(1, Number(percentage) / 100)),
-    }));
-  }
-
-  updateLoopRepeat(repeat: NumberRange): void {
-    this.updateSelectedNode((node) => node.loop
-      ? {...node, loop: {...node.loop, repeat}}
-      : node);
-  }
-
-  loopOutputOptions(node: FlowerNodeDefinition): string[] {
-    return node.loop?.memberNodeIds ? loopOutputNodeIds(this.draft(), node.loop.memberNodeIds) : [];
-  }
-
-  loopOutputEnabled(node: FlowerNodeDefinition, outputId: string): boolean {
-    const options = this.loopOutputOptions(node);
-    const enabled = node.loop?.continuationOutputNodeIds;
-    return enabled?.length ? enabled.includes(outputId) : options.includes(outputId);
-  }
-
-  nodeName(nodeId: string): string {
-    return this.draft().nodes.find((node) => node.id === nodeId)?.name ?? nodeId;
-  }
-
-  toggleLoopOutput(outputId: string, enabled: boolean): void {
-    this.updateSelectedNode((node) => {
-      if (!node.loop?.memberNodeIds) return node;
-      const options = loopOutputNodeIds(this.draft(), node.loop.memberNodeIds);
-      const current = new Set(node.loop.continuationOutputNodeIds?.length
-        ? node.loop.continuationOutputNodeIds
-        : options);
-      if (enabled) current.add(outputId);
-      else current.delete(outputId);
-      return {...node, loop: {...node.loop, continuationOutputNodeIds: [...current].filter((id) => options.includes(id))}};
-    });
-  }
-
-  componentOutputOptions(): string[] {
-    return definitionOutputNodeIds(this.draft().nodes);
-  }
-
-  componentOutputEnabled(outputId: string): boolean {
-    const outputNodeIds = this.draft().outputNodeIds;
-    return outputNodeIds !== undefined
-      ? outputNodeIds.includes(outputId)
-      : this.componentOutputOptions().includes(outputId);
-  }
-
-  toggleComponentOutput(outputId: string, enabled: boolean): void {
-    const options = this.componentOutputOptions();
-    this.draft.update((draft) => {
-      const current = new Set(draft.outputNodeIds !== undefined ? draft.outputNodeIds : options);
-      if (enabled) current.add(outputId);
-      else current.delete(outputId);
-      return {
-        ...draft,
-        outputNodeIds: [...current].filter((id) => options.includes(id)),
-      };
-    });
-  }
-
-  incomingStemColor(incoming: FlowerNodeIncomingConnection): string {
-    return incoming.stem?.color ?? this.draft().stem.color;
-  }
-
-  incomingStemWidth(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.width ?? this.draft().stem.width;
-  }
-
-  incomingStemBend(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.bend ?? this.draft().stem.bend ?? 0;
-  }
-
-  incomingStemCurve(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.curve ?? this.draft().stem.curve ?? 14;
-  }
-
-  updateIncomingStem(key: 'color' | 'width' | 'bend' | 'curve', value: string | number): void {
-    this.updateIncoming((incoming) => ({
-      ...incoming,
-      stem: {
-        color: key === 'color' ? String(value) : this.incomingStemColor(incoming),
-        width: key === 'width' ? Number(value) : this.incomingStemWidth(incoming),
-        bend: key === 'bend' ? Number(value) : this.incomingStemBend(incoming),
-        curve: key === 'curve' ? Number(value) : this.incomingStemCurve(incoming),
-      },
-    }));
-  }
-
-  removeIncomingConnection(): void {
-    const incoming = this.selectedIncoming();
-    if (!incoming) return;
-    this.updateConnectionForSource(incoming.sourceId, (connections) =>
-      connections.filter((_, index) => index !== incoming.index));
-  }
-
-  startNodeDrag(event: PointerEvent, nodeId: string): void {
-    if (event.button !== 0) return;
-    if (this.lassoMode()) {
-      this.startLasso(event);
-      return;
-    }
-    event.stopPropagation();
-    const point = this.graphPoint(event);
-    const node = this.graphLayout().nodes.find((candidate) => candidate.id === nodeId);
-    if (!node) return;
-    this.selectNode(nodeId);
-    this.nodeDrag = {
-      pointerId: event.pointerId,
-      nodeId,
-      offset: {x: point.x - node.x, y: point.y - node.y},
-    };
-    (event.currentTarget as SVGGElement).setPointerCapture(event.pointerId);
-  }
-
-  startConnection(event: PointerEvent, sourceId: string, portIndex = 0): void {
-    if (this.lassoMode()) {
-      this.startLasso(event);
-      return;
-    }
-    event.stopPropagation();
-    const source = this.graphLayout().nodes.find((node) => node.id === sourceId);
-    if (!source) return;
-    this.selectNode(sourceId);
-    const start = source.outputPorts[portIndex]
-      ?? source.outputPorts[0]
-      ?? {x: source.x, y: source.y - source.height / 2};
-    this.connectionDrag.set({sourceId, start, end: start});
-  }
-
-  startLoopPath(event: PointerEvent, loopId: string): void {
-    if (this.lassoMode()) {
-      this.startLasso(event);
-      return;
-    }
-    event.stopPropagation();
-    const source = this.graphLayout().nodes.find((node) => node.id === loopId);
-    if (!source) return;
-    this.selectNode(loopId);
-    const start = {x: source.x, y: source.y + source.height / 2};
-    this.connectionDrag.set({sourceId: loopId, start, end: start, loopStartId: loopId});
-  }
-
-  finishLoopEnd(event: PointerEvent, loopId: string): void {
-    const pending = this.connectionDrag();
-    if (!pending || pending.loopStartId || pending.sourceId === loopId) return;
-    event.stopPropagation();
-    this.connectionDrag.set(null);
-    this.draft.update((draft) => ({
-      ...draft,
-      nodes: draft.nodes.map((node) => node.id === loopId && node.loop
-        ? {...node, loop: {...node.loop, endNodeId: pending.sourceId}}
-        : node),
-    }));
-    this.selectNode(loopId);
-  }
-
-  graphPointerMove(event: PointerEvent): void {
-    if (this.lassoDrag?.pointerId === event.pointerId) {
-      const point = this.graphPoint(event);
-      this.lassoPoints.update((points) => [...points, point]);
-      return;
-    }
-    if (event.pointerType === 'touch' && this.graphTouches.has(event.pointerId)) {
-      this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
-      if (this.graphTouches.size === 2) {
-        const distance = this.touchDistance(this.graphTouches);
-        if (this.graphPinchDistance) {
-          this.setGraphZoom(this.graphZoom() * distance / this.graphPinchDistance);
-        }
-        this.graphPinchDistance = distance;
-        return;
-      }
-    }
-    if (this.graphPan?.pointerId === event.pointerId) {
-      const svg = this.graphCanvas?.nativeElement;
-      if (!svg) return;
-      const bounds = svg.getBoundingClientRect();
-      const viewSize = 1000 / this.graphZoom();
-      this.graphCenter.set({
-        x: this.graphPan.center.x - (event.clientX - this.graphPan.client.x) * viewSize / bounds.width,
-        y: this.graphPan.center.y - (event.clientY - this.graphPan.client.y) * viewSize / bounds.height,
-      });
-      return;
-    }
-    const point = this.graphPoint(event);
-    if (this.nodeDrag?.pointerId === event.pointerId) {
-      const dragged = this.graphLayout().nodes.find((node) => node.id === this.nodeDrag!.nodeId);
-      if (!dragged) return;
-      const target = {
-        x: clamp(
-          point.x - this.nodeDrag.offset.x,
-          dragged.width / 2 + 20,
-          980 - dragged.width / 2,
-        ),
-        y: clamp(
-          point.y - this.nodeDrag.offset.y,
-          dragged.height / 2 + 20,
-          980 - dragged.height / 2,
-        ),
-      };
-      if (dragged.loop) {
-        const delta = {x: target.x - dragged.x, y: target.y - dragged.y};
-        this.graphPositions.update((positions) => {
-          const next = {...positions};
-          for (const id of [dragged.id, ...dragged.memberIds]) {
-            const current = positions[id]
-              ?? this.graphLayout().nodes.find((node) => node.id === id)
-              ?? dragged;
-            next[id] = {x: current.x + delta.x, y: current.y + delta.y};
-          }
-          return next;
-        });
-      } else {
-        this.graphPositions.update((positions) => ({
-          ...positions,
-          [dragged.id]: target,
-        }));
-      }
-      return;
-    }
-    const connection = this.connectionDrag();
-    if (connection) this.connectionDrag.set({...connection, end: point});
-  }
-
-  graphPointerUp(event: PointerEvent): void {
-    if (this.lassoDrag?.pointerId === event.pointerId) {
-      this.finishLasso(event);
-      return;
-    }
-    this.graphTouches.delete(event.pointerId);
-    if (this.graphTouches.size < 2) this.graphPinchDistance = null;
-    if (this.graphPan?.pointerId === event.pointerId) this.graphPan = null;
-    if (this.nodeDrag?.pointerId === event.pointerId) this.nodeDrag = null;
-    if (this.connectionDrag()) this.connectionDrag.set(null);
-  }
-
-  private startLasso(event: PointerEvent): void {
-    if (event.button !== 0 && event.pointerType !== 'touch') return;
-    event.stopPropagation();
-    const point = this.graphPoint(event);
-    this.lassoDrag = {pointerId: event.pointerId};
-    this.connectionDrag.set(null);
-    this.nodeDrag = null;
-    this.graphPan = null;
-    this.lassoPoints.set([point]);
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
-  }
-
-  private finishLasso(event: PointerEvent): void {
-    const points = [...this.lassoPoints(), this.graphPoint(event)];
-    this.lassoDrag = null;
-    if (points.length < 2) {
-      this.lassoPoints.set([]);
-      return;
-    }
-    const selected = new Set(
-      this.graphLayout().nodes
-        .filter((node) => lassoIntersectsNode(points, node))
-        .map((node) => node.id),
-    );
-    this.setLassoSelection(selected);
-  }
-
-  finishConnection(event: PointerEvent, targetId: string): void {
-    const pending = this.connectionDrag();
-    if (!pending) return;
-    event.stopPropagation();
-    this.connectionDrag.set(null);
-    if (pending.sourceId === targetId) return;
-    if (pending.loopStartId) {
-      this.draft.update((draft) => ({
-        ...draft,
-        nodes: draft.nodes.map((node) => node.id === pending.loopStartId && node.loop
-          ? {...node, loop: {...node.loop, startNodeId: targetId}}
-          : node),
-      }));
-      this.selectNode(pending.loopStartId);
-      return;
-    }
-    if (this.wouldCreateCycle(pending.sourceId, targetId)) {
-      this.notify('Diese Verbindung würde einen Zyklus erzeugen.');
-      return;
-    }
-    if (
-      targetId === this.draft().rootNodeId
-      || incomingConnectionReference(this.draft(), targetId)
-    ) {
-      this.notify('Dieser Knoten hat bereits eine Eingangsverbindung.');
-      return;
-    }
-    const target = this.draft().nodes.find((node) => node.id === targetId);
-    if (!target) return;
-    const incoming = nodeIncomingOrDefault(target);
-    const connection = connectionFromIncoming(targetId);
-    let addedToLoop: string[] = [];
-    this.draft.update((draft) => {
-      const connected: FlowerDefinition = {
-        ...draft,
-        nodes: draft.nodes.map((node) => {
-          if (node.id === pending.sourceId) {
-            return {...node, connections: [...node.connections, connection]};
-          }
-          if (node.id === targetId) {
-            return {...node, incoming: structuredClone(incoming)};
-          }
-          return node;
-        }),
-      };
-      const membership = absorbConnectedSubtreeIntoLoop(connected, pending.sourceId, targetId);
-      addedToLoop = membership.addedNodeIds;
-      return membership.definition;
-    });
-    if (addedToLoop.length) {
-      const absorbed = new Set(addedToLoop);
-      this.graphPositions.update((positions) => Object.fromEntries(
-        Object.entries(positions).filter(([id]) => !absorbed.has(id)),
-      ));
-    }
-    this.selectNode(targetId);
-  }
 
   exportSelectedSubtree(): void {
     const selection = this.subtreeSelection();
@@ -1082,7 +391,7 @@ export class FlowerEditorComponent {
   extractSelectedSubtree(): void {
     const selection = this.subtreeSelection();
     if (!selection) {
-      this.notify('Markiere mit dem Lasso mindestens einen Knoten.');
+      this.notify('Wähle mit Shift-Klick mindestens einen Knoten aus.');
       return;
     }
     const name = this.subtreeName().trim()
@@ -1104,7 +413,7 @@ export class FlowerEditorComponent {
       this.selectNode(extracted.insertedNodeId);
       this.notify(`„${name}“ wurde als ein Komponentenknoten extrahiert.`);
     } catch (error: unknown) {
-      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht extrahiert werden.');
+      this.notifyError(error instanceof Error ? error.message : 'Komponente konnte nicht extrahiert werden.');
     }
   }
 
@@ -1123,7 +432,7 @@ export class FlowerEditorComponent {
       this.selectNode(inserted.insertedNodeId);
       this.notify(`„${tree.name}“ wurde als Komponentenknoten angehängt.`);
     } catch (error: unknown) {
-      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
+      this.notifyError(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
     }
   }
 
@@ -1131,7 +440,7 @@ export class FlowerEditorComponent {
     const parentId = this.selectedNodeId();
     const sourceDefinition = this.store.definitions().find((definition) => definition.id === definitionId);
     if (!sourceDefinition) {
-      this.notify('Die referenzierte Komponente existiert nicht mehr.');
+      this.notifyError('Die referenzierte Komponente existiert nicht mehr.');
       return;
     }
     try {
@@ -1147,7 +456,7 @@ export class FlowerEditorComponent {
       this.selectNode(inserted.insertedNodeId);
       this.notify(`„${sourceDefinition.name}“ wurde als Referenz angehängt.`);
     } catch (error: unknown) {
-      this.notify(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
+      this.notifyError(error instanceof Error ? error.message : 'Komponente konnte nicht eingefügt werden.');
     }
   }
 
@@ -1190,17 +499,42 @@ export class FlowerEditorComponent {
       const imported = this.subtreeLibrary.import(tree);
       this.notify(`„${imported.name}“ wurde zu den Komponenten hinzugefügt.`);
     } catch (error: unknown) {
-      this.notify(error instanceof Error ? error.message : 'Komponenten-Import fehlgeschlagen.');
+      this.notifyError(error instanceof Error ? error.message : 'Komponenten-Import fehlgeschlagen.');
     } finally {
       input.value = '';
     }
   }
 
-  async saveToCatalog(): Promise<void> {
+  saveToCatalog(): void {
     const definition = this.definitionWithEditorState();
     const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
     if (error) {
-      this.notify(`Speichern nicht möglich: ${error.message}`);
+      this.notifyError(`Speichern nicht möglich: ${error.message}`);
+      return;
+    }
+    const definitions = this.store.definitions().some((candidate) => candidate.id === definition.id)
+      ? this.store.definitions().map((candidate) => candidate.id === definition.id ? definition : candidate)
+      : [...this.store.definitions(), definition];
+    try {
+      this.definitionStorage.saveDefinitions(definitions);
+      this.draft.set(definition);
+      this.store.replaceDefinition(definition);
+      this.notify('Im Browser gespeichert.');
+    } catch (saveError: unknown) {
+      this.notifyError(
+        saveError instanceof Error
+          ? `Speichern fehlgeschlagen: ${saveError.message}`
+          : 'Speichern fehlgeschlagen.',
+      );
+    }
+  }
+
+  async saveToDefaults(): Promise<void> {
+    if (!this.isDevelopment) return;
+    const definition = this.definitionWithEditorState();
+    const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
+    if (error) {
+      this.notifyError(`Übernahme nicht möglich: ${error.message}`);
       return;
     }
     const definitions = this.store.definitions().some((candidate) => candidate.id === definition.id)
@@ -1210,12 +544,13 @@ export class FlowerEditorComponent {
       await this.writeDefinitionsToDefaults(definitions);
       this.draft.set(definition);
       this.store.replaceDefinition(definition);
-      this.notify('In src/app/core/data/default-flowers.ts gespeichert.');
+      this.definitionStorage.trySaveDefinitions(definitions);
+      this.notify('In src/app/core/data/default-flowers.ts übernommen.');
     } catch (saveError: unknown) {
-      this.notify(
+      this.notifyError(
         saveError instanceof Error
-          ? `Lokales Speichern fehlgeschlagen: ${saveError.message}`
-          : 'Lokales Speichern fehlgeschlagen.',
+          ? `Übernahme in Defaults fehlgeschlagen: ${saveError.message}`
+          : 'Übernahme in Defaults fehlgeschlagen.',
       );
     }
   }
@@ -1257,13 +592,13 @@ export class FlowerEditorComponent {
 
     const definitions = this.store.definitions().filter((candidate) => candidate.id !== definition.id);
     try {
-      await this.writeDefinitionsToDefaults(definitions);
+      this.definitionStorage.saveDefinitions(definitions);
       this.store.removeDefinition(definition.id);
       const nextDefinition = definitions[0];
       if (nextDefinition) this.loadDefinition(nextDefinition);
       this.notify(`„${definition.name}“ wurde gelöscht.`);
     } catch (deleteError: unknown) {
-      this.notify(
+      this.notifyError(
         deleteError instanceof Error
           ? `Löschen fehlgeschlagen: ${deleteError.message}`
           : 'Löschen fehlgeschlagen.',
@@ -1290,7 +625,7 @@ export class FlowerEditorComponent {
       this.loadDefinition(definition);
       this.notify('Geladen.');
     } catch (error: unknown) {
-      this.notify(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
+      this.notifyError(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
     } finally {
       input.value = '';
     }
@@ -1320,10 +655,17 @@ export class FlowerEditorComponent {
   }
 
   private notify(message: string): void {
-    this.snackBar.open(message);
+    this.notifications.show(message);
+  }
+
+  private notifyError(message: string): void {
+    this.notifications.show(message, 'error');
   }
 
   private async writeDefinitionsToDefaults(definitions: FlowerDefinition[]): Promise<void> {
+    if (!this.isDevelopment) {
+      throw new Error('Der Defaults-Server ist nur in der lokalen Entwicklung verfügbar.');
+    }
     const response = await fetch('/api/defaults', {
       method: 'PUT',
       headers: {'content-type': 'application/json'},
@@ -1357,222 +699,17 @@ export class FlowerEditorComponent {
     );
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
-    this.graphPositions.set(materializePositions(clone));
+    const positions = materializePositions(clone);
+    this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());
     this.selectNode(clone.rootNodeId);
   }
 
   private definitionWithEditorState(): FlowerDefinition {
-    return normalizeConnectionReferences({
-      ...this.draft(),
-      editor: {nodePositions: structuredClone(this.graphPositions())},
-    });
+    return definitionWithEditorState(this.draft(), this.graphPositions());
   }
 
   private definitionFromComponent(tree: FlowerSubtreeDefinition, role: 'flower' | 'component'): FlowerDefinition {
-    const rootPosition = {x: 500, y: 840};
-    const relativePositions = tree.editor?.nodePositions ?? {};
-    return {
-      schemaVersion: 2,
-      id: tree.id,
-      name: tree.name,
-      catalogRole: role,
-      availableInBouquet: role === 'flower',
-      availableAsComponent: true,
-      outputNodeIds: role === 'component' ? structuredClone(tree.outputNodeIds ?? []) : undefined,
-      rootNodeId: tree.rootNodeId,
-      stem: structuredClone(this.draft().stem),
-      nodes: structuredClone(tree.nodes),
-      editor: {
-        nodePositions: Object.fromEntries(tree.nodes.map((node) => {
-          const relative = relativePositions[node.id] ?? {x: 0, y: 0};
-          return [node.id, {
-            x: rootPosition.x + relative.x,
-            y: rootPosition.y + relative.y,
-          }];
-        })),
-      },
-    };
+    return definitionFromComponent(tree, role, this.draft().stem);
   }
-
-  private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {
-    const selectedId = this.selectedNodeId();
-    this.draft.update((draft) => ({
-      ...draft,
-      nodes: draft.nodes.map((node) => node.id === selectedId ? update(node) : node),
-    }));
-  }
-
-  private updateIncoming(
-    update: (incoming: FlowerNodeIncomingConnection) => FlowerNodeIncomingConnection,
-  ): void {
-    this.updateSelectedNode((node) => ({...node, incoming: update(nodeIncomingOrDefault(node))}));
-  }
-
-  private updateConnectionForSource(
-    sourceId: string,
-    update: (connections: FlowerNodeConnection[]) => FlowerNodeConnection[],
-  ): void {
-    this.draft.update((draft) => ({
-      ...draft,
-      nodes: draft.nodes.map((node) =>
-        node.id === sourceId ? {...node, connections: update(node.connections)} : node),
-    }));
-  }
-
-  private graphPoint(event: PointerEvent): Point {
-    return this.graphClientPoint(event);
-  }
-
-  private graphClientPoint(event: {clientX: number; clientY: number}): Point {
-    const svg = this.graphCanvas?.nativeElement;
-    if (!svg) return {x: 0, y: 0};
-    const point = new DOMPoint(event.clientX, event.clientY);
-    return point.matrixTransform(svg.getScreenCTM()?.inverse());
-  }
-
-  private setGraphZoom(zoom: number): void {
-    this.graphZoom.set(clamp(zoom, 0.6, 1.8));
-  }
-
-  private touchDistance(touches: Map<number, Point>): number {
-    const points = [...touches.values()];
-    const first = points[0]!;
-    const second = points[1]!;
-    return Math.hypot(second.x - first.x, second.y - first.y);
-  }
-
-  private wouldCreateCycle(sourceId: string, targetId: string): boolean {
-    const nodes = new Map(this.draft().nodes.map((node) => [node.id, node]));
-    const pending = [targetId];
-    const visited = new Set<string>();
-    while (pending.length) {
-      const id = pending.pop()!;
-      if (id === sourceId) return true;
-      if (visited.has(id)) continue;
-      visited.add(id);
-      pending.push(...(nodes.get(id)?.connections.map((connection) => connection.childId) ?? []));
-    }
-    return false;
-  }
-
-}
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function normalizeSearch(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss');
-}
-
-function centerOfPositions(positions: Record<string, Point>): Point {
-  const points = Object.values(positions);
-  if (!points.length) return {x: 500, y: 500};
-  return {
-    x: (Math.min(...points.map((point) => point.x)) + Math.max(...points.map((point) => point.x))) / 2,
-    y: (Math.min(...points.map((point) => point.y)) + Math.max(...points.map((point) => point.y))) / 2,
-  };
-}
-
-function selectedExternalConnections(definition: FlowerDefinition, memberNodeIds: string[]): FlowerNodeConnection[] {
-  const members = new Set(memberNodeIds);
-  const incomingIds = new Set(definition.nodes
-    .filter((node) => !!node.incoming)
-    .map((node) => node.id));
-  return definition.nodes
-    .filter((node) => members.has(node.id))
-    .flatMap((node) => node.connections.filter((connection) => !members.has(connection.childId)))
-    .map((connection) => incomingIds.has(connection.childId)
-      ? connectionFromIncoming(connection.childId)
-      : structuredClone(connection));
-}
-
-function definitionOutputNodeIds(nodes: FlowerNodeDefinition[]): string[] {
-  const ids = new Set(nodes.map((node) => node.id));
-  const parents = new Set(nodes.flatMap((node) =>
-    node.connections
-      .filter((connection) => ids.has(connection.childId))
-      .map(() => node.id)));
-  return nodes
-    .filter((node) => !parents.has(node.id))
-    .map((node) => node.id);
-}
-
-function nodeBounds(nodes: Array<{x: number; y: number; width: number; height: number}>): Point {
-  if (!nodes.length) return {x: 500, y: 330};
-  const left = Math.min(...nodes.map((node) => node.x - node.width / 2));
-  const right = Math.max(...nodes.map((node) => node.x + node.width / 2));
-  const top = Math.min(...nodes.map((node) => node.y - node.height / 2));
-  const bottom = Math.max(...nodes.map((node) => node.y + node.height / 2));
-  return {x: (left + right) / 2, y: (top + bottom) / 2};
-}
-
-function lassoIntersectsNode(points: Point[], node: {x: number; y: number; width: number; height: number}): boolean {
-  const closed = points.length > 2 ? [...points, points[0]!] : points;
-  const left = node.x - node.width / 2;
-  const right = node.x + node.width / 2;
-  const top = node.y - node.height / 2;
-  const bottom = node.y + node.height / 2;
-  const corners = [
-    {x: left, y: top},
-    {x: right, y: top},
-    {x: right, y: bottom},
-    {x: left, y: bottom},
-    {x: node.x, y: node.y},
-  ];
-  if (corners.some((corner) => pointInPolygon(corner, closed))) return true;
-  if (closed.some((point) => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)) return true;
-  for (let index = 1; index < closed.length; index++) {
-    if (segmentIntersectsRect(closed[index - 1]!, closed[index]!, left, right, top, bottom)) return true;
-  }
-  return false;
-}
-
-function pointInPolygon(point: Point, polygon: Point[]): boolean {
-  let inside = false;
-  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
-    const currentPoint = polygon[index]!;
-    const previousPoint = polygon[previous]!;
-    if (
-      (currentPoint.y > point.y) !== (previousPoint.y > point.y)
-      && point.x < (previousPoint.x - currentPoint.x) * (point.y - currentPoint.y) / (previousPoint.y - currentPoint.y) + currentPoint.x
-    ) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function segmentIntersectsRect(start: Point, end: Point, left: number, right: number, top: number, bottom: number): boolean {
-  return segmentsIntersect(start, end, {x: left, y: top}, {x: right, y: top})
-    || segmentsIntersect(start, end, {x: right, y: top}, {x: right, y: bottom})
-    || segmentsIntersect(start, end, {x: right, y: bottom}, {x: left, y: bottom})
-    || segmentsIntersect(start, end, {x: left, y: bottom}, {x: left, y: top});
-}
-
-function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
-  const denominator = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
-  if (Math.abs(denominator) < 1e-9) return false;
-  const ua = ((d.x - c.x) * (a.y - c.y) - (d.y - c.y) * (a.x - c.x)) / denominator;
-  const ub = ((b.x - a.x) * (a.y - c.y) - (b.y - a.y) * (a.x - c.x)) / denominator;
-  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }
