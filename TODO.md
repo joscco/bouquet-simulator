@@ -13,37 +13,9 @@ Grafikfunktionen und Veröffentlichung bauen auf diesem stabilen Stand auf.
   - [x] Header-Überlagerung, horizontales Abschneiden und schmale Slider-Container technisch abgesichert.
   - [ ] Abschließende Sichtprüfung über die unterstützten Viewportbreiten durchführen.
 
-- [x] **EDITOR-02: Einheitliche Feldgestaltung definieren**
-  - Gemeinsame Darstellung für Text-, Zahlen-, Farb-, Auswahl- und Intervallfelder festlegen.
-  - Beschriftungen, Einheiten, Abstände, Fokuszustände und Fehlermeldungen vereinheitlichen.
-  - Vorhandene wiederverwendbare Controls ausbauen, statt Varianten direkt im Template zu gestalten.
-  - Abnahme: Gleiche Feldtypen sehen im gesamten Flower-Editor gleich aus und verhalten sich gleich.
-  - [x] Einzel- und Intervall-Slider als responsive wiederverwendbare Controls vereinheitlicht.
-  - [x] Text-, Auswahl-, Zahlen- und Farbfelder in dieselbe gemeinsame Feldstruktur überführt.
-
-- [x] **EDITOR-03: Editor-Layout und Aktionen vereinfachen**
-  - Häufige Aktionen sinnvoll gruppieren und seltene Aktionen in Menüs verschieben.
-  - Eigenschaften nach Inhalt gliedern: Knoten, Eingangsverbindung, Grafik, Komponente und Schleife.
-  - Buttons, Textfelder und Slider auf ein ruhiges, kompaktes Design reduzieren.
-  - Abnahme: Die wichtigsten Aktionen sind ohne Suchen erreichbar; die Vorschau und der Graph behalten ausreichend Platz.
-  - [x] Definitionsaktionen, Graphwerkzeuge und Vorschauaktionen in ein gemeinsames Buttonsystem überführt.
-  - [x] Doppelte Namensdarstellung entfernt und „Neu“ direkt an der Definitionsauswahl platziert.
-
-## 2. Modellgrenzen und Wiederverwendbarkeit sichern
-
-- [x] **MODEL-01: Straußnutzung und Komponentenfreigabe entkoppeln**
-  - „Im Strauß auswählbar“ und „als Komponente wiederverwendbar“ als unabhängige Fähigkeiten modellieren.
-  - Eine Definition darf beide Fähigkeiten gleichzeitig besitzen; die bisherige exklusive Katalogrolle migrieren.
-  - Auswahlmenüs anhand der jeweiligen Fähigkeit filtern und beide Einstellungen unabhängig im Editor anbieten.
-  - Materialisierung bleibt ein reiner Rendering-Schritt und wird nicht in Definitionen zurückgeschrieben.
-  - Straußspezifische Werte wie Position, Skalierung, Drehung, Schnitt und Seed liegen ausschließlich an der Instanz.
-  - Abnahme: Eine Blume kann im Strauß verwendet und zugleich als echte Referenz in einer anderen Definition eingebaut werden.
-  - Tests: Migration alter Rollen, beide Katalogfilter, Referenzidentität und serialisiertes Bouquet getrennt prüfen.
-  - [x] Datenmodell, Migration, getrennte Filter und Editor-Schalter umgesetzt.
-
 ## 3. Straußinteraktion verbessern
 
-- [x] **BOUQUET-01: Blumen im Strauß drehen**
+- [ ] **BOUQUET-01: Blumen EINZELN im Strauß drehen**
   - Drehung als Instanzeigenschaft modellieren und im JSON speichern.
   - Ergonomische Steuerung für die relevanten Rotationsachsen ergänzen.
   - Abnahme: Drehung bleibt nach Export, Import und Neuladen erhalten und verändert keine Blumendefinition.
