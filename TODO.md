@@ -5,36 +5,6 @@ Dringlichkeit und Abhängigkeiten: Zuerst werden Persistenz und Zuverlässigkeit
 Editors geklärt, danach Graph- und Straußinteraktionen. Neue Grafikfunktionen und
 Präsentationsaufgaben bauen auf diesem Stand auf.
 
-## 1. Flower-Editor stabilisieren
-
-- [x] **EDITOR-01: Verdeckte Eingabefelder beheben**
-  - Alle Eigenschaften-Panels bei den unterstützten Desktop- und Mobile-Breiten prüfen.
-  - Lange Bezeichnungen, Zahlenfelder, Einheiten und Farbfelder dürfen sich nicht überlagern oder abgeschnitten werden.
-  - Abnahme: Jeder Wert ist sichtbar, per Tastatur erreichbar und ohne horizontales Scrollen editierbar.
-  - Bereits technisch abgesichert: Header-Überlagerung, horizontales Abschneiden und schmale Slider-Container.
-  - Abgeschlossen: Sichtprüfung aller Knoten-, Komponenten- und Schleifen-Panels bei 320, 390, 1024 und 1440 px.
-
-- [x] **EDITOR-02: Benachrichtigungen kontrollierbar machen**
-  - Erfolgs- und Informations-Toasts nach kurzer Zeit automatisch schließen.
-  - Fehler länger anzeigen und weiterhin manuell schließbar machen.
-  - Wiederholte identische Meldungen nicht unbegrenzt stapeln.
-  - Abnahme: Keine Meldung verdeckt dauerhaft den Editor oder bleibt ohne erkennbaren Grund stehen.
-
-- [x] **EDITOR-03: Speichern auf statischen Deployments klären**
-  - Browserlokales Speichern von Blumen- und Komponentendefinitionen einführen.
-  - „Speichern“ und das entwicklerspezifische „In Defaults übernehmen“ als getrennte Aktionen behandeln.
-  - Den lokalen `/api/defaults`-Schreibweg nur in der Entwicklungsumgebung anbieten.
-  - Import und Export als portablen Sicherungs- und Übertragungsweg beibehalten.
-  - Abnahme: Auf GitHub Pages geht keine Bearbeitung beim Neuladen verloren und es wird kein nicht vorhandener API-Endpunkt aufgerufen.
-
-## 2. Knotengraph verbessern
-
-- [ ] **GRAPH-01: Verbindungen optisch sauber führen**
-  - Problemfälle mit mehreren Ein- und Ausgängen, Schleifen und Komponentenreferenzen sammeln.
-  - Kurven so führen, dass sie nicht unnötig durch Knoten, Ports oder Beschriftungen laufen.
-  - Abstände und Kurvenradien für kurze sowie lange Verbindungen vereinheitlichen.
-  - Abnahme: Zusammengehörige Ports und Verbindungen bleiben auch in dichten Graphen eindeutig lesbar.
-
 ## 3. Straußinteraktion verbessern
 
 - [ ] **BOUQUET-01: Blumen einzeln im Strauß drehen**

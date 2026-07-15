@@ -152,8 +152,6 @@ export class FlowerEditorComponent {
     this.graphPositions.set(materializePositions(this.draft()));
   }
 
-
-
   updateStem(key: keyof FlowerDefinition['stem'], value: string | number): void {
     this.draft.update((draft) => ({...draft, stem: {...draft.stem, [key]: value}}));
   }

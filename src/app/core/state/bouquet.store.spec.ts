@@ -66,15 +66,20 @@ describe('bouquet flower placement', () => {
     expect(store.state().flowers[0]!.cutRatio).toBeCloseTo(0.98);
   });
 
-  it('stores flower rotation on the bouquet instance', () => {
+  it('stores and restores flower rotation on the bouquet instance', () => {
     const store = new BouquetStore();
     const source = store.state().flowers[0]!;
 
     store.setFlowerRotation(source.instanceId, Math.PI / 3);
+    const exported = store.exportProject();
+    const restoredStore = new BouquetStore();
+    restoredStore.importProject(structuredClone(exported));
 
     expect(store.state().flowers[0]!.rotationY).toBeCloseTo(Math.PI / 3);
     expect(store.definitions()[0]).not.toHaveProperty('rotationY');
-    expect(store.exportProject().bouquet.flowers[0]!.rotationY).toBeCloseTo(Math.PI / 3);
+    expect(exported.bouquet.flowers[0]!.rotationY).toBeCloseTo(Math.PI / 3);
+    expect(restoredStore.state().flowers[0]!.rotationY).toBeCloseTo(Math.PI / 3);
+    expect(restoredStore.definitions()[0]).not.toHaveProperty('rotationY');
   });
 
   it('reports bouquet and embedded-component usage of a definition', () => {
