@@ -522,7 +522,7 @@ function defaultGraphicPattern(id: string, type: GraphicPatternType): GraphicPat
     return {id, type, color: '#fef3c7', opacity: 0.55, direction: 'base-to-tip'};
   }
   if (type === 'veins') {
-    return {id, type, color: '#315c3a', opacity: 0.72, density: 7, size: 0.012};
+    return {id, type, color: '#315c3a', opacity: 0.72, density: 7, size: 0.012, angle: 22};
   }
   if (type === 'spots') {
     return {id, type, color: '#7c3aed', opacity: 0.62, density: 18, size: 0.035, seed: 0.42};

@@ -14,7 +14,10 @@ import {gsap} from 'gsap';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadBlob, downloadJson, readJsonFile} from '../../shared/download-json';
-import {ProjectExport} from '../../core/models/flower.models';
+import {
+  BouquetSceneEffectId,
+  ProjectExport,
+} from '../../core/models/flower.models';
 import {
   DEFAULT_VASE_ID,
   DEFAULT_VASE_MATERIAL_ID,
@@ -33,6 +36,17 @@ import {BouquetProjectStorage} from './bouquet-project-storage.service';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
 import {detectBouquetFlowerOverlaps} from '../../core/rendering/bouquet-flower-overlaps';
 import {canRecordCanvasVideo} from '../../shared/media/canvas-video-recorder';
+import {
+  DEFAULT_BOUQUET_BACKGROUND,
+  DEFAULT_BOUQUET_SCENE_EFFECTS,
+  normalizedBouquetBackgroundMode,
+  normalizedBouquetSceneEffects,
+} from '../../core/data/bouquet-scene';
+import {
+  DEFAULT_BOUQUET_VIDEO_FORMAT_ID,
+  BouquetVideoFormatId,
+  bouquetVideoFormat,
+} from './domain/bouquet-video-format';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -65,6 +79,8 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly viewOffset = signal({x: 0, y: 0});
   readonly videoExporting = signal(false);
   readonly videoExportProgress = signal(0);
+  readonly videoFormatId = signal<BouquetVideoFormatId>(DEFAULT_BOUQUET_VIDEO_FORMAT_ID);
+  readonly videoFormat = computed(() => bouquetVideoFormat(this.videoFormatId()));
   readonly videoExportSupported = canRecordCanvasVideo();
   readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
   readonly previewInsetLeft = signal(Math.min(64, this.viewportWidth()));
@@ -108,6 +124,10 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly activeVaseId = computed(() => this.store.state().vaseId ?? DEFAULT_VASE_ID);
   readonly activeVaseMaterialId = computed(() =>
     this.store.state().vaseMaterialId as VaseMaterialId | undefined ?? DEFAULT_VASE_MATERIAL_ID);
+  readonly backgroundMode = computed(() =>
+    normalizedBouquetBackgroundMode(this.store.state().backgroundMode ?? DEFAULT_BOUQUET_BACKGROUND));
+  readonly sceneEffects = computed(() =>
+    normalizedBouquetSceneEffects(this.store.state().sceneEffects ?? DEFAULT_BOUQUET_SCENE_EFFECTS));
 
   private menuLayoutTween: {kill: () => void} | null = null;
 
@@ -215,6 +235,10 @@ export class BouquetSimulatorComponent implements OnDestroy {
     this.store.setVaseMaterial(vaseMaterialId);
   }
 
+  setSceneEffect(event: {effectId: BouquetSceneEffectId; enabled: boolean}): void {
+    this.store.setSceneEffect(event.effectId, event.enabled);
+  }
+
   exportProject(): void {
     downloadJson(this.store.exportProject(), 'mein-blumenstrauss.json');
   }
@@ -224,12 +248,18 @@ export class BouquetSimulatorComponent implements OnDestroy {
     this.videoExporting.set(true);
     this.videoExportProgress.set(0);
     try {
+      const format = this.videoFormat();
       const recording = await this.bouquetCanvas().recordTurntable({
         durationSeconds: 6,
         fps: 30,
+        width: format.width,
+        height: format.height,
         onProgress: (progress) => this.videoExportProgress.set(progress),
       });
-      downloadBlob(recording.blob, `mein-blumenstrauss-loop.${recording.extension}`);
+      downloadBlob(
+        recording.blob,
+        `mein-blumenstrauss-loop-${format.width}x${format.height}.${recording.extension}`,
+      );
       this.snackBar.open('Das Loop-Video wurde exportiert.', 'OK', {duration: 4000});
     } catch (error: unknown) {
       this.snackBar.open(

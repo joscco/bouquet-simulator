@@ -59,6 +59,7 @@ function drawGraphicPattern(
 
   if (pattern.type === 'veins') {
     const density = Math.round(clamp(pattern.density ?? 7, 1, 24));
+    const angle = clamp(pattern.angle ?? 22, -75, 75) * Math.PI / 180;
     context.strokeStyle = pattern.color;
     context.lineWidth = clamp(pattern.size ?? 0.012, 0.002, 0.12) * width;
     context.beginPath();
@@ -67,8 +68,8 @@ function drawGraphicPattern(
     for (let index = 1; index <= density; index++) {
       const progress = index / (density + 1);
       const centerY = height * (1 - progress);
-      const edgeY = Math.max(0, centerY - height * 0.13);
       const reach = width * (0.34 + Math.sin(progress * Math.PI) * 0.12);
+      const edgeY = clamp(centerY - Math.tan(angle) * reach, 0, height);
       context.moveTo(width / 2, centerY);
       context.lineTo(width / 2 - reach, edgeY);
       context.moveTo(width / 2, centerY);

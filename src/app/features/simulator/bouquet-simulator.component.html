@@ -1,4 +1,8 @@
-<section class="relative h-dvh min-h-[480px] overflow-hidden bg-[#f8f7f2]">
+<section
+  class="relative h-dvh min-h-[480px] overflow-hidden"
+  [class.bg-[#f8f7f2]]="backgroundMode() === 'light'"
+  [class.bg-[#111113]]="backgroundMode() === 'dark'"
+>
   <app-bouquet-canvas
     class="absolute inset-0 block h-full w-full"
     [class.pointer-events-none]="videoExporting()"
@@ -43,6 +47,9 @@
     [videoExportSupported]="videoExportSupported"
     [videoExporting]="videoExporting()"
     [videoExportProgress]="videoExportProgress()"
+    [backgroundMode]="backgroundMode()"
+    [sceneEffects]="sceneEffects()"
+    [videoFormat]="videoFormat()"
     (pickerOpen)="pickerOpen.set(true)"
     (shuffle)="shuffleBouquet()"
     (viewReset)="resetView()"
@@ -64,6 +71,9 @@
     (bouquetDelete)="deleteBouquet($event)"
     (bouquetNameChange)="store.renameActiveBouquet($event)"
     (videoExport)="exportTurntableVideo()"
+    (backgroundModeChange)="store.setBackgroundMode($event)"
+    (sceneEffectChange)="setSceneEffect($event)"
+    (videoFormatChange)="videoFormatId.set($event)"
   />
 </section>
 

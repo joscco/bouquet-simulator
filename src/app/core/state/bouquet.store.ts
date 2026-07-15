@@ -2,7 +2,9 @@ import {computed, Injectable, signal} from '@angular/core';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {
   BouquetFlower,
+  BouquetBackgroundMode,
   BouquetProject,
+  BouquetSceneEffectId,
   BouquetState,
   FlowerDefinition,
   FlowerNodeComponent,
@@ -21,6 +23,13 @@ import {materializeDefinitionComponents} from '../models/flower-components';
 import {normalizeConnectionReferences} from '../models/flower-connections';
 import {normalizeFlowerCatalogCapabilities} from '../models/flower-catalog';
 import {autoCorrectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
+import {
+  DEFAULT_BOUQUET_BACKGROUND,
+  DEFAULT_BOUQUET_SCENE_EFFECTS,
+  isBouquetBackgroundMode,
+  normalizedBouquetBackgroundMode,
+  normalizedBouquetSceneEffects,
+} from '../data/bouquet-scene';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -70,6 +79,8 @@ export class BouquetStore {
         rotation: 0,
         vaseId: DEFAULT_VASE_ID,
         vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+        backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
+        sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
         flowers: [],
       },
     };
@@ -180,6 +191,22 @@ export class BouquetStore {
   setVaseMaterial(vaseMaterialId: VaseMaterialId): void {
     if (!isVaseMaterialId(vaseMaterialId)) return;
     this.updateActiveBouquetState((state) => ({...state, vaseMaterialId}));
+  }
+
+  setBackgroundMode(backgroundMode: BouquetBackgroundMode): void {
+    if (!isBouquetBackgroundMode(backgroundMode)) return;
+    this.updateActiveBouquetState((state) => ({...state, backgroundMode}));
+  }
+
+  setSceneEffect(effectId: BouquetSceneEffectId, enabled: boolean): void {
+    if (!['sparkles', 'glowPoints', 'uplight'].includes(effectId)) return;
+    this.updateActiveBouquetState((state) => ({
+      ...state,
+      sceneEffects: {
+        ...normalizedBouquetSceneEffects(state.sceneEffects),
+        [effectId]: enabled,
+      },
+    }));
   }
 
   rotateBy(delta: number): void {
@@ -341,6 +368,8 @@ export class BouquetStore {
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
       vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+      backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
+      sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
       flowers: [],
     }));
   }
@@ -351,6 +380,8 @@ export class BouquetStore {
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
       vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+      backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
+      sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
       flowers: [
         this.createPlacement('garden-rose', -18, -16, 4, 1.03, 0.04, 0.16),
         this.createPlacement('meadow-daisy', 16, -15, -9, 0.92, -0.08, -0.14),
@@ -431,6 +462,8 @@ export class BouquetStore {
       vaseMaterialId: isVaseMaterialId(state.vaseMaterialId)
         ? state.vaseMaterialId
         : DEFAULT_VASE_MATERIAL_ID,
+      backgroundMode: normalizedBouquetBackgroundMode(state.backgroundMode),
+      sceneEffects: normalizedBouquetSceneEffects(state.sceneEffects),
     };
   }
 
@@ -552,6 +585,11 @@ function isBouquetState(value: unknown): value is BouquetState {
   if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
   if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
   if (value['vaseMaterialId'] !== undefined && !isVaseMaterialId(value['vaseMaterialId'])) return false;
+  if (value['backgroundMode'] !== undefined && !isBouquetBackgroundMode(value['backgroundMode'])) return false;
+  if (
+    value['sceneEffects'] !== undefined
+    && !isBouquetSceneEffects(value['sceneEffects'])
+  ) return false;
   if (!Array.isArray(value['flowers'])) return false;
 
   return value['flowers'].every((flower) =>
@@ -599,6 +637,12 @@ function isProjectExport(value: unknown): value is ProjectExport {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isBouquetSceneEffects(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return ['sparkles', 'glowPoints', 'uplight', 'fireflies', 'glitter'].every((effect) =>
+    value[effect] === undefined || typeof value[effect] === 'boolean');
 }
 
 function isFiniteNumber(value: unknown): value is number {

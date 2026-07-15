@@ -1277,7 +1277,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "color": "#ffffff",
           "width": 4,
           "height": 4,
-          "depth": 5,
+          "depth": 4,
           "scale": 1,
           "offset": {
             "x": 0,
@@ -1367,7 +1367,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "primitive": "sphere",
           "color": "#ffffff",
           "width": 5,
-          "height": 7,
+          "height": 5,
           "depth": 5,
           "scale": 1,
           "offset": {

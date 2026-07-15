@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
 import {detectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
 import {DEFAULT_VASE_MATERIAL_ID} from '../data/vases';
+import {DEFAULT_BOUQUET_BACKGROUND, DEFAULT_BOUQUET_SCENE_EFFECTS} from '../data/bouquet-scene';
 
 describe('bouquet flower placement', () => {
   it('moves and tilts the complete flower while keeping its insertion point in the vase', () => {
@@ -69,6 +70,40 @@ describe('bouquet flower placement', () => {
 
     expect(store.restoreBouquet(legacy)).toBe(true);
     expect(store.state().vaseMaterialId).toBe(DEFAULT_VASE_MATERIAL_ID);
+  });
+
+  it('changes and persists background and scene effects per bouquet', () => {
+    const store = new BouquetStore();
+
+    store.setBackgroundMode('dark');
+    store.setSceneEffect('sparkles', true);
+    store.setSceneEffect('glowPoints', true);
+    store.setSceneEffect('uplight', true);
+    const restored = new BouquetStore();
+    restored.importProject(structuredClone(store.exportProject()));
+
+    expect(restored.state().backgroundMode).toBe('dark');
+    expect(restored.state().sceneEffects).toEqual({sparkles: true, glowPoints: true, uplight: true});
+  });
+
+  it('migrates bouquets without scene settings to the light background without effects', () => {
+    const store = new BouquetStore();
+    const legacy = structuredClone(store.state());
+    delete legacy.backgroundMode;
+    delete legacy.sceneEffects;
+
+    expect(store.restoreBouquet(legacy)).toBe(true);
+    expect(store.state().backgroundMode).toBe(DEFAULT_BOUQUET_BACKGROUND);
+    expect(store.state().sceneEffects).toEqual(DEFAULT_BOUQUET_SCENE_EFFECTS);
+  });
+
+  it('migrates the former combined glitter effect to sparkles and light points', () => {
+    const store = new BouquetStore();
+    const legacy = structuredClone(store.state()) as unknown as Record<string, unknown>;
+    legacy['sceneEffects'] = {fireflies: false, glitter: true};
+
+    expect(store.restoreBouquet(legacy)).toBe(true);
+    expect(store.state().sceneEffects).toEqual({sparkles: true, glowPoints: true, uplight: false});
   });
 
   it('copies a flower instance including instance-level settings', () => {

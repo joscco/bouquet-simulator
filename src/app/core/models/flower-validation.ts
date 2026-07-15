@@ -246,6 +246,7 @@ function validGraphicPatterns(patterns: GraphicPatternLayer[] | undefined): bool
     if (pattern.type === 'veins' && (
       !within(pattern.density ?? 7, 1, 24)
       || !within(pattern.size ?? 0.012, 0.002, 0.12)
+      || !within(pattern.angle ?? 22, -75, 75)
     )) return false;
     if (pattern.type === 'spots' && (
       !within(pattern.density ?? 18, 1, 160)

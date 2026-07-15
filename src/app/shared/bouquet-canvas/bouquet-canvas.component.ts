@@ -47,6 +47,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import {
+  BouquetBackgroundMode,
   BouquetFlower,
   BouquetState,
   FlowerDefinition,
@@ -68,6 +69,12 @@ import {
   CanvasVideoRecording,
   recordCanvasVideo,
 } from '../media/canvas-video-recorder';
+import {loopFramePhase} from '../media/loop-frame';
+import {BouquetSceneEffects} from './effects/bouquet-scene-effects';
+import {
+  BOUQUET_BACKGROUND_COLORS,
+  normalizedBouquetBackgroundMode,
+} from '../../core/data/bouquet-scene';
 
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const FIT_PADDING = 48;
@@ -76,7 +83,7 @@ const ORBIT_LIMIT = Math.PI * 0.46;
 const VASE_BRANCH_CLEARANCE = 34;
 const SELECTION_GLOW_COLOR = '#14b8a6';
 const SELECTION_GLOW_INTENSITY = 0.48;
-const TURNTABLE_VIDEO_SIZE = 1080;
+const DEFAULT_TURNTABLE_VIDEO_SIZE = 1080;
 
 interface PickData {
   instanceId: string;
@@ -103,6 +110,8 @@ export type BouquetCanvasViewMode = 'pan' | 'rotate';
 export interface BouquetTurntableRecordingOptions {
   durationSeconds?: number;
   fps?: number;
+  width?: number;
+  height?: number;
   onProgress?: (progressPercent: number) => void;
 }
 
@@ -309,6 +318,11 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private readonly scene = new Scene();
   private readonly camera = new OrthographicCamera();
   private readonly bouquet = new Group();
+  private readonly bouquetContent = new Group();
+  private readonly sceneEffects = new BouquetSceneEffects();
+  private hemisphereLight: HemisphereLight | null = null;
+  private keyLight: DirectionalLight | null = null;
+  private fillLight: DirectionalLight | null = null;
   private readonly raycaster = new Raycaster();
   private readonly pointer = new Vector2();
   private resizeObserver: ResizeObserver | null = null;
@@ -345,8 +359,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private zoomPinchDistance: number | null = null;
   private emittedSnapshotKey: string | null = null;
   private recordingViewport: {width: number; height: number} | null = null;
+  private effectsAnimationFrame: number | null = null;
 
   constructor() {
+    this.bouquet.add(this.bouquetContent, this.sceneEffects.group);
     effect(() => {
       const state = this.state();
       const definitions = this.definitions();
@@ -358,6 +374,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const vaseEnabled = this.vaseEnabled();
       const vaseId = state.vaseId ?? DEFAULT_VASE_ID;
       const vaseMaterialId = normalizedVaseMaterialId(state.vaseMaterialId);
+      const backgroundMode = normalizedBouquetBackgroundMode(state.backgroundMode);
       this.zoom();
       this.fitToContent();
       this.viewportInsets();
@@ -400,6 +417,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastVaseId = vaseId;
       this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
+      this.scene.background = new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
+      this.applySceneLighting(backgroundMode);
+      this.sceneEffects.configure(state.sceneEffects, backgroundMode);
+      this.syncEffectsAnimation();
       if (structureChanged) {
         this.recenterOnNextRebuild ||= shouldRecenter;
         this.requestRebuild();
@@ -450,7 +471,11 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     keyLight.shadow.normalBias = 0.035;
     const fillLight = new DirectionalLight(0xdbeafe, 0.85);
     fillLight.position.set(340, 180, 280);
+    this.hemisphereLight = hemisphere;
+    this.keyLight = keyLight;
+    this.fillLight = fillLight;
     this.scene.add(hemisphere, keyLight, keyLight.target, fillLight, this.bouquet);
+    this.applySceneLighting(normalizedBouquetBackgroundMode(this.state().backgroundMode));
     this.camera.position.set(0, 0, 1000);
     this.camera.lookAt(0, 0, 0);
 
@@ -461,11 +486,13 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.resizeObserver.observe(this.canvasHost.nativeElement);
     this.resize();
     this.rebuildScene();
+    this.syncEffectsAnimation();
   }
 
   ngOnDestroy(): void {
     if (this.rebuildFrame !== null) cancelAnimationFrame(this.rebuildFrame);
     if (this.renderFrame !== null) cancelAnimationFrame(this.renderFrame);
+    if (this.effectsAnimationFrame !== null) cancelAnimationFrame(this.effectsAnimationFrame);
     this.resizeObserver?.disconnect();
     const renderer = this.renderer;
     if (renderer) {
@@ -474,7 +501,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
       renderer.domElement.removeEventListener('pointercancel', this.onPointerUp);
     }
-    this.disposeChildren(this.bouquet);
+    this.disposeChildren(this.bouquetContent);
+    this.sceneEffects.dispose();
     renderer?.dispose();
     renderer?.domElement.remove();
     this.renderer = null;
@@ -525,19 +553,22 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
     const durationSeconds = options.durationSeconds ?? 6;
     const fps = options.fps ?? 30;
+    const width = validVideoDimension(options.width ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
+    const height = validVideoDimension(options.height ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
     const frames = Math.round(durationSeconds * fps);
     const initialRotation = this.state().rotation;
     const initialBackground = this.scene.background;
+    const backgroundMode = normalizedBouquetBackgroundMode(this.state().backgroundMode);
     const recordingRenderer = new WebGLRenderer({
       alpha: false,
       antialias: true,
       powerPreference: 'high-performance',
     });
     recordingRenderer.setPixelRatio(1);
-    recordingRenderer.setSize(TURNTABLE_VIDEO_SIZE, TURNTABLE_VIDEO_SIZE, false);
+    recordingRenderer.setSize(width, height, false);
     recordingRenderer.outputColorSpace = SRGBColorSpace;
     recordingRenderer.toneMapping = ACESFilmicToneMapping;
-    recordingRenderer.toneMappingExposure = 1.08;
+    recordingRenderer.toneMappingExposure = backgroundMode === 'dark' ? 1 : 1.08;
     recordingRenderer.shadowMap.enabled = true;
     recordingRenderer.shadowMap.type = PCFSoftShadowMap;
     const hiddenHelpers: Box3Helper[] = [];
@@ -547,8 +578,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         hiddenHelpers.push(object);
       }
     });
-    this.recordingViewport = {width: TURNTABLE_VIDEO_SIZE, height: TURNTABLE_VIDEO_SIZE};
-    this.scene.background = new Color('#f8f7f2');
+    this.recordingViewport = {width, height};
+    this.scene.background = new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
 
     try {
       return await recordCanvasVideo(recordingRenderer.domElement, {
@@ -556,7 +587,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         fps,
         onProgress: options.onProgress,
         drawFrame: (frame) => {
-          this.bouquet.rotation.y = initialRotation + frame / frames * Math.PI * 2;
+          const loopPhase = loopFramePhase(frame, frames);
+          this.bouquet.rotation.y = initialRotation + loopPhase * Math.PI * 2;
+          this.sceneEffects.update(loopPhase * durationSeconds);
           this.resizeCamera();
           recordingRenderer.render(this.scene, this.camera);
         },
@@ -566,10 +599,31 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.scene.background = initialBackground;
       for (const helper of hiddenHelpers) helper.visible = true;
       this.bouquet.rotation.y = this.state().rotation;
+      this.sceneEffects.update(performance.now() / 1000);
       this.resizeCamera();
       renderer.render(this.scene, this.camera);
       recordingRenderer.dispose();
     }
+  }
+
+  private applySceneLighting(backgroundMode: BouquetBackgroundMode): void {
+    const isDark = backgroundMode === 'dark';
+    if (this.hemisphereLight) {
+      this.hemisphereLight.color.set(isDark ? '#60789b' : '#fff8e8');
+      this.hemisphereLight.groundColor.set(isDark ? '#05060a' : '#52645d');
+      this.hemisphereLight.intensity = isDark ? 0.78 : 1.45;
+    }
+    if (this.keyLight) {
+      this.keyLight.color.set(isDark ? '#b7d1ff' : '#fff1d6');
+      this.keyLight.intensity = isDark ? 2.55 : 2.75;
+      this.keyLight.position.set(isDark ? -300 : -240, isDark ? 460 : 420, isDark ? 200 : 360);
+    }
+    if (this.fillLight) {
+      this.fillLight.color.set(isDark ? '#35517c' : '#dbeafe');
+      this.fillLight.intensity = isDark ? 0.36 : 0.85;
+      this.fillLight.position.set(isDark ? 280 : 340, isDark ? 100 : 180, isDark ? -260 : 280);
+    }
+    if (this.renderer) this.renderer.toneMappingExposure = isDark ? 1 : 1.08;
   }
 
   private requestRebuild(): void {
@@ -582,13 +636,13 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
 
   private rebuildScene(): void {
     if (!this.renderer) return;
-    this.disposeChildren(this.bouquet);
+    this.disposeChildren(this.bouquetContent);
     this.bouquet.position.set(0, 0, 0);
     this.bouquet.rotation.set(0, 0, 0);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
 
     if (this.vaseEnabled()) {
-      this.bouquet.add(this.createVase(
+      this.bouquetContent.add(this.createVase(
         this.state().vaseId ?? DEFAULT_VASE_ID,
         normalizedVaseMaterialId(this.state().vaseMaterialId),
       ));
@@ -597,7 +651,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     for (const flower of this.state().flowers) {
       const definition = definitions.get(flower.definitionId);
       if (!definition) continue;
-      this.bouquet.add(this.createFlower(definition, flower));
+      this.bouquetContent.add(this.createFlower(definition, flower));
     }
     this.bouquet.updateMatrixWorld(true);
     const bounds = this.contentBounds();
@@ -606,6 +660,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.fitBounds.copy(bounds);
       this.recenterOnNextRebuild = false;
     }
+    this.sceneEffects.setBounds(bounds);
     this.updateView();
   }
 
@@ -1119,6 +1174,28 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  private syncEffectsAnimation(): void {
+    if (!this.renderer || !this.sceneEffects.animated) {
+      if (this.effectsAnimationFrame !== null) cancelAnimationFrame(this.effectsAnimationFrame);
+      this.effectsAnimationFrame = null;
+      this.requestRender();
+      return;
+    }
+    if (this.effectsAnimationFrame === null) {
+      this.effectsAnimationFrame = requestAnimationFrame(this.animateSceneEffects);
+    }
+  }
+
+  private readonly animateSceneEffects = (time: number): void => {
+    this.effectsAnimationFrame = null;
+    if (!this.renderer || !this.sceneEffects.animated) return;
+    if (!this.recordingViewport) {
+      this.sceneEffects.update(time / 1000);
+      this.renderer.render(this.scene, this.camera);
+    }
+    this.effectsAnimationFrame = requestAnimationFrame(this.animateSceneEffects);
+  };
+
   private readonly onPointerDown = (event: PointerEvent): void => {
     if (![0, 1, 2].includes(event.button) && event.pointerType !== 'touch') return;
     const pick = this.pick(event);
@@ -1227,7 +1304,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private contentBounds(): Box3 {
-    const bounds = new Box3().setFromObject(this.bouquet);
+    const bounds = new Box3().setFromObject(this.bouquetContent);
     if (bounds.isEmpty()) bounds.setFromCenterAndSize(new Vector3(), new Vector3(1, 1, 1));
     bounds.expandByScalar(this.vaseEnabled() ? 24 : 12);
     return bounds;
@@ -1641,6 +1718,13 @@ function smoothVaseProfile(profile: Array<[number, number]>): Vector2[] {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function validVideoDimension(value: number): number {
+  if (!Number.isInteger(value) || value < 240 || value > 3840) {
+    throw new Error('Ungültige Videoauflösung.');
+  }
+  return value;
 }
 
 function lerp(start: number, end: number, amount: number): number {

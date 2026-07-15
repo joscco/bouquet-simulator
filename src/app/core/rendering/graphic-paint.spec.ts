@@ -53,6 +53,29 @@ describe('graphic patterns', () => {
 
     expect(first.arcs).toEqual(second.arcs);
   });
+
+  it('steers side veins toward the tip or the leaf base', () => {
+    const towardTip = mockContext();
+    const towardBase = mockContext();
+    const graphic = (angle: number): FlowerNodeGraphic => ({
+      primitive: 'leaf-pointed',
+      color: '#477b49',
+      width: 40,
+      height: 80,
+      rotation: {min: 0, max: 0},
+      start: {x: 0.5, y: 1},
+      end: {x: 0.5, y: 0},
+      patterns: [
+        {id: 'veins', type: 'veins', color: '#173f2a', opacity: 1, density: 1, angle},
+      ],
+    });
+
+    drawGraphicPaint(towardTip.context, graphic(35), 100, 200);
+    drawGraphicPaint(towardBase.context, graphic(-35), 100, 200);
+
+    expect(towardTip.lineTo.mock.calls[1]![1]).toBeLessThan(100);
+    expect(towardBase.lineTo.mock.calls[1]![1]).toBeGreaterThan(100);
+  });
 });
 
 function mockContext(): {

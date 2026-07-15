@@ -97,7 +97,7 @@ describe('flower definition validation', () => {
     const definition = validationDefinition();
     definition.nodes.find((node) => node.id === 'leaf')!.graphic!.patterns = [
       {id: 'base', type: 'gradient', color: '#fef3c7', opacity: 0.45, direction: 'base-to-tip'},
-      {id: 'veins', type: 'veins', color: '#315c3a', opacity: 0.7, density: 8, size: 0.012},
+      {id: 'veins', type: 'veins', color: '#315c3a', opacity: 0.7, density: 8, size: 0.012, angle: -35},
       {id: 'spots', type: 'spots', color: '#7c3aed', opacity: 0.6, density: 24, size: 0.03, seed: 0.8},
       {id: 'edge', type: 'edge', color: '#14532d', opacity: 0.5, width: 0.04},
     ];
@@ -128,6 +128,18 @@ describe('flower definition validation', () => {
     definition.nodes.find((node) => node.id === 'leaf')!.graphic!.patterns = [
       {id: 'same', type: 'spots', color: '#ffffff', opacity: 1, density: 200},
       {id: 'same', type: 'edge', color: '#ffffff', opacity: 1, width: 0.05},
+    ];
+
+    expect(validateFlowerDefinition(definition)).toContainEqual({
+      severity: 'error',
+      message: '„Leaf“ enthält ungültige Musterebenen.',
+    });
+  });
+
+  it('rejects vein directions outside the editable angle range', () => {
+    const definition = validationDefinition();
+    definition.nodes.find((node) => node.id === 'leaf')!.graphic!.patterns = [
+      {id: 'veins', type: 'veins', color: '#315c3a', opacity: 0.7, angle: 76},
     ];
 
     expect(validateFlowerDefinition(definition)).toContainEqual({

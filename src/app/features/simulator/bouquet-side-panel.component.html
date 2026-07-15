@@ -28,7 +28,7 @@
           <div class="text-[10px] text-stone-400">Ziehen: drehen · Rad/Trackpad: zoomen</div>
         </div>
         <button
-          class="icon-button icon-button--danger"
+          class="grid size-8 shrink-0 place-items-center rounded-lg text-stone-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:pointer-events-none disabled:opacity-30"
           type="button"
           matTooltip="Strauß löschen"
           aria-label="Strauß löschen"
@@ -41,16 +41,36 @@
       <div class="mb-4 grid shrink-0 grid-cols-3 gap-2">
         @for (action of quickActions; track action.action) {
           <button
-            class="panel-button panel-button--compact"
-            [class.panel-button--danger]="action.danger"
+            class="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-xs font-semibold leading-4 text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            [class.border-rose-200]="action.danger"
+            [class.text-rose-700]="action.danger"
             type="button"
             (click)="emitQuickAction(action.action)"
           >
-            <mat-icon class="panel-button__icon">{{ action.icon }}</mat-icon>
-            <span class="panel-button__label">{{ action.label }}</span>
+            <mat-icon class="shrink-0">{{ action.icon }}</mat-icon>
+            <span class="min-w-0 truncate">{{ action.label }}</span>
           </button>
         }
       </div>
+
+      @if (overlapCount() > 0) {
+        <div
+          class="mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-950"
+          role="status"
+        >
+          <mat-icon class="shrink-0 text-[17px]! text-amber-700">warning</mat-icon>
+          <span class="min-w-0 flex-1 font-semibold leading-4">
+            {{ overlapCount() }} {{ overlapCount() === 1 ? 'Blume überlappt' : 'Blumen überlappen' }}
+          </span>
+          <button
+            class="shrink-0 rounded-md bg-amber-200 px-2 py-1 font-bold transition hover:bg-amber-300"
+            type="button"
+            (click)="overlapCorrection.emit()"
+          >
+            Entflechten
+          </button>
+        </div>
+      }
 
       <div class="mb-4 flex min-h-0 flex-1 flex-col border-t border-stone-200/70 pt-3">
         <div class="mb-2 flex shrink-0 items-center justify-start gap-2">
@@ -60,7 +80,7 @@
           </span>
           <span class="flex-1"></span>
           <button
-            class="icon-button icon-button--lg icon-button--primary"
+            class="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-950 text-white transition hover:bg-emerald-800"
             type="button"
             matTooltip="Blume hinzufügen"
             aria-label="Blume hinzufügen"
@@ -69,25 +89,6 @@
             <mat-icon>add</mat-icon>
           </button>
         </div>
-        @if (overlapCount() > 0) {
-          <div
-            class="mb-2 grid shrink-0 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] leading-4 text-amber-900"
-            role="status"
-          >
-            <mat-icon class="mt-px shrink-0 text-[17px]! text-amber-700">warning</mat-icon>
-            <span>
-              Die automatische Entflechtung konnte {{ overlapCount() }}
-              {{ overlapCount() === 1 ? 'Blume' : 'Blumen' }} noch nicht vollständig trennen.
-            </span>
-            <button
-              class="col-start-2 justify-self-start rounded-md bg-amber-200/70 px-2 py-1 font-bold text-amber-950 transition hover:bg-amber-200"
-              type="button"
-              (click)="overlapCorrection.emit()"
-            >
-              Erneut automatisch entflechten
-            </button>
-          </div>
-        }
         <div class="min-h-0 flex-1 space-y-2 overflow-y-scroll pr-1 [scrollbar-gutter:stable]">
           @for (flower of flowers(); track flower.instanceId) {
             <section
@@ -126,8 +127,9 @@
               <div class="flex items-center justify-end gap-0.5">
                 @for (action of flowerActions; track action.action) {
                   <button
-                    class="icon-button icon-button--sm"
-                    [class.icon-button--danger]="action.danger"
+                    class="grid size-7 shrink-0 place-items-center rounded-md text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+                    [class.bg-rose-50]="action.danger"
+                    [class.text-rose-700]="action.danger"
                     type="button"
                     [matTooltip]="action.tooltip"
                     [attr.aria-label]="flower.name + ' ' + action.ariaVerb"
@@ -182,13 +184,18 @@
         </output>
       </div>
 
-      <div class="mt-4 border-t border-stone-200/70 pt-4">
-        <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Vase</div>
+      <details class="group mt-3 shrink-0 border-t border-stone-200/70 pt-2 [&>summary::-webkit-details-marker]:hidden">
+        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 transition hover:bg-stone-100">
+          <mat-icon class="text-[17px]!">tune</mat-icon>
+          <span class="flex-1">Vase & Licht</span>
+          <mat-icon class="text-[17px]! transition-transform group-open:rotate-90">chevron_right</mat-icon>
+        </summary>
+        <div class="max-h-[42dvh] overflow-y-auto pt-3 pr-1 [scrollbar-gutter:stable]">
         <div class="mb-1.5 text-[9px] font-semibold text-stone-400">Form</div>
         <div class="grid grid-cols-5 gap-1.5">
           @for (vase of vaseOptions(); track vase.id) {
             <button
-              class="icon-button h-9! w-full! rounded-lg! border border-stone-200 bg-white"
+              class="grid h-9 w-full place-items-center rounded-lg border border-stone-200 bg-white transition hover:bg-stone-50"
               [class.border-emerald-950]="activeVaseId() === vase.id"
               [class.bg-emerald-950]="activeVaseId() === vase.id"
               [class.text-stone-600]="activeVaseId() === vase.id"
@@ -225,14 +232,97 @@
             </button>
           }
         </div>
-      </div>
+        <div class="mt-4 border-t border-stone-200/70 pt-3">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Szene</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            @for (background of backgroundOptions; track background.id) {
+              <button
+                class="flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-[9px] font-bold transition"
+                [class.border-emerald-900]="backgroundMode() === background.id"
+                [class.bg-emerald-950]="backgroundMode() === background.id"
+                [class.text-white]="backgroundMode() === background.id"
+                [class.border-stone-200]="backgroundMode() !== background.id"
+                [class.bg-white]="backgroundMode() !== background.id"
+                [class.text-stone-500]="backgroundMode() !== background.id"
+                type="button"
+                [attr.aria-pressed]="backgroundMode() === background.id"
+                (click)="backgroundModeChange.emit(background.id)"
+              >
+                <mat-icon class="text-[17px]!">{{ background.symbol }}</mat-icon>
+                {{ background.name }}
+              </button>
+            }
+          </div>
+          <div class="mt-2 grid grid-cols-3 gap-1.5">
+            @for (effect of sceneEffectOptions; track effect.id) {
+              <button
+                class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[8px] font-bold transition"
+                [class.border-teal-700]="sceneEffects()[effect.id]"
+                [class.bg-teal-50]="sceneEffects()[effect.id]"
+                [class.text-teal-950]="sceneEffects()[effect.id]"
+                [class.border-stone-200]="!sceneEffects()[effect.id]"
+                [class.bg-white]="!sceneEffects()[effect.id]"
+                [class.text-stone-500]="!sceneEffects()[effect.id]"
+                type="button"
+                [attr.aria-pressed]="sceneEffects()[effect.id]"
+                (click)="sceneEffectChange.emit({effectId: effect.id, enabled: !sceneEffects()[effect.id]})"
+              >
+                <mat-icon class="text-[18px]!">{{ effect.symbol }}</mat-icon>
+                <span class="truncate">{{ effect.name }}</span>
+              </button>
+            }
+          </div>
+        </div>
+        </div>
+      </details>
 
-      <div class="mt-4 grid shrink-0 grid-cols-2 gap-2 border-t border-stone-200/70 pt-4">
+      <details class="group mt-2 shrink-0 border-t border-stone-200/70 pt-2 [&>summary::-webkit-details-marker]:hidden">
+        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 transition hover:bg-stone-100">
+          <mat-icon class="text-[17px]!">ios_share</mat-icon>
+          <span class="flex-1">Video & Dateien</span>
+          <mat-icon class="text-[17px]! transition-transform group-open:rotate-90">chevron_right</mat-icon>
+        </summary>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+        <div class="col-span-2">
+          <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Videoformat</div>
+          <div class="grid grid-cols-3 gap-1.5">
+            @for (format of videoFormatOptions; track format.id) {
+              <button
+                class="flex min-w-0 items-center justify-center gap-1.5 rounded-lg border px-1.5 py-2 text-[8px] font-bold transition"
+                [class.border-teal-700]="videoFormat().id === format.id"
+                [class.bg-teal-50]="videoFormat().id === format.id"
+                [class.text-teal-950]="videoFormat().id === format.id"
+                [class.border-stone-200]="videoFormat().id !== format.id"
+                [class.bg-white]="videoFormat().id !== format.id"
+                [class.text-stone-500]="videoFormat().id !== format.id"
+                type="button"
+                [attr.aria-label]="format.name + ' ' + format.width + ' mal ' + format.height"
+                [attr.aria-pressed]="videoFormat().id === format.id"
+                (click)="videoFormatChange.emit(format.id)"
+              >
+                <span
+                  class="shrink-0 rounded-[2px] border-2 border-current"
+                  [class.size-3]="format.id === 'square'"
+                  [class.h-4]="format.id === 'portrait'"
+                  [class.w-2.5]="format.id === 'portrait'"
+                  [class.h-2.5]="format.id === 'landscape'"
+                  [class.w-4]="format.id === 'landscape'"
+                ></span>
+                <span class="min-w-0 leading-tight">
+                  <span class="block truncate">{{ format.ratio }}</span>
+                  <span class="block tabular-nums text-[7px] font-medium opacity-70">
+                    {{ format.width }}×{{ format.height }}
+                  </span>
+                </span>
+              </button>
+            }
+          </div>
+        </div>
         <button
           class="relative col-span-2 flex h-10 min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-teal-800 bg-teal-700 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
           type="button"
           [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
-          [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden quadratisch als nahtloses 360°-Loop-Video aufnehmen'"
+          [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden als nahtloses ' + videoFormat().width + '×' + videoFormat().height + '-Loop aufnehmen'"
           (click)="videoExport.emit()"
         >
           @if (videoExporting()) {
@@ -244,25 +334,26 @@
             <span class="relative truncate">Loop wird aufgenommen · {{ videoExportProgress() }}%</span>
           } @else {
             <mat-icon class="text-[19px]!">video_file</mat-icon>
-            <span class="truncate">Quadratisches Loop-Video exportieren</span>
+            <span class="truncate">Loop-Video exportieren</span>
           }
         </button>
         <label
-          class="panel-button cursor-pointer"
+          class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
         >
-          <mat-icon class="panel-button__icon">upload</mat-icon>
-          <span class="panel-button__label">Laden</span>
+          <mat-icon class="shrink-0">upload</mat-icon>
+          <span class="min-w-0 truncate">Laden</span>
           <input class="sr-only" type="file" accept="application/json,.json" (change)="projectImport.emit($event)">
         </label>
         <button
-          class="panel-button"
+          class="flex h-10 min-w-0 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
           type="button"
           (click)="projectExport.emit()"
         >
-          <mat-icon class="panel-button__icon">download</mat-icon>
-          <span class="panel-button__label">Exportieren</span>
+          <mat-icon class="shrink-0">download</mat-icon>
+          <span class="min-w-0 truncate">Exportieren</span>
         </button>
-      </div>
+        </div>
+      </details>
     </div>
   </section>
 
@@ -282,7 +373,7 @@
     <div class="mt-3 flex flex-col items-center gap-2">
       @for (bouquet of bouquets(); track bouquet.id) {
         <button
-          class="bouquet-rail-item grid h-9 w-9 place-items-center rounded-lg border text-xs font-bold transition"
+          class="grid h-9 w-9 place-items-center rounded-lg border text-xs font-bold transition duration-[180ms]"
           type="button"
           [class.border-emerald-950]="activeBouquetId() === bouquet.id"
           [class.bg-emerald-950]="activeBouquetId() === bouquet.id"
@@ -290,7 +381,9 @@
           [class.border-stone-200]="activeBouquetId() !== bouquet.id"
           [class.bg-white]="activeBouquetId() !== bouquet.id"
           [class.text-stone-600]="activeBouquetId() !== bouquet.id"
-          [class.bouquet-rail-item--removing]="deletingBouquetId() === bouquet.id"
+          [class.scale-75]="deletingBouquetId() === bouquet.id"
+          [class.opacity-0]="deletingBouquetId() === bouquet.id"
+          [class.pointer-events-none]="deletingBouquetId() === bouquet.id"
           [attr.aria-label]="bouquet.name + ' auswählen'"
           [attr.aria-current]="activeBouquetId() === bouquet.id ? 'page' : null"
           (click)="bouquetSelect.emit(bouquet.id)"
@@ -300,7 +393,7 @@
       }
       @if (canAddBouquet()) {
         <button
-          class="bouquet-rail-item grid h-9 w-9 place-items-center rounded-lg border border-dashed border-stone-300 text-stone-500 transition hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-900"
+          class="grid h-9 w-9 place-items-center rounded-lg border border-dashed border-stone-300 text-stone-500 transition hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-900"
           type="button"
           aria-label="Neuen Strauß anlegen"
           (click)="bouquetAdd.emit()"

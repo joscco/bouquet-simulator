@@ -48,6 +48,8 @@ export interface GraphicPatternLayer {
   density?: number;
   /** Relative Flecken- oder Liniengröße. */
   size?: number;
+  /** Richtung der Seitenadern in Grad: positiv zur Spitze, negativ zum Ansatz. */
+  angle?: number;
   /** Deterministischer Startwert für verteilte Muster. */
   seed?: number;
   /** Relative Breite eines Randmusters. */
@@ -222,12 +224,23 @@ export interface BouquetFlower {
   nodeOffsets?: Record<string, NodeOffset>;
 }
 
+export type BouquetBackgroundMode = 'light' | 'dark';
+export type BouquetSceneEffectId = keyof BouquetSceneEffects;
+
+export interface BouquetSceneEffects {
+  sparkles: boolean;
+  glowPoints: boolean;
+  uplight: boolean;
+}
+
 export interface BouquetState {
   schemaVersion: 2;
   rotation: number;
   vaseId?: string;
   /** Von der Vasenform unabhängige Oberflächenoptik. */
   vaseMaterialId?: string;
+  backgroundMode?: BouquetBackgroundMode;
+  sceneEffects?: BouquetSceneEffects;
   flowers: BouquetFlower[];
 }
 
