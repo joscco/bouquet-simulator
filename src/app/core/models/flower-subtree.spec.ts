@@ -4,9 +4,11 @@ import {
   createFlowerDefinitionComponent,
   createFlowerSubtree,
   extractFlowerSubtreeComponent,
+  insertFlowerDefinitionReference,
   insertFlowerSubtree,
   resolveFlowerSubtreeSelection,
 } from './flower-subtree';
+import {materializeDefinitionComponents} from './flower-components';
 
 const definition: FlowerDefinition = {
   schemaVersion: 2,
@@ -119,6 +121,101 @@ describe('flower subtrees', () => {
     expect(inserted.nodePositions[inserted.insertedNodeId].y).toBeLessThan(positions.root.y);
   });
 
+  it('materializes component references from the current source definition', () => {
+    const updatedSource: FlowerDefinition = {
+      ...definition,
+      nodes: definition.nodes.map((node) => node.id === 'left'
+        ? {...node, name: 'Updated left flower'}
+        : node),
+    };
+    const staleComponent = createFlowerDefinitionComponent(definition);
+    const consumer: FlowerDefinition = {
+      ...definition,
+      id: 'consumer',
+      nodes: [
+        {
+          id: 'root',
+          name: 'Root',
+          draggable: false,
+          graphic: null,
+          connections: [connection('component')],
+        },
+        {
+          id: 'component',
+          name: 'Component',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [],
+          component: staleComponent,
+        },
+      ],
+    };
+
+    const resolved = materializeDefinitionComponents([consumer, updatedSource])[0]!;
+    const resolvedComponent = resolved.nodes.find((node) => node.id === 'component')?.component;
+
+    expect(resolvedComponent?.nodes?.find((node) => node.id === 'left')?.name)
+      .toBe('Updated left flower');
+  });
+
+  it('materializes reference-only component nodes for rendering', () => {
+    const consumer: FlowerDefinition = {
+      ...definition,
+      id: 'consumer',
+      nodes: [
+        {
+          id: 'root',
+          name: 'Root',
+          draggable: false,
+          graphic: null,
+          connections: [connection('component')],
+        },
+        {
+          id: 'component',
+          name: 'Component',
+          draggable: false,
+          graphic: null,
+          incoming: incoming(),
+          connections: [],
+          component: {
+            schemaVersion: 1,
+            id: definition.id,
+            name: definition.name,
+            sourceDefinitionId: definition.id,
+          },
+        },
+      ],
+    };
+
+    const resolved = materializeDefinitionComponents([consumer, definition])[0]!;
+    const resolvedComponent = resolved.nodes.find((node) => node.id === 'component')?.component;
+
+    expect(resolvedComponent?.nodes?.map((node) => node.id).sort())
+      .toEqual(['branch', 'left', 'right', 'root']);
+  });
+
+  it('inserts catalog definitions as references without embedding their nodes', () => {
+    const inserted = insertFlowerDefinitionReference(definition, positions, definition, 'root');
+    const component = inserted.definition.nodes.find((node) => node.id === inserted.insertedNodeId)?.component;
+
+    expect(component).toEqual({
+      schemaVersion: 1,
+      id: definition.id,
+      name: definition.name,
+      sourceDefinitionId: definition.id,
+    });
+  });
+
+  it('keeps an explicit empty component output list', () => {
+    const component = createFlowerDefinitionComponent({
+      ...definition,
+      outputNodeIds: [],
+    });
+
+    expect(component.outputNodeIds).toEqual([]);
+  });
+
   it('extracts selected nodes into one component node and preserves external children', () => {
     const selection = resolveFlowerSubtreeSelection(definition, ['branch', 'left'])!;
     const extracted = extractFlowerSubtreeComponent(definition, positions, selection, {
@@ -127,7 +224,7 @@ describe('flower subtrees', () => {
     });
 
     const component = extracted.definition.nodes.find((node) => node.id === extracted.insertedNodeId)!;
-    expect(component.component?.nodes.map((node) => node.id).sort()).toEqual(['branch', 'left']);
+    expect(component.component?.nodes?.map((node) => node.id).sort()).toEqual(['branch', 'left']);
     expect(component.component?.outputNodeIds?.sort()).toEqual(['branch', 'left']);
     expect(extracted.definition.nodes.some((node) => node.id === 'branch')).toBe(false);
     expect(component.connections).toContainEqual(expect.objectContaining({childId: 'right'}));

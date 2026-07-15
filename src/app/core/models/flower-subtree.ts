@@ -113,7 +113,7 @@ export function createFlowerSubtree(
 export function createFlowerDefinitionComponent(
   definition: FlowerDefinition,
 ): FlowerSubtreeDefinition {
-  return createFlowerSubtree(
+  const component = createFlowerSubtree(
     definition,
     definition.editor?.nodePositions ?? {},
     {
@@ -126,6 +126,10 @@ export function createFlowerDefinitionComponent(
       createdAt: 'catalog',
     },
   );
+  if (definition.outputNodeIds !== undefined) {
+    component.outputNodeIds = componentOutputNodeIds(definition.nodes, definition.outputNodeIds);
+  }
+  return component;
 }
 
 export function insertFlowerSubtree(
@@ -166,7 +170,64 @@ export function insertFlowerSubtree(
       ...node,
       connections: [
         ...node.connections,
-        connectionFromIncoming(insertedNodeId, rootIncoming),
+        connectionFromIncoming(insertedNodeId),
+      ],
+    }
+    : node);
+
+  return {
+    definition: {
+      ...definition,
+      nodes: [...nextNodes, componentNode],
+    },
+    nodePositions: {...positions, [insertedNodeId]: insertedPosition},
+    insertedNodeId,
+  };
+}
+
+export function insertFlowerDefinitionReference(
+  definition: FlowerDefinition,
+  positions: Record<string, { x: number; y: number }>,
+  sourceDefinition: FlowerDefinition,
+  parentId: string,
+): InsertedFlowerSubtree {
+  if (!definition.nodes.some((node) => node.id === parentId)) {
+    throw new Error('Der Zielknoten für die Komponente existiert nicht mehr.');
+  }
+  const root = sourceDefinition.nodes.find((node) => node.id === sourceDefinition.rootNodeId);
+  if (!root) {
+    throw new Error('Die referenzierte Komponente besitzt keinen gültigen Wurzelknoten.');
+  }
+
+  const occupiedIds = new Set(definition.nodes.map((node) => node.id));
+  const insertedNodeId = uniqueId(slugify(sourceDefinition.id || sourceDefinition.name) || 'komponente', occupiedIds);
+  const rootIncoming: FlowerNodeIncomingConnection = nodeIncomingOrDefault(root);
+  const parentPosition = positions[parentId] ?? {x: 500, y: 760};
+  const insertedPosition = {
+    x: clamp(parentPosition.x, 100, 900),
+    y: clamp(parentPosition.y - 150, 80, 900),
+  };
+  const componentNode: FlowerNodeDefinition = {
+    id: insertedNodeId,
+    name: sourceDefinition.name,
+    draggable: false,
+    graphic: null,
+    incoming: structuredClone(rootIncoming),
+    connections: [],
+    component: {
+      schemaVersion: 1,
+      id: sourceDefinition.id,
+      name: sourceDefinition.name,
+      sourceDefinitionId: sourceDefinition.id,
+    },
+  };
+
+  const nextNodes = definition.nodes.map((node) => node.id === parentId
+    ? {
+      ...node,
+      connections: [
+        ...node.connections,
+        connectionFromIncoming(insertedNodeId),
       ],
     }
     : node);
@@ -227,7 +288,7 @@ export function extractFlowerSubtreeComponent(
       connections: node.connections
         .filter((connection) => !selectedIds.has(connection.childId) || connection.childId === selection.rootNodeId)
         .map((connection) => connection.childId === selection.rootNodeId
-          ? connectionFromIncoming(componentNodeId, rootIncoming)
+          ? connectionFromIncoming(componentNodeId)
           : connection),
       loop: node.loop ? {
         ...node.loop,
@@ -312,12 +373,11 @@ function sanitizeExportedNode(
 
 function componentOutputNodeIds(
   nodes: FlowerNodeDefinition[],
-  preferred: string[] = [],
+  preferred?: string[],
 ): string[] {
   const ids = new Set(nodes.map((node) => node.id));
-  const validPreferred = [...new Set(preferred)].filter((id) => ids.has(id));
-  if (validPreferred.length) {
-    return validPreferred;
+  if (preferred !== undefined) {
+    return [...new Set(preferred)].filter((id) => ids.has(id));
   }
   const externalParents = nodes
     .filter((node) => node.connections.some((connection) => !ids.has(connection.childId)))

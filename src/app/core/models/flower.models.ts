@@ -25,8 +25,16 @@ export interface GraphicPaintStroke {
   color: string;
 }
 
-export interface FlowerNodeConnection {
-  childId: string;
+export interface FlowerStemSettings {
+  color: string;
+  width: number;
+  /** Seitliche Biegung des Stängelsegments, -100 bis 100. */
+  bend?: number;
+  /** Stärke einer leichten organischen Eigenkrümmung, 0 bis 100. */
+  curve?: number;
+}
+
+export interface FlowerNodeIncomingConnection {
   repeat: NumberRange;
   length: NumberRange;
   /** Neigung relativ zur Wachstumsrichtung des Elternknotens, in Grad. */
@@ -35,15 +43,18 @@ export interface FlowerNodeConnection {
   azimuth?: NumberRange;
   /** 0 verteilt Wiederholungen gleichmäßig, 1 vollständig zufällig. */
   randomness?: number;
-  stem?: {
-    color: string;
-    width: number;
-    /** Seitliche Biegung des Stängelsegments, -100 bis 100. */
-    bend?: number;
-  };
+  stem?: FlowerStemSettings;
 }
 
-export type FlowerNodeIncomingConnection = Omit<FlowerNodeConnection, 'childId'>;
+/**
+ * Ausgehende Kanten sind Referenzen. Historische Daten duerfen hier noch
+ * konkrete Parameter enthalten; neue Editor-Aktionen speichern nur childId.
+ */
+export interface FlowerNodeConnection extends Partial<FlowerNodeIncomingConnection> {
+  childId: string;
+}
+
+export type ResolvedFlowerNodeConnection = FlowerNodeIncomingConnection & { childId: string };
 
 export interface FlowerNodeGraphic {
   primitive?: GraphicPrimitive;
@@ -78,12 +89,12 @@ export interface FlowerNodeComponent {
   schemaVersion: 1;
   id: string;
   name: string;
-  rootNodeId: string;
+  rootNodeId?: string;
   /** Interne Knoten, an denen externe Nachfolger einer Komponente weiterwachsen. */
   outputNodeIds?: string[];
   createdAt?: string;
   sourceDefinitionId?: string;
-  nodes: FlowerNodeDefinition[];
+  nodes?: FlowerNodeDefinition[];
   editor?: {
     nodePositions: Record<string, {x: number; y: number}>;
   };
@@ -119,6 +130,8 @@ export interface FlowerDefinition {
     symbol: string;
     color: string;
   };
+  /** Explizite Komponenten-Ausgänge. Undefined = automatisch offene Endknoten, [] = keine Ausgänge. */
+  outputNodeIds?: string[];
   rootNodeId: string;
   stem: {
     color: string;
@@ -127,6 +140,8 @@ export interface FlowerDefinition {
     taper: number;
     /** Standard-Biegung neuer Stängelsegmente, -100 bis 100. */
     bend?: number;
+    /** Standard-Stärke einer leichten organischen Eigenkrümmung, 0 bis 100. */
+    curve?: number;
   };
   nodes: FlowerNodeDefinition[];
   editor?: {

@@ -1,11 +1,10 @@
 import {describe, expect, it} from 'vitest';
-import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {FlowerDefinition, FlowerNodeConnection, FlowerNodeDefinition} from '../models/flower.models';
 import {flattenFlowerTemplates, generateFlowerTree} from './flower-tree';
 
 describe('procedural flower tree generator', () => {
   it('connects every generated node to the base node', () => {
-    const tree = generateFlowerTree(DEFAULT_FLOWERS[2], 0.42);
+    const tree = generateFlowerTree(pathLoopDefinition(), 0.42);
     const parents = new Map(tree.edges.map((edge) => [edge.to, edge.from]));
 
     for (const node of tree.nodes) {
@@ -22,26 +21,26 @@ describe('procedural flower tree generator', () => {
     }
   });
 
-  it('expands a multi-node loop path serially and branches as siblings', () => {
-    const tree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
+  it('expands a one-node loop serially and branches as siblings', () => {
+    const tree = generateFlowerTree(oneNodeLoopDefinition(), 0.31);
     const stemNodes = tree.nodes.filter((node) => node.templateId === 'stem');
     const leafNodes = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const petalNodes = tree.nodes.filter((node) => isPetalTemplate(node.templateId));
+    const bloomNodes = tree.nodes.filter((node) => node.templateId === 'bloom');
 
-    expect(stemNodes.length).toBeGreaterThanOrEqual(2);
+    expect(stemNodes).toHaveLength(2);
     expect(new Set(leafNodes.map((node) => node.parentId))).toEqual(new Set(stemNodes.map((node) => node.id)));
     expect(stemNodes.slice(1).map((node) => node.parentId)).toEqual(
       stemNodes.slice(0, -1).map((node) => node.id),
     );
-    expect(petalNodes.length).toBeGreaterThanOrEqual(15);
-    expect(new Set(petalNodes.map((node) => node.parentId)).size).toBe(1);
+    expect(bloomNodes).toHaveLength(1);
+    expect(bloomNodes[0]!.parentId).toBe(stemNodes.at(-1)?.id);
   });
 
   it('repeats the internal loop body and continues from its final end node', () => {
-    const tree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
+    const tree = generateFlowerTree(oneNodeLoopDefinition(), 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const blooms = tree.nodes.filter((node) => isTemplate(node.templateId, 'bloom'));
+    const blooms = tree.nodes.filter((node) => node.templateId === 'bloom');
 
     expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
     expect(stems.slice(1).map((node) => node.parentId)).toEqual(stems.slice(0, -1).map((node) => node.id));
@@ -50,14 +49,11 @@ describe('procedural flower tree generator', () => {
   });
 
   it('repeats every node on a multi-node loop path', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    const loop = definition.nodes.find((node) => node.id === 'growth-loop')!.loop!;
-    loop.repeat = {min: 2, max: 2};
-    loop.endNodeId = 'leaf';
+    const definition = pathLoopDefinition();
     const tree = generateFlowerTree(definition, 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const bloom = tree.nodes.find((node) => isTemplate(node.templateId, 'bloom'));
+    const bloom = tree.nodes.find((node) => node.templateId === 'bloom');
 
     expect(stems).toHaveLength(2);
     expect(leaves).toHaveLength(2);
@@ -66,15 +62,11 @@ describe('procedural flower tree generator', () => {
   });
 
   it('can repeat one stem while growing leaves as side branches', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    const loop = definition.nodes.find((node) => node.id === 'growth-loop')!.loop!;
-    loop.repeat = {min: 3, max: 3};
-    loop.startNodeId = 'stem';
-    loop.endNodeId = 'stem';
+    const definition = oneNodeLoopDefinition({min: 3, max: 3});
     const tree = generateFlowerTree(definition, 0.31);
     const stems = tree.nodes.filter((node) => node.templateId === 'stem');
     const leaves = tree.nodes.filter((node) => node.templateId === 'leaf');
-    const bloom = tree.nodes.find((node) => isTemplate(node.templateId, 'bloom'));
+    const bloom = tree.nodes.find((node) => node.templateId === 'bloom');
 
     expect(stems).toHaveLength(3);
     expect(new Set(leaves.map((node) => node.parentId))).toEqual(new Set(stems.map((node) => node.id)));
@@ -118,35 +110,42 @@ describe('procedural flower tree generator', () => {
   });
 
   it('applies a node offset before positioning its descendants', () => {
-    const baseTree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31);
-    const bloom = baseTree.nodes.find((node) => isTemplate(node.templateId, 'bloom'))!;
-    const movedTree = generateFlowerTree(DEFAULT_FLOWERS[0], 0.31, {[bloom.id]: {x: 20, y: -15}});
-    const movedBloom = movedTree.nodes.find((node) => node.id === bloom.id)!;
-    const basePetal = baseTree.nodes.find((node) => isTemplate(node.templateId, 'petal'))!;
-    const movedPetal = movedTree.nodes.find((node) => node.id === basePetal.id)!;
+    const definition = branchDefinition();
+    const baseTree = generateFlowerTree(definition, 0.31);
+    const branch = baseTree.nodes.find((node) => node.templateId === 'branch')!;
+    const movedTree = generateFlowerTree(definition, 0.31, {[branch.id]: {x: 20, y: -15}});
+    const movedBranch = movedTree.nodes.find((node) => node.id === branch.id)!;
+    const baseLeaf = baseTree.nodes.find((node) => node.templateId === 'leaf')!;
+    const movedLeaf = movedTree.nodes.find((node) => node.id === baseLeaf.id)!;
 
-    expect(movedBloom.x - bloom.x).toBeCloseTo(20);
-    expect(movedBloom.y - bloom.y).toBeCloseTo(-15);
-    expect(movedPetal.x - basePetal.x).toBeCloseTo(20);
-    expect(movedPetal.y - basePetal.y).toBeCloseTo(-15);
+    expect(movedBranch.x - branch.x).toBeCloseTo(20);
+    expect(movedBranch.y - branch.y).toBeCloseTo(-15);
+    expect(movedLeaf.x - baseLeaf.x).toBeCloseTo(20);
+    expect(movedLeaf.y - baseLeaf.y).toBeCloseTo(-15);
   });
 
   it('is deterministic for a given definition and seed', () => {
-    expect(generateFlowerTree(DEFAULT_FLOWERS[1], 0.31))
-      .toEqual(generateFlowerTree(DEFAULT_FLOWERS[1], 0.31));
+    const definition = radialDefinition({randomness: 0.8});
+    expect(generateFlowerTree(definition, 0.31))
+      .toEqual(generateFlowerTree(definition, 0.31));
   });
 
   it('distributes repeated branches in three dimensions', () => {
-    const tree = generateFlowerTree(DEFAULT_FLOWERS[1], 0.31);
-    const petals = tree.nodes.filter((node) => isTemplate(node.templateId, 'petal'));
+    const tree = generateFlowerTree(radialDefinition({randomness: 0}), 0.31);
+    const branches = tree.nodes.filter((node) => node.templateId === 'branch');
 
-    expect(petals.some((node) => Math.abs(node.z) > 0.1)).toBe(true);
-    expect(new Set(petals.map((node) => node.parentId)).size).toBeGreaterThan(0);
+    expect(branches.some((node) => Math.abs(node.z) > 0.1)).toBe(true);
+    expect(new Set(branches.map((node) => node.parentId)).size).toBeGreaterThan(0);
   });
 
   it('makes a fully uniform distribution independent of the seed', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    definition.nodes = [
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'uniform',
+      name: 'Uniform',
+      rootNodeId: 'base',
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
       {
         id: 'base',
         name: 'Basis',
@@ -162,39 +161,38 @@ describe('procedural flower tree generator', () => {
         }],
       },
       {id: 'branch', name: 'Ast', draggable: false, graphic: null, connections: []},
-    ];
-    definition.rootNodeId = 'base';
+      ],
+    };
 
     expect(generateFlowerTree(definition, 0.1)).toEqual(generateFlowerTree(definition, 0.9));
   });
 
   it('keeps the source connection on every generated edge', () => {
-    const definition = DEFAULT_FLOWERS[0];
+    const definition = componentDefinition();
     const tree = generateFlowerTree(definition, 0.31);
     const templates = flattenFlowerTemplates(definition);
     const generatedNodes = new Map(tree.nodes.map((node) => [node.id, node]));
 
     for (const edge of tree.edges) {
-      const connection = templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex];
-      expect(connection).toBeDefined();
-      const target = connection ? templates.get(connection.childId) : null;
+      expect(edge.connection).toBeDefined();
+      if (edge.connectionIndex >= 0) {
+        expect(templates.get(edge.connectionSourceId)?.connections[edge.connectionIndex]).toBeDefined();
+      }
+      const target = templates.get(edge.connection.childId);
       const expectedTemplateId = target?.component
         ? `${target.id}::${target.component.rootNodeId}`
-        : target?.loop?.startNodeId ?? connection?.childId;
+        : target?.loop?.startNodeId ?? edge.connection.childId;
       expect(generatedNodes.get(edge.to)?.templateId).toBe(expectedTemplateId);
     }
   });
+
+  it('does not continue external children from a component with no outputs', () => {
+    const definition = componentDefinition([]);
+    const tree = generateFlowerTree(definition, 0.31);
+
+    expect(tree.nodes.some((node) => node.templateId === 'after')).toBe(false);
+  });
 });
-
-function isTemplate(actual: string, expected: string): boolean {
-  return actual === expected || actual.endsWith(`::${expected}`);
-}
-
-function isPetalTemplate(actual: string): boolean {
-  return isTemplate(actual, 'petal')
-    || isTemplate(actual, 'petal-copy')
-    || isTemplate(actual, 'petal-copy-copy');
-}
 
 function node(id: string, connections: FlowerNodeConnection[]): FlowerNodeDefinition {
   return {
@@ -213,5 +211,120 @@ function connection(childId: string): FlowerNodeConnection {
     length: {min: 10, max: 10},
     angle: {min: 0, max: 0},
     randomness: 0,
+  };
+}
+
+function branchDefinition(): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'branch',
+    name: 'Branch',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      node('root', [connection('branch')]),
+      node('branch', [connection('leaf')]),
+      node('leaf', []),
+    ],
+  };
+}
+
+function oneNodeLoopDefinition(repeat = {min: 2, max: 2}): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'one-node-loop',
+    name: 'One node loop',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      node('root', [connection('loop')]),
+      {
+        ...node('loop', [connection('bloom')]),
+        loop: {
+          repeat,
+          startNodeId: 'stem',
+          endNodeId: 'stem',
+        },
+      },
+      node('stem', [connection('leaf')]),
+      node('leaf', []),
+      node('bloom', []),
+    ],
+  };
+}
+
+function pathLoopDefinition(): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'path-loop',
+    name: 'Path loop',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      node('root', [connection('loop')]),
+      {
+        ...node('loop', [connection('bloom')]),
+        loop: {
+          repeat: {min: 2, max: 2},
+          startNodeId: 'stem',
+          endNodeId: 'leaf',
+        },
+      },
+      node('stem', [connection('leaf')]),
+      node('leaf', []),
+      node('bloom', []),
+    ],
+  };
+}
+
+function radialDefinition(options: {randomness: number}): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'radial',
+    name: 'Radial',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      {
+        ...node('root', []),
+        connections: [{
+          childId: 'branch',
+          repeat: {min: 5, max: 5},
+          length: {min: 10, max: 10},
+          angle: {min: 90, max: 90},
+          azimuth: {min: 0, max: 360},
+          randomness: options.randomness,
+        }],
+      },
+      node('branch', []),
+    ],
+  };
+}
+
+function componentDefinition(outputNodeIds: string[] = ['inner-out']): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'component-source',
+    name: 'Component source',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      node('root', [connection('component')]),
+      {
+        ...node('component', [connection('after')]),
+        component: {
+          schemaVersion: 1,
+          id: 'component-template',
+          name: 'Component template',
+          rootNodeId: 'inner-root',
+          outputNodeIds,
+          nodes: [
+            node('inner-root', [connection('inner-out')]),
+            node('inner-out', []),
+          ],
+        },
+      },
+      node('after', []),
+    ],
   };
 }

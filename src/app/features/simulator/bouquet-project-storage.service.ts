@@ -12,7 +12,11 @@ export class BouquetProjectStorage {
       const serialized = globalThis.localStorage?.getItem(BouquetProjectStorage.BOUQUET_STORAGE_KEY);
       if (!serialized) return;
       const parsed = JSON.parse(serialized) as unknown;
-      if (!this.store.restoreProject(parsed) && !this.store.restoreBouquet(parsed)) {
+      if (
+        !this.store.restoreProjectState(parsed)
+        && !this.store.restoreProject(parsed)
+        && !this.store.restoreBouquet(parsed)
+      ) {
         globalThis.localStorage?.removeItem(BouquetProjectStorage.BOUQUET_STORAGE_KEY);
       }
     } catch {

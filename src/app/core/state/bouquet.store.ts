@@ -10,6 +10,8 @@ import {
 } from '../models/flower.models';
 import {validateFlowerDefinition} from '../models/flower-validation';
 import {DEFAULT_VASE_ID, isVaseId, vaseInsertionRadius} from '../data/vases';
+import {materializeDefinitionComponents} from '../models/flower-components';
+import {normalizeConnectionReferences} from '../models/flower-connections';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -27,7 +29,8 @@ export interface BouquetSummary {
 export class BouquetStore {
   static readonly MAX_BOUQUETS = 4;
 
-  readonly definitions = signal<FlowerDefinition[]>(structuredClone(DEFAULT_FLOWERS));
+  readonly definitions = signal<FlowerDefinition[]>(normalizeDefinitions(DEFAULT_FLOWERS));
+  readonly materializedDefinitions = computed(() => materializeDefinitionComponents(this.definitions()));
   readonly bouquets = signal<BouquetProject[]>([{
     id: this.createBouquetId(),
     name: 'Strauß 1',
@@ -165,10 +168,11 @@ export class BouquetStore {
   }
 
   replaceDefinition(definition: FlowerDefinition): void {
+    const normalized = normalizeConnectionReferences(definition);
     this.definitions.update((definitions) => {
-      const existing = definitions.findIndex((candidate) => candidate.id === definition.id);
-      if (existing < 0) return [...definitions, structuredClone(definition)];
-      return definitions.map((candidate, index) => index === existing ? structuredClone(definition) : candidate);
+      const existing = definitions.findIndex((candidate) => candidate.id === normalized.id);
+      if (existing < 0) return [...definitions, normalized];
+      return definitions.map((candidate, index) => index === existing ? normalized : candidate);
     });
   }
 
@@ -233,7 +237,7 @@ export class BouquetStore {
     if (bouquets.some((bouquet) => bouquet.state.flowers.some((flower) => !definitionIds.has(flower.definitionId)))) {
       throw new Error('Das Projekt enthält eine Blume ohne passende Definition.');
     }
-    this.definitions.set(structuredClone(project.definitions));
+    this.definitions.set(normalizeDefinitions(project.definitions));
     this.setBouquets(bouquets, project.activeBouquetId);
   }
 
@@ -245,6 +249,17 @@ export class BouquetStore {
     } catch {
       return false;
     }
+  }
+
+  restoreProjectState(project: unknown): boolean {
+    if (!isProjectExport(project)) return false;
+    const definitionIds = new Set(this.definitions().map((definition) => definition.id));
+    const bouquets = this.projectBouquets(project);
+    if (bouquets.some((bouquet) => bouquet.state.flowers.some((flower) => !definitionIds.has(flower.definitionId)))) {
+      return false;
+    }
+    this.setBouquets(bouquets, project.activeBouquetId);
+    return true;
   }
 
   restoreBouquet(bouquet: unknown): boolean {
@@ -444,6 +459,10 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+function normalizeDefinitions(definitions: FlowerDefinition[]): FlowerDefinition[] {
+  return definitions.map((definition) => normalizeConnectionReferences(definition));
+}
+
 function isBouquetState(value: unknown): value is BouquetState {
   if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
   if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
@@ -495,5 +514,5 @@ function componentMatches(
 ): boolean {
   if (!component) return false;
   if (component.id === id || (matchSourceDefinition && component.sourceDefinitionId === id)) return true;
-  return component.nodes.some((node) => componentMatches(node.component, id, matchSourceDefinition));
+  return (component.nodes ?? []).some((node) => componentMatches(node.component, id, matchSourceDefinition));
 }

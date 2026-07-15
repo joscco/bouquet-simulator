@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
+import {FlowerDefinition} from './flower.models';
 import {validateFlowerDefinition} from './flower-validation';
 
 describe('flower definition validation', () => {
@@ -10,9 +11,9 @@ describe('flower definition validation', () => {
   });
 
   it('reports cycles in reachable connections', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
+    const definition = validationDefinition();
     definition.nodes.find((node) => node.id === 'leaf')!.connections.push({
-      childId: 'growth-loop',
+      childId: 'branch',
       repeat: {min: 1, max: 1},
       length: {min: 1, max: 1},
       angle: {min: 0, max: 0},
@@ -23,7 +24,7 @@ describe('flower definition validation', () => {
   });
 
   it('warns about disconnected nodes', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
+    const definition = validationDefinition();
     definition.nodes.push({
       id: 'unused',
       name: 'Ohne Verbindung',
@@ -39,14 +40,64 @@ describe('flower definition validation', () => {
   });
 
   it('rejects non-PNG node graphics', () => {
-    const definition = structuredClone(DEFAULT_FLOWERS[0]);
-    const graphic = definition.nodes.find((node) => node.graphic)!.graphic!;
+    const definition = validationDefinition();
+    const graphic = definition.nodes.find((node) => node.id === 'leaf')!.graphic!;
     graphic.primitive = 'png';
     graphic.png = 'data:image/svg+xml,<svg></svg>';
 
     expect(validateFlowerDefinition(definition)).toContainEqual({
       severity: 'error',
-      message: '„Blattgrafik“ verwendet keine PNG-Grafik.',
+      message: '„Leaf“ verwendet keine PNG-Grafik.',
     });
   });
 });
+
+function validationDefinition(): FlowerDefinition {
+  return {
+    schemaVersion: 2,
+    id: 'validation',
+    name: 'Validation',
+    rootNodeId: 'root',
+    stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+    nodes: [
+      {
+        id: 'root',
+        name: 'Root',
+        draggable: false,
+        graphic: null,
+        connections: [connection('branch')],
+      },
+      {
+        id: 'branch',
+        name: 'Branch',
+        draggable: false,
+        graphic: null,
+        connections: [connection('leaf')],
+      },
+      {
+        id: 'leaf',
+        name: 'Leaf',
+        draggable: false,
+        graphic: {
+          primitive: 'leaf-pointed',
+          color: '#477b49',
+          width: 20,
+          height: 18,
+          rotation: {min: 0, max: 0},
+          start: {x: 0, y: 0.5},
+          end: {x: 1, y: 0.5},
+        },
+        connections: [],
+      },
+    ],
+  };
+}
+
+function connection(childId: string) {
+  return {
+    childId,
+    repeat: {min: 1, max: 1},
+    length: {min: 10, max: 10},
+    angle: {min: 0, max: 0},
+  };
+}

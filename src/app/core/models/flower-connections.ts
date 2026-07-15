@@ -3,6 +3,7 @@ import {
   FlowerNodeConnection,
   FlowerNodeDefinition,
   FlowerNodeIncomingConnection,
+  ResolvedFlowerNodeConnection,
 } from './flower.models';
 
 export const DEFAULT_INCOMING_CONNECTION: FlowerNodeIncomingConnection = {
@@ -16,7 +17,7 @@ export const DEFAULT_INCOMING_CONNECTION: FlowerNodeIncomingConnection = {
 export interface IncomingConnectionReference {
   sourceId: string;
   index: number;
-  connection: FlowerNodeConnection;
+  connection: ResolvedFlowerNodeConnection;
 }
 
 export function incomingConnectionReference(
@@ -39,11 +40,11 @@ export function incomingConnectionReference(
 export function effectiveConnection(
   definition: FlowerDefinition,
   legacyConnection: FlowerNodeConnection,
-): FlowerNodeConnection {
+): ResolvedFlowerNodeConnection {
   const incoming = definition.nodes.find((node) => node.id === legacyConnection.childId)?.incoming;
   return incoming
     ? {...structuredClone(incoming), childId: legacyConnection.childId}
-    : legacyConnection;
+    : {...incomingFromConnection(legacyConnection), childId: legacyConnection.childId};
 }
 
 export function migrateIncomingConnections(definition: FlowerDefinition): FlowerDefinition {
@@ -60,23 +61,46 @@ export function migrateIncomingConnections(definition: FlowerDefinition): Flower
   clone.nodes = clone.nodes.map((node) => {
     if (node.id === clone.rootNodeId || node.incoming) return node;
     const legacy = incomingByTarget.get(node.id)?.[0];
-    return legacy ? {...node, incoming: withoutChildId(legacy)} : node;
+    return legacy ? {...node, incoming: incomingFromConnection(legacy)} : node;
   });
   return clone;
 }
 
 export function connectionFromIncoming(
   childId: string,
-  incoming: FlowerNodeIncomingConnection,
 ): FlowerNodeConnection {
-  return {...structuredClone(incoming), childId};
+  return {childId};
+}
+
+export function normalizeConnectionReferences(definition: FlowerDefinition): FlowerDefinition {
+  const clone = migrateIncomingConnections(definition);
+  const nodesWithIncoming = new Set(clone.nodes
+    .filter((node) => !!node.incoming)
+    .map((node) => node.id));
+  return {
+    ...clone,
+    nodes: clone.nodes.map((node) => ({
+      ...node,
+      connections: node.connections.map((connection) =>
+        nodesWithIncoming.has(connection.childId)
+          ? {childId: connection.childId}
+          : structuredClone(connection)),
+    })),
+  };
 }
 
 export function withoutChildId(connection: FlowerNodeConnection): FlowerNodeIncomingConnection {
-  const {childId: _childId, ...incoming} = structuredClone(connection);
-  return incoming;
+  return incomingFromConnection(connection);
 }
 
 export function nodeIncomingOrDefault(node: FlowerNodeDefinition): FlowerNodeIncomingConnection {
   return structuredClone(node.incoming ?? DEFAULT_INCOMING_CONNECTION);
+}
+
+function incomingFromConnection(connection: FlowerNodeConnection): FlowerNodeIncomingConnection {
+  const {childId: _childId, ...incoming} = structuredClone(connection);
+  return {
+    ...structuredClone(DEFAULT_INCOMING_CONNECTION),
+    ...incoming,
+  };
 }

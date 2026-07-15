@@ -120,6 +120,24 @@ describe('bouquet flower placement', () => {
     expect(store.state()).not.toBe(persisted);
   });
 
+  it('restores persisted project state without replacing current definitions', () => {
+    const store = new BouquetStore();
+    const persisted = store.exportProject();
+    const currentDefinition = structuredClone(store.definitions()[0]!);
+    currentDefinition.name = 'Aktuelle Definition';
+    persisted.definitions[0] = {
+      ...structuredClone(currentDefinition),
+      name: 'Veraltete Definition',
+    };
+    store.definitions.update((definitions) => definitions.map((definition, index) =>
+      index === 0 ? currentDefinition : definition));
+
+    expect(store.restoreProjectState(persisted)).toBe(true);
+
+    expect(store.definitions()[0]!.name).toBe('Aktuelle Definition');
+    expect(store.state()).toEqual(persisted.bouquet);
+  });
+
   it('rejects invalid or outdated persisted bouquets', () => {
     const store = new BouquetStore();
     const previous = structuredClone(store.state());

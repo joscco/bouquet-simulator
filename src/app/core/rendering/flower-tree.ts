@@ -1,11 +1,16 @@
 import {
   FlowerDefinition,
-  FlowerNodeConnection,
   FlowerNodeDefinition,
   NodeOffset,
   NumberRange,
+  ResolvedFlowerNodeConnection,
 } from '../models/flower.models';
-import {effectiveConnection} from '../models/flower-connections';
+import {
+  FlowerGraphEdge,
+  createFlowerGraph,
+  graphLoopStartEdge,
+  graphOutgoing,
+} from '../models/flower-graph';
 
 export interface FlowerTreeNode {
   id: string;
@@ -25,6 +30,7 @@ export interface FlowerTreeEdge {
   to: string;
   connectionSourceId: string;
   connectionIndex: number;
+  connection: ResolvedFlowerNodeConnection;
 }
 
 export interface FlowerTree {
@@ -41,7 +47,7 @@ export function flattenFlowerTemplates(definition: FlowerDefinition): Map<string
   const templates = new Map<string, FlowerNodeDefinition>();
   for (const node of definition.nodes) {
     templates.set(node.id, node);
-    if (node.component) addComponentTemplates(templates, node.id, node.component.nodes);
+    if (node.component?.nodes) addComponentTemplates(templates, node.id, node.component.nodes);
   }
   return templates;
 }
@@ -58,6 +64,7 @@ export function generateFlowerTree(
 ): FlowerTree {
   const random = mulberry32(Math.floor(seed * 0xffffffff) || 1);
   const templates = flattenFlowerTemplates(definition);
+  const graph = createFlowerGraph(templates.values());
   const rootTemplate = templates.get(definition.rootNodeId);
   if (!rootTemplate) throw new Error(`Basisknoten "${definition.rootNodeId}" fehlt.`);
 
@@ -91,10 +98,10 @@ export function generateFlowerTree(
     const template = templates.get(templateId);
     if (!template) return;
 
-    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
-      if (connectionIndex === excludedConnectionIndex) continue;
-      const connection = effectiveConnection(definition, legacyConnection);
-      const childTemplate = templates.get(connection.childId);
+    for (const edge of graphOutgoing(graph, templateId)) {
+      if (edge.connectionIndex === excludedConnectionIndex) continue;
+      const connection = edge.connection;
+      const childTemplate = templates.get(edge.targetId);
       if (!childTemplate || ancestors.has(childTemplate.id)) continue;
       const count = randomInteger(connection.repeat, random);
       if (childTemplate.component) {
@@ -102,9 +109,7 @@ export function generateFlowerTree(
           expandComponent(
             parent,
             childTemplate,
-            connection,
-            template.id,
-            connectionIndex,
+            edge,
             new Set([...ancestors, childTemplate.id]),
             expansionDepth + 1,
           );
@@ -116,9 +121,7 @@ export function generateFlowerTree(
           expandLoop(
             parent,
             childTemplate,
-            connection,
-            template.id,
-            connectionIndex,
+            edge,
             new Set([...ancestors, childTemplate.id]),
             expansionDepth + 1,
           );
@@ -129,9 +132,7 @@ export function generateFlowerTree(
         const child = addNode(
           parent,
           childTemplate.id,
-          connection,
-          template.id,
-          connectionIndex,
+          edge,
           index,
           count,
         );
@@ -148,28 +149,30 @@ export function generateFlowerTree(
   function expandComponent(
     parent: FlowerTreeNode,
     componentTemplate: FlowerNodeDefinition,
-    entryConnection: FlowerNodeConnection,
-    entrySourceId: string,
-    entryConnectionIndex: number,
+    entryEdge: FlowerGraphEdge,
     ancestors: Set<string>,
     expansionDepth: number,
   ): void {
     const component = componentTemplate.component;
-    if (!component || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
+    if (!component?.rootNodeId || !component.nodes || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
     const rootKey = componentTemplateKey(componentTemplate.id, component.rootNodeId);
     if (!templates.has(rootKey)) return;
     const firstInternalIndex = nodes.length;
     const root = addNode(
       parent,
       rootKey,
-      entryConnection,
-      entrySourceId,
-      entryConnectionIndex,
+      {
+        ...entryEdge,
+        targetId: rootKey,
+        connection: {...entryEdge.connection, childId: rootKey},
+      },
       0,
       1,
     );
     expandChildren(root, rootKey, new Set([...ancestors, rootKey]), expansionDepth + 1);
-    const outputKeys = new Set(componentOutputNodeIds(componentTemplate).map((id) =>
+    const outputIds = componentOutputNodeIds(componentTemplate);
+    if (component.outputNodeIds !== undefined && outputIds.length === 0) return;
+    const outputKeys = new Set(outputIds.map((id) =>
       componentTemplateKey(componentTemplate.id, id)));
     const outputNodes = nodes
       .slice(firstInternalIndex)
@@ -190,9 +193,9 @@ export function generateFlowerTree(
   ): void {
     const template = templates.get(componentTemplateId);
     if (!template) return;
-    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
-      const connection = effectiveConnection(definition, legacyConnection);
-      const childTemplate = templates.get(connection.childId);
+    for (const edge of graphOutgoing(graph, componentTemplateId)) {
+      const connection = edge.connection;
+      const childTemplate = templates.get(edge.targetId);
       if (!childTemplate || ancestors.has(childTemplate.id)) continue;
       const count = randomInteger(connection.repeat, random);
       for (const parent of parents) {
@@ -201,9 +204,7 @@ export function generateFlowerTree(
             expandComponent(
               parent,
               childTemplate,
-              connection,
-              template.id,
-              connectionIndex,
+              edge,
               new Set([...ancestors, childTemplate.id]),
               expansionDepth + 1,
             );
@@ -212,9 +213,7 @@ export function generateFlowerTree(
           const child = addNode(
             parent,
             childTemplate.id,
-            connection,
-            template.id,
-            connectionIndex,
+            edge,
             index,
             count,
           );
@@ -232,29 +231,26 @@ export function generateFlowerTree(
   function expandLoop(
     parent: FlowerTreeNode,
     loopTemplate: FlowerNodeDefinition,
-    entryConnection: FlowerNodeConnection,
-    entrySourceId: string,
-    entryConnectionIndex: number,
+    entryEdge: FlowerGraphEdge,
     ancestors: Set<string>,
     expansionDepth: number,
   ): void {
     const loop = loopTemplate.loop;
     if (!loop?.startNodeId || !loop.endNodeId) return;
     if (loop.memberNodeIds?.length) {
-      expandMemberLoop(parent, loopTemplate, entryConnection, entrySourceId, entryConnectionIndex, ancestors, expansionDepth);
+      expandMemberLoop(parent, loopTemplate, entryEdge, ancestors, expansionDepth);
       return;
     }
     const path = findPath(loop.startNodeId, loop.endNodeId);
     if (!path) return;
     const repeat = randomInteger(loop.repeat, random);
     let attachment = parent;
+    const startEdge = graphLoopStartEdge(graph, loopTemplate, entryEdge);
     for (let iteration = 0; iteration < repeat && nodes.length < MAX_GENERATED_NODES; iteration++) {
       let current = addNode(
         attachment,
         loop.startNodeId,
-        entryConnection,
-        entrySourceId,
-        entryConnectionIndex,
+        startEdge,
         iteration,
         repeat,
         true,
@@ -270,9 +266,7 @@ export function generateFlowerTree(
         current = addNode(
           current,
           step.targetId,
-          step.connection,
-          step.sourceId,
-          step.connectionIndex,
+          step.edge,
           0,
           1,
         );
@@ -296,9 +290,7 @@ export function generateFlowerTree(
   function expandMemberLoop(
     parent: FlowerTreeNode,
     loopTemplate: FlowerNodeDefinition,
-    entryConnection: FlowerNodeConnection,
-    entrySourceId: string,
-    entryConnectionIndex: number,
+    entryEdge: FlowerGraphEdge,
     ancestors: Set<string>,
     expansionDepth: number,
   ): void {
@@ -311,15 +303,14 @@ export function generateFlowerTree(
       : memberOutputNodeIds(memberIds);
     const repeat = randomInteger(loop.repeat, random);
     let attachments = [parent];
+    const startEdge = graphLoopStartEdge(graph, loopTemplate, entryEdge);
     for (let iteration = 0; iteration < repeat && nodes.length < MAX_GENERATED_NODES; iteration++) {
       const nextAttachments: FlowerTreeNode[] = [];
       for (const attachment of attachments) {
         const root = addNode(
           attachment,
           loop.startNodeId,
-          entryConnection,
-          entrySourceId,
-          entryConnectionIndex,
+          startEdge,
           iteration,
           repeat,
           true,
@@ -345,13 +336,13 @@ export function generateFlowerTree(
   ): void {
     const template = templates.get(templateId);
     if (!template || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
-    for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
-      const connection = effectiveConnection(definition, legacyConnection);
-      if (!memberIds.has(connection.childId) || ancestors.has(connection.childId)) continue;
+    for (const edge of graphOutgoing(graph, templateId)) {
+      const connection = edge.connection;
+      if (!memberIds.has(edge.targetId) || ancestors.has(edge.targetId)) continue;
       const count = randomInteger(connection.repeat, random);
       for (let index = 0; index < count && nodes.length < MAX_GENERATED_NODES; index++) {
-        const child = addNode(parent, connection.childId, connection, template.id, connectionIndex, index, count);
-        expandMemberChildren(child, connection.childId, memberIds, new Set([...ancestors, connection.childId]), expansionDepth + 1);
+        const child = addNode(parent, edge.targetId, edge, index, count);
+        expandMemberChildren(child, edge.targetId, memberIds, new Set([...ancestors, edge.targetId]), expansionDepth + 1);
       }
     }
   }
@@ -360,9 +351,9 @@ export function generateFlowerTree(
     const internalParents = new Set<string>();
     for (const id of memberIds) {
       const template = templates.get(id);
-      for (const connection of template?.connections ?? []) {
-        const childId = effectiveConnection(definition, connection).childId;
-        if (memberIds.has(childId)) internalParents.add(id);
+      if (!template) continue;
+      for (const edge of graphOutgoing(graph, id)) {
+        if (memberIds.has(edge.targetId)) internalParents.add(id);
       }
     }
     return [...memberIds].filter((id) => !internalParents.has(id));
@@ -384,7 +375,7 @@ export function generateFlowerTree(
     sourceId: string;
     targetId: string;
     connectionIndex: number;
-    connection: FlowerNodeConnection;
+    edge: FlowerGraphEdge;
   }> | null {
     if (startNodeId === endNodeId) return [];
     const visited = new Set<string>();
@@ -393,15 +384,14 @@ export function generateFlowerTree(
       visited.add(nodeId);
       const template = templates.get(nodeId);
       if (!template || template.loop) return null;
-      for (const [connectionIndex, legacyConnection] of template.connections.entries()) {
-        const connection = effectiveConnection(definition, legacyConnection);
-        if (connection.childId === endNodeId) {
-          return [{sourceId: nodeId, targetId: endNodeId, connectionIndex, connection}];
+      for (const edge of graphOutgoing(graph, nodeId)) {
+        if (edge.targetId === endNodeId) {
+          return [{sourceId: nodeId, targetId: endNodeId, connectionIndex: edge.connectionIndex, edge}];
         }
-        const remainder = visit(connection.childId);
+        const remainder = visit(edge.targetId);
         if (remainder) {
           return [
-            {sourceId: nodeId, targetId: connection.childId, connectionIndex, connection},
+            {sourceId: nodeId, targetId: edge.targetId, connectionIndex: edge.connectionIndex, edge},
             ...remainder,
           ];
         }
@@ -414,9 +404,7 @@ export function generateFlowerTree(
   function addNode(
     parent: FlowerTreeNode,
     templateId: string,
-    connection: FlowerNodeConnection,
-    connectionSourceId: string,
-    connectionIndex: number,
+    edge: FlowerGraphEdge,
     repeatIndex: number,
     repeatCount: number,
     forceUpright = false,
@@ -425,6 +413,7 @@ export function generateFlowerTree(
     counters.set(templateId, serial);
     const id = `${templateId}-${serial}`;
     const template = templates.get(templateId)!;
+    const connection = edge.connection;
     const randomness = clamp(connection.randomness ?? 0.35, 0, 1);
     const evenLinearUnit = repeatCount > 1 ? repeatIndex / (repeatCount - 1) : 0.5;
     const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
@@ -467,7 +456,13 @@ export function generateFlowerTree(
       draggable: template.draggable,
     };
     nodes.push(node);
-    edges.push({from: parent.id, to: id, connectionSourceId, connectionIndex});
+    edges.push({
+      from: parent.id,
+      to: id,
+      connectionSourceId: edge.sourceId,
+      connectionIndex: edge.connectionIndex,
+      connection: structuredClone(connection),
+    });
     return node;
   }
 }
@@ -506,7 +501,7 @@ function addComponentTemplates(
       } : undefined,
     };
     templates.set(key, clone);
-    if (node.component) addComponentTemplates(templates, key, node.component.nodes);
+    if (node.component?.nodes) addComponentTemplates(templates, key, node.component.nodes);
   }
 }
 
@@ -516,10 +511,11 @@ function componentTemplateKey(ownerId: string, nodeId: string): string {
 
 function componentOutputNodeIds(componentTemplate: FlowerNodeDefinition): string[] {
   const component = componentTemplate.component;
-  if (!component) return [];
+  if (!component?.nodes) return [];
   const ids = new Set(component.nodes.map((node) => node.id));
-  const preferred = [...new Set(component.outputNodeIds ?? [])].filter((id) => ids.has(id));
-  if (preferred.length) return preferred;
+  if (component.outputNodeIds !== undefined) {
+    return [...new Set(component.outputNodeIds)].filter((id) => ids.has(id));
+  }
   const parents = new Set(component.nodes.flatMap((node) =>
     node.connections
       .filter((connection) => ids.has(connection.childId))

@@ -4,6 +4,7 @@ import {
   effectiveConnection,
   incomingConnectionReference,
   migrateIncomingConnections,
+  normalizeConnectionReferences,
 } from './flower-connections';
 import {validateFlowerDefinition} from './flower-validation';
 
@@ -12,8 +13,13 @@ describe('node-owned incoming connections', () => {
     const legacy = structuredClone(daisyComponentDefinition());
     const source = legacy.nodes.find((node) =>
       node.connections.some((connection) => connection.childId === 'petal'))!;
-    const legacyConnection = source.connections.find((connection) =>
-      connection.childId === 'petal')!;
+    const petalNode = legacy.nodes.find((node) => node.id === 'petal')!;
+    const legacyConnection = {
+      childId: 'petal',
+      ...structuredClone(petalNode.incoming!),
+    };
+    source.connections = source.connections.map((connection) =>
+      connection.childId === 'petal' ? legacyConnection : connection);
     delete legacy.nodes.find((node) => node.id === 'petal')!.incoming;
     const migrated = migrateIncomingConnections(legacy);
     const petal = migrated.nodes.find((node) => node.id === 'petal')!;
@@ -32,6 +38,24 @@ describe('node-owned incoming connections', () => {
     const legacy = source.connections.find((connection) => connection.childId === target.id)!;
 
     expect(effectiveConnection(definition, legacy).length).toEqual({min: 33, max: 44});
+  });
+
+  it('resolves a bare child reference through the target incoming settings', () => {
+    const definition = migrateIncomingConnections(daisyComponentDefinition());
+    const target = definition.nodes.find((node) => node.id === 'petal')!;
+    target.incoming = {...target.incoming!, length: {min: 31, max: 32}};
+
+    expect(effectiveConnection(definition, {childId: target.id}).length).toEqual({min: 31, max: 32});
+  });
+
+  it('normalizes copied edge settings into real child references', () => {
+    const normalized = normalizeConnectionReferences(daisyComponentDefinition());
+    const source = normalized.nodes.find((node) =>
+      node.connections.some((connection) => connection.childId === 'petal'))!;
+    const connection = source.connections.find((connection) => connection.childId === 'petal')!;
+
+    expect(connection).toEqual({childId: 'petal'});
+    expect(normalized.nodes.find((node) => node.id === 'petal')?.incoming).toBeDefined();
   });
 
   it('rejects a second incoming link to the same node', () => {

@@ -2,7 +2,7 @@
   <app-bouquet-canvas
     class="absolute inset-0 block h-full w-full"
     [state]="store.state()"
-    [definitions]="store.definitions()"
+    [definitions]="store.materializedDefinitions()"
     [selectedId]="selectedId()"
     [flowerMoveEnabled]="true"
     [vaseEnabled]="true"

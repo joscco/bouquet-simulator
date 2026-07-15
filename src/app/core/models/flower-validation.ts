@@ -24,8 +24,14 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
   if (definition.nodes.find((node) => node.id === definition.rootNodeId)?.loop) {
     issues.push({severity: 'error', message: 'Ein Loop kann nicht der Basisknoten sein.'});
   }
+  if (definition.outputNodeIds?.some((id) => !ids.has(id))) {
+    issues.push({severity: 'error', message: 'Die Komponentenausgänge enthalten einen fehlenden Knoten.'});
+  }
   if (Math.abs(definition.stem.bend ?? 0) > 100) {
     issues.push({severity: 'error', message: 'Die Standard-Stängelbiegung ist ungültig.'});
+  }
+  if ((definition.stem.curve ?? 0) < 0 || (definition.stem.curve ?? 0) > 100) {
+    issues.push({severity: 'error', message: 'Die Standard-Stängelkrümmung ist ungültig.'});
   }
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const incomingCounts = new Map<string, number>();
@@ -145,6 +151,9 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       }
       if (Math.abs(connection.stem?.bend ?? 0) > 100) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängelbiegung.`});
+      }
+      if ((connection.stem?.curve ?? 0) < 0 || (connection.stem?.curve ?? 0) > 100) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängelkrümmung.`});
       }
     }
   }

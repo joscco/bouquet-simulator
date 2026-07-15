@@ -21,23 +21,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "loop-1"
           }
         ]
@@ -49,42 +32,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "childId": "leaf",
-            "repeat": {
-              "min": 1,
-              "max": 2
-            },
-            "length": {
-              "min": 18,
-              "max": 34
-            },
-            "angle": {
-              "min": 48,
-              "max": 74
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            }
+            "childId": "leaf"
           },
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "node-6"
           }
         ],
@@ -105,7 +55,13 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 0,
             "max": 360
           },
-          "randomness": 0.25
+          "randomness": 0.25,
+          "stem": {
+            "color": "#477348",
+            "width": 5.5,
+            "bend": 0,
+            "curve": 47
+          }
         }
       },
       {
@@ -127,11 +83,14 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "y": 0.5
           },
           "rotation": {
-            "min": -18,
-            "max": 18
+            "min": 85,
+            "max": 95
           },
-          "bendMain": -26,
-          "bendCross": 11
+          "bendMain": -42,
+          "bendCross": 6,
+          "orientation": "toward-parent",
+          "rotationBase": 90,
+          "rotationSpread": 5
         },
         "connections": [],
         "incoming": {
@@ -140,18 +99,24 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 2
           },
           "length": {
-            "min": 0,
-            "max": 0
+            "min": 6,
+            "max": 7
           },
           "angle": {
-            "min": 48,
+            "min": 58,
             "max": 74
           },
           "azimuth": {
             "min": 0,
             "max": 360
           },
-          "randomness": 0
+          "randomness": 0.27,
+          "stem": {
+            "color": "#477348",
+            "width": 6,
+            "bend": 0,
+            "curve": 14
+          }
         }
       },
       {
@@ -178,8 +143,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#477348",
-            "width": 9.5,
-            "bend": 0
+            "width": 6,
+            "bend": 0,
+            "curve": 14
           }
         },
         "connections": [],
@@ -187,269 +153,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "schemaVersion": 1,
           "id": "pfingstrosenbluete",
           "name": "Pfingstrosenblüte",
-          "rootNodeId": "bloom",
-          "outputNodeIds": [
-            "petal",
-            "petal-copy",
-            "petal-copy-copy"
-          ],
-          "createdAt": "catalog",
-          "sourceDefinitionId": "pfingstrosenbluete",
-          "nodes": [
-            {
-              "id": "bloom",
-              "name": "Blütenzentrum",
-              "draggable": true,
-              "graphic": null,
-              "connections": [
-                {
-                  "childId": "petal",
-                  "repeat": {
-                    "min": 6,
-                    "max": 17
-                  },
-                  "length": {
-                    "min": 0,
-                    "max": 0
-                  },
-                  "angle": {
-                    "min": 109,
-                    "max": 116
-                  },
-                  "azimuth": {
-                    "min": 0,
-                    "max": 360
-                  },
-                  "randomness": 0
-                },
-                {
-                  "childId": "petal-copy",
-                  "repeat": {
-                    "min": 6,
-                    "max": 13
-                  },
-                  "length": {
-                    "min": 0,
-                    "max": 0
-                  },
-                  "angle": {
-                    "min": 93,
-                    "max": 94
-                  },
-                  "azimuth": {
-                    "min": 0,
-                    "max": 360
-                  },
-                  "randomness": 0
-                },
-                {
-                  "childId": "petal-copy-copy",
-                  "repeat": {
-                    "min": 6,
-                    "max": 9
-                  },
-                  "length": {
-                    "min": 0,
-                    "max": 0
-                  },
-                  "angle": {
-                    "min": 63,
-                    "max": 63
-                  },
-                  "azimuth": {
-                    "min": 0,
-                    "max": 360
-                  },
-                  "randomness": 0
-                }
-              ],
-              "incoming": {
-                "repeat": {
-                  "min": 1,
-                  "max": 1
-                },
-                "length": {
-                  "min": 36,
-                  "max": 45
-                },
-                "angle": {
-                  "min": 0,
-                  "max": 5
-                },
-                "azimuth": {
-                  "min": 0,
-                  "max": 360
-                }
-              }
-            },
-            {
-              "id": "petal",
-              "name": "Rosenblätter Außen",
-              "draggable": false,
-              "graphic": {
-                "primitive": "leaf-pointed",
-                "color": "#e75b71",
-                "width": 43,
-                "height": 72,
-                "depth": 2,
-                "bendMain": 100,
-                "bendCross": 31,
-                "orientation": "toward-parent",
-                "rotationBase": 89,
-                "rotationSpread": 12,
-                "start": {
-                  "x": 0.5,
-                  "y": 0.88
-                },
-                "end": {
-                  "x": 0.5,
-                  "y": 0.05
-                },
-                "rotation": {
-                  "min": 77,
-                  "max": 101
-                }
-              },
-              "connections": [],
-              "incoming": {
-                "repeat": {
-                  "min": 6,
-                  "max": 17
-                },
-                "length": {
-                  "min": 0,
-                  "max": 0
-                },
-                "angle": {
-                  "min": 109,
-                  "max": 116
-                },
-                "azimuth": {
-                  "min": 0,
-                  "max": 360
-                },
-                "randomness": 0
-              }
-            },
-            {
-              "id": "petal-copy",
-              "name": "Rosenblätter Mitte",
-              "draggable": false,
-              "graphic": {
-                "primitive": "leaf-pointed",
-                "color": "#e75b71",
-                "width": 43,
-                "height": 72,
-                "depth": 2,
-                "bendMain": 100,
-                "bendCross": 45,
-                "orientation": "toward-parent",
-                "rotationBase": 85,
-                "rotationSpread": 15,
-                "start": {
-                  "x": 0.5,
-                  "y": 0.88
-                },
-                "end": {
-                  "x": 0.5,
-                  "y": 0.05
-                },
-                "rotation": {
-                  "min": 70,
-                  "max": 100
-                }
-              },
-              "connections": [],
-              "incoming": {
-                "repeat": {
-                  "min": 6,
-                  "max": 13
-                },
-                "length": {
-                  "min": 0,
-                  "max": 0
-                },
-                "angle": {
-                  "min": 93,
-                  "max": 94
-                },
-                "azimuth": {
-                  "min": 0,
-                  "max": 360
-                },
-                "randomness": 0
-              }
-            },
-            {
-              "id": "petal-copy-copy",
-              "name": "Rosenblätter Innen",
-              "draggable": false,
-              "graphic": {
-                "primitive": "leaf-pointed",
-                "color": "#e75b71",
-                "width": 43,
-                "height": 60,
-                "depth": 2,
-                "bendMain": 78,
-                "bendCross": 55,
-                "orientation": "toward-parent",
-                "rotationBase": 89,
-                "rotationSpread": 10,
-                "start": {
-                  "x": 0.5,
-                  "y": 0.88
-                },
-                "end": {
-                  "x": 0.5,
-                  "y": 0.05
-                },
-                "rotation": {
-                  "min": 79,
-                  "max": 99
-                }
-              },
-              "connections": [],
-              "incoming": {
-                "repeat": {
-                  "min": 6,
-                  "max": 9
-                },
-                "length": {
-                  "min": 0,
-                  "max": 0
-                },
-                "angle": {
-                  "min": 63,
-                  "max": 63
-                },
-                "azimuth": {
-                  "min": 0,
-                  "max": 360
-                },
-                "randomness": 0
-              }
-            }
-          ],
-          "editor": {
-            "nodePositions": {
-              "bloom": {
-                "x": 0,
-                "y": 0
-              },
-              "petal": {
-                "x": 166.22900989409152,
-                "y": -280
-              },
-              "petal-copy": {
-                "x": 289.90259291203404,
-                "y": -166.45241049380604
-              },
-              "petal-copy-copy": {
-                "x": 315.73619161308704,
-                "y": -40.571641197571466
-              }
-            }
-          }
+          "sourceDefinitionId": "pfingstrosenbluete"
         }
       },
       {
@@ -477,28 +181,13 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "randomness": 0.25,
           "stem": {
             "color": "#477348",
-            "width": 6,
-            "bend": 0
+            "width": 6.5,
+            "bend": 0,
+            "curve": 22
           }
         },
         "connections": [
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 36,
-              "max": 45
-            },
-            "angle": {
-              "min": 0,
-              "max": 5
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
             "childId": "pfingstrosenbluete"
           }
         ],
@@ -544,8 +233,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "randomness": 0.25,
           "stem": {
             "color": "#477348",
-            "width": 10,
-            "bend": 0
+            "width": 4.5,
+            "bend": 0,
+            "curve": 14
           }
         },
         "connections": []
@@ -583,6 +273,224 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   },
   {
     "schemaVersion": 2,
+    "id": "pfingstrosenbluete",
+    "name": "Pfingstrosenblüte",
+    "catalogRole": "component",
+    "outputNodeIds": [],
+    "rootNodeId": "bloom",
+    "stem": {
+      "color": "#477348",
+      "highlightColor": "#76a56e",
+      "width": 10,
+      "taper": 0.72
+    },
+    "nodes": [
+      {
+        "id": "bloom",
+        "name": "Blütenzentrum",
+        "draggable": true,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "petal"
+          },
+          {
+            "childId": "petal-copy"
+          },
+          {
+            "childId": "petal-copy-copy"
+          }
+        ],
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 36,
+            "max": 45
+          },
+          "angle": {
+            "min": 0,
+            "max": 5
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          }
+        }
+      },
+      {
+        "id": "petal",
+        "name": "Rosenblätter Außen",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#e75b71",
+          "width": 43,
+          "height": 72,
+          "depth": 2,
+          "bendMain": 100,
+          "bendCross": 31,
+          "orientation": "toward-parent",
+          "rotationBase": 89,
+          "rotationSpread": 12,
+          "start": {
+            "x": 0.5,
+            "y": 0.88
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.05
+          },
+          "rotation": {
+            "min": 77,
+            "max": 101
+          }
+        },
+        "connections": [],
+        "incoming": {
+          "repeat": {
+            "min": 6,
+            "max": 17
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 109,
+            "max": 116
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0
+        }
+      },
+      {
+        "id": "petal-copy",
+        "name": "Rosenblätter Mitte",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#e75b71",
+          "width": 43,
+          "height": 72,
+          "depth": 2,
+          "bendMain": 100,
+          "bendCross": 45,
+          "orientation": "toward-parent",
+          "rotationBase": 85,
+          "rotationSpread": 15,
+          "start": {
+            "x": 0.5,
+            "y": 0.88
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.05
+          },
+          "rotation": {
+            "min": 70,
+            "max": 100
+          }
+        },
+        "connections": [],
+        "incoming": {
+          "repeat": {
+            "min": 6,
+            "max": 13
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 93,
+            "max": 94
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0
+        }
+      },
+      {
+        "id": "petal-copy-copy",
+        "name": "Rosenblätter Innen",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#e75b71",
+          "width": 43,
+          "height": 60,
+          "depth": 2,
+          "bendMain": 78,
+          "bendCross": 55,
+          "orientation": "toward-parent",
+          "rotationBase": 89,
+          "rotationSpread": 10,
+          "start": {
+            "x": 0.5,
+            "y": 0.88
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.05
+          },
+          "rotation": {
+            "min": 79,
+            "max": 99
+          }
+        },
+        "connections": [],
+        "incoming": {
+          "repeat": {
+            "min": 6,
+            "max": 9
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 63,
+            "max": 63
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "randomness": 0
+        }
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "bloom": {
+          "x": 500,
+          "y": 840
+        },
+        "petal": {
+          "x": 666.2290098940915,
+          "y": 560
+        },
+        "petal-copy": {
+          "x": 789.902592912034,
+          "y": 673.547589506194
+        },
+        "petal-copy-copy": {
+          "x": 815.736191613087,
+          "y": 799.4283588024285
+        }
+      }
+    }
+  },
+  {
+    "schemaVersion": 2,
     "id": "meadow-daisy",
     "name": "Margerite",
     "rootNodeId": "base",
@@ -600,23 +508,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "loop-1"
           }
         ]
@@ -628,42 +519,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "childId": "leaf",
-            "repeat": {
-              "min": 1,
-              "max": 2
-            },
-            "length": {
-              "min": 20,
-              "max": 34
-            },
-            "angle": {
-              "min": 46,
-              "max": 70
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            }
+            "childId": "leaf"
           },
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "node-5"
           }
         ],
@@ -723,12 +581,12 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 2
           },
           "length": {
-            "min": 0,
+            "min": 6,
             "max": 14
           },
           "angle": {
-            "min": 40,
-            "max": 45
+            "min": 38,
+            "max": 62
           },
           "azimuth": {
             "min": 0,
@@ -789,22 +647,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "connections": [
           {
-            "repeat": {
-              "min": 2,
-              "max": 2
-            },
-            "length": {
-              "min": 42,
-              "max": 115
-            },
-            "angle": {
-              "min": 12,
-              "max": 42
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
             "childId": "margeritenbluete-2"
           }
         ],
@@ -867,22 +709,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
               "graphic": null,
               "connections": [
                 {
-                  "repeat": {
-                    "min": 2,
-                    "max": 2
-                  },
-                  "length": {
-                    "min": 42,
-                    "max": 115
-                  },
-                  "angle": {
-                    "min": 12,
-                    "max": 42
-                  },
-                  "azimuth": {
-                    "min": 0,
-                    "max": 360
-                  },
                   "childId": "flower-head-copy"
                 }
               ],
@@ -985,23 +811,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
               },
               "connections": [
                 {
-                  "repeat": {
-                    "min": 7,
-                    "max": 10
-                  },
-                  "length": {
-                    "min": 0,
-                    "max": 1
-                  },
-                  "angle": {
-                    "min": 75,
-                    "max": 76
-                  },
-                  "azimuth": {
-                    "min": 0,
-                    "max": 360
-                  },
-                  "randomness": 0,
                   "childId": "petal"
                 }
               ],
@@ -1063,6 +872,10 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "x": 744.7984159481828,
           "y": 673.6795095663807
         },
+        "margeritenbluete-2": {
+          "x": 650.7083998207861,
+          "y": 107.6587325533232
+        },
         "leaf": {
           "x": 563.0779150515084,
           "y": 401.2189308805424
@@ -1070,10 +883,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "node-5": {
           "x": 760.9150489553426,
           "y": 372.3808915865728
-        },
-        "margeritenbluete-2": {
-          "x": 650.7083998207861,
-          "y": 107.6587325533232
         }
       }
     }
@@ -1097,23 +906,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "childId": "growth-loop",
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 70,
-              "max": 88
-            },
-            "angle": {
-              "min": 0,
-              "max": 6
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            }
+            "childId": "growth-loop"
           }
         ]
       },
@@ -1139,23 +932,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "connections": [
           {
-            "childId": "umbel",
-            "repeat": {
-              "min": 3,
-              "max": 5
-            },
-            "length": {
-              "min": 34,
-              "max": 82
-            },
-            "angle": {
-              "min": 18,
-              "max": 48
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            }
+            "childId": "umbel"
           }
         ],
         "incoming": {
@@ -1184,23 +961,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "childId": "leaf",
-            "repeat": {
-              "min": 1,
-              "max": 2
-            },
-            "length": {
-              "min": 24,
-              "max": 40
-            },
-            "angle": {
-              "min": 48,
-              "max": 74
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            }
+            "childId": "leaf"
           }
         ]
       },
@@ -1260,23 +1021,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "loop-1"
           }
         ],
@@ -1307,22 +1051,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 3,
-              "max": 6
-            },
-            "length": {
-              "min": 7,
-              "max": 23
-            },
-            "angle": {
-              "min": 25,
-              "max": 75
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
             "childId": "floret-copy"
           }
         ],
@@ -1415,22 +1143,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "connections": [
           {
-            "repeat": {
-              "min": 3,
-              "max": 6
-            },
-            "length": {
-              "min": 7,
-              "max": 23
-            },
-            "angle": {
-              "min": 25,
-              "max": 75
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
             "childId": "floret"
           }
         ],
@@ -1558,24 +1270,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 1,
-              "max": 1
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
-            "childId": "loop-1"
+            "childId": "node-2"
           }
         ]
       },
@@ -1590,7 +1285,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 50,
+            "min": 14,
             "max": 70
           },
           "angle": {
@@ -1601,9 +1296,19 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 0,
             "max": 360
           },
-          "randomness": 0.25
+          "randomness": 0.25,
+          "stem": {
+            "color": "#426f50",
+            "width": 5,
+            "bend": 0,
+            "curve": 14
+          }
         },
-        "connections": []
+        "connections": [
+          {
+            "childId": "loop-2"
+          }
+        ]
       },
       {
         "id": "node-3",
@@ -1627,119 +1332,22 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "min": 0,
             "max": 360
           },
-          "randomness": 0.25
+          "randomness": 0.25,
+          "stem": {
+            "color": "#426f50",
+            "width": 5.5,
+            "bend": 0,
+            "curve": 14
+          }
         },
         "connections": [
           {
-            "repeat": {
-              "min": 0,
-              "max": 9
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 10
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.25,
             "childId": "node-3-copy-2"
           },
           {
-            "repeat": {
-              "min": 4,
-              "max": 5
-            },
-            "length": {
-              "min": 21,
-              "max": 43
-            },
-            "angle": {
-              "min": 0,
-              "max": 55
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.82,
-            "stem": {
-              "color": "#426f50",
-              "width": 3.5
-            },
             "childId": "node-3-copy-copy"
           }
         ]
-      },
-      {
-        "id": "loop-1",
-        "name": "Grundast",
-        "draggable": false,
-        "graphic": null,
-        "incoming": {
-          "repeat": {
-            "min": 1,
-            "max": 1
-          },
-          "length": {
-            "min": 0,
-            "max": 70
-          },
-          "angle": {
-            "min": 3,
-            "max": 37
-          },
-          "azimuth": {
-            "min": 0,
-            "max": 360
-          },
-          "randomness": 0,
-          "stem": {
-            "color": "#426f50",
-            "width": 1
-          }
-        },
-        "connections": [
-          {
-            "repeat": {
-              "min": 6,
-              "max": 15
-            },
-            "length": {
-              "min": 50,
-              "max": 70
-            },
-            "angle": {
-              "min": 0,
-              "max": 180
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0,
-            "childId": "loop-2"
-          }
-        ],
-        "loop": {
-          "repeat": {
-            "min": 1,
-            "max": 2
-          },
-          "startNodeId": "node-2",
-          "endNodeId": "node-2",
-          "memberNodeIds": [
-            "node-2"
-          ],
-          "continuationOutputNodeIds": [
-            "node-2"
-          ]
-        }
       },
       {
         "id": "loop-2",
@@ -1748,22 +1356,22 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "incoming": {
           "repeat": {
-            "min": 0,
-            "max": 5
+            "min": 2,
+            "max": 3
           },
           "length": {
             "min": 0,
             "max": 24
           },
           "angle": {
-            "min": 87,
+            "min": 4,
             "max": 119
           },
           "azimuth": {
             "min": 0,
             "max": 360
           },
-          "randomness": 0.7,
+          "randomness": 1,
           "stem": {
             "color": "#426f50",
             "width": 1.5
@@ -1772,8 +1380,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "connections": [],
         "loop": {
           "repeat": {
-            "min": 1,
-            "max": 6
+            "min": 2,
+            "max": 2
           },
           "startNodeId": "node-3",
           "endNodeId": "node-3-copy-2",
@@ -1822,8 +1430,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "incoming": {
           "repeat": {
-            "min": 4,
-            "max": 5
+            "min": 2,
+            "max": 3
           },
           "length": {
             "min": 10,
@@ -1853,19 +1461,19 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "incoming": {
           "repeat": {
             "min": 2,
-            "max": 9
+            "max": 3
           },
           "length": {
-            "min": 38,
-            "max": 70
+            "min": 51,
+            "max": 80
           },
           "angle": {
-            "min": 0,
-            "max": 39
+            "min": 30,
+            "max": 56
           },
           "azimuth": {
             "min": 0,
-            "max": 0
+            "max": 360
           },
           "randomness": 0,
           "stem": {
@@ -1875,27 +1483,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "connections": [
           {
-            "repeat": {
-              "min": 4,
-              "max": 5
-            },
-            "length": {
-              "min": 21,
-              "max": 43
-            },
-            "angle": {
-              "min": 0,
-              "max": 55
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0.82,
-            "stem": {
-              "color": "#426f50",
-              "width": 3.5
-            },
             "childId": "node-3-copy"
           }
         ]
@@ -1934,8 +1521,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "incoming": {
           "repeat": {
-            "min": 4,
-            "max": 5
+            "min": 2,
+            "max": 3
           },
           "length": {
             "min": 8,
@@ -1961,36 +1548,32 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "editor": {
       "nodePositions": {
         "loop-2": {
-          "x": 503.28508796660003,
-          "y": 477.1095771773604
-        },
-        "loop-1": {
-          "x": 498.8866147293294,
-          "y": 779.9846687548137
+          "x": 500,
+          "y": 316
         },
         "base": {
-          "x": 365.05443702573365,
-          "y": 941
+          "x": 500,
+          "y": 900
         },
         "node-2": {
-          "x": 498.8866147293294,
-          "y": 779.9846687548137
+          "x": 500,
+          "y": 754
         },
         "node-3": {
-          "x": 496.33857626075917,
-          "y": 536.2561019394749
+          "x": 500,
+          "y": 462
         },
         "node-3-copy": {
-          "x": 220.5853349680085,
-          "y": 231.2782262527823
+          "x": 374,
+          "y": 170
         },
         "node-3-copy-2": {
-          "x": 511.9327085434087,
-          "y": 384.46380846363314
+          "x": 374,
+          "y": 316
         },
         "node-3-copy-copy": {
-          "x": 189.37803603653902,
-          "y": 369.9357334969434
+          "x": 626,
+          "y": 316
         }
       }
     }
@@ -1999,11 +1582,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "schemaVersion": 2,
     "id": "margeritenbluete-2",
     "name": "Margeritenblüte",
-    "catalogRole": "flower",
-    "catalogIcon": {
-      "symbol": "✿",
-      "color": "#5b8d53"
-    },
+    "catalogRole": "component",
     "rootNodeId": "flower-head",
     "stem": {
       "color": "#477348",
@@ -2019,22 +1598,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": null,
         "connections": [
           {
-            "repeat": {
-              "min": 2,
-              "max": 2
-            },
-            "length": {
-              "min": 42,
-              "max": 115
-            },
-            "angle": {
-              "min": 12,
-              "max": 42
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
             "childId": "flower-head-copy"
           }
         ],
@@ -2066,7 +1629,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "color": "#fffdf7",
           "width": 30,
           "height": 62,
-          "depth": 3.5999999999999996,
+          "depth": 1.5,
           "orientation": "toward-parent",
           "rotationBase": 90,
           "rotationSpread": 0,
@@ -2137,23 +1700,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "connections": [
           {
-            "repeat": {
-              "min": 7,
-              "max": 10
-            },
-            "length": {
-              "min": 0,
-              "max": 1
-            },
-            "angle": {
-              "min": 75,
-              "max": 76
-            },
-            "azimuth": {
-              "min": 0,
-              "max": 360
-            },
-            "randomness": 0,
             "childId": "petal"
           }
         ],
@@ -2185,16 +1731,16 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "editor": {
       "nodePositions": {
         "flower-head": {
-          "x": 577.8210261519952,
-          "y": 887.4501705467455
+          "x": 500,
+          "y": 900
         },
         "petal": {
-          "x": 494.5722921763918,
-          "y": 532.8753765425939
+          "x": 500,
+          "y": 608
         },
         "flower-head-copy": {
-          "x": 582.0475912910292,
-          "y": 699.0153196496077
+          "x": 500,
+          "y": 754
         }
       }
     }
