@@ -28,10 +28,12 @@ export class FlowerEditorPreviewComponent {
     this.definition(),
     ...this.catalogDefinitions().filter((definition) => definition.id !== this.definition().id),
   ]));
+  readonly hasRenderableRoot = computed(() =>
+    this.definition().nodes.some((node) => node.id === this.definition().rootNodeId));
   readonly state = computed<BouquetState>(() => ({
     schemaVersion: 2,
     rotation: this.rotation(),
-    flowers: [{
+    flowers: this.hasRenderableRoot() ? [{
       instanceId: 'editor-preview',
       definitionId: this.definition().id,
       x: 0,
@@ -40,7 +42,7 @@ export class FlowerEditorPreviewComponent {
       scale: 1,
       seed: this.seed(),
       nodeOffsets: {},
-    }],
+    }] : [],
   }));
 
   regenerate(): void {

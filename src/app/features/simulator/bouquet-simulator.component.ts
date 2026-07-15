@@ -14,7 +14,13 @@ import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {ProjectExport} from '../../core/models/flower.models';
-import {DEFAULT_VASE_ID, VASE_OPTIONS} from '../../core/data/vases';
+import {
+  DEFAULT_VASE_ID,
+  DEFAULT_VASE_MATERIAL_ID,
+  VASE_MATERIAL_OPTIONS,
+  VASE_OPTIONS,
+  VaseMaterialId,
+} from '../../core/data/vases';
 import {isAvailableInBouquet} from '../../core/models/flower-catalog';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {
@@ -47,6 +53,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   private readonly definitionStorage = inject(FlowerDefinitionStorage);
   private readonly flowerNameCollator = new Intl.Collator('de', {numeric: true, sensitivity: 'base'});
   readonly vaseOptions = VASE_OPTIONS;
+  readonly vaseMaterialOptions = VASE_MATERIAL_OPTIONS;
   readonly pickerOpen = signal(false);
   readonly menuOpen = signal(false);
   readonly selectedId = signal<string | null>(null);
@@ -93,6 +100,8 @@ export class BouquetSimulatorComponent implements OnDestroy {
     return Math.round(normalized < 0 ? normalized + 360 : normalized);
   });
   readonly activeVaseId = computed(() => this.store.state().vaseId ?? DEFAULT_VASE_ID);
+  readonly activeVaseMaterialId = computed(() =>
+    this.store.state().vaseMaterialId as VaseMaterialId | undefined ?? DEFAULT_VASE_MATERIAL_ID);
 
   private menuLayoutTween: {kill: () => void} | null = null;
 
@@ -194,6 +203,10 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   setVase(vaseId: string): void {
     this.store.setVase(vaseId);
+  }
+
+  setVaseMaterial(vaseMaterialId: VaseMaterialId): void {
+    this.store.setVaseMaterial(vaseMaterialId);
   }
 
   exportProject(): void {

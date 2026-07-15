@@ -180,6 +180,7 @@
 
       <div class="mt-4 border-t border-stone-200/70 pt-4">
         <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Vase</div>
+        <div class="mb-1.5 text-[9px] font-semibold text-stone-400">Form</div>
         <div class="grid grid-cols-5 gap-1.5">
           @for (vase of vaseOptions(); track vase.id) {
             <button
@@ -195,6 +196,28 @@
               (click)="vaseChange.emit(vase.id)"
             >
               <mat-icon class="text-[20px]!">{{ vase.symbol }}</mat-icon>
+            </button>
+          }
+        </div>
+        <div class="mb-1.5 mt-3 text-[9px] font-semibold text-stone-400">Optik</div>
+        <div class="grid grid-cols-4 gap-1.5">
+          @for (material of vaseMaterialOptions(); track material.id) {
+            <button
+              class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white px-1 py-2 text-[8px] font-semibold text-stone-500 transition-colors hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-950"
+              [class.border-emerald-950]="activeVaseMaterialId() === material.id"
+              [class.bg-emerald-950]="activeVaseMaterialId() === material.id"
+              [class.text-white]="activeVaseMaterialId() === material.id"
+              type="button"
+              [matTooltip]="material.name"
+              [attr.aria-label]="'Vasenoptik ' + material.name + ' auswählen'"
+              [attr.aria-pressed]="activeVaseMaterialId() === material.id"
+              (click)="vaseMaterialChange.emit(material.id)"
+            >
+              <span
+                class="size-5 rounded-full border border-black/10 shadow-inner"
+                [style.background]="material.swatch"
+              ></span>
+              <span class="truncate">{{ material.name }}</span>
             </button>
           }
         </div>

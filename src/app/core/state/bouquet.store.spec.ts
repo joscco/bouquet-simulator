@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
 import {detectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
+import {DEFAULT_VASE_MATERIAL_ID} from '../data/vases';
 
 describe('bouquet flower placement', () => {
   it('moves and tilts the complete flower while keeping its insertion point in the vase', () => {
@@ -42,6 +43,32 @@ describe('bouquet flower placement', () => {
     for (const flower of store.state().flowers) {
       expect(Math.hypot(flower.x, flower.z)).toBeLessThanOrEqual(14.001);
     }
+  });
+
+  it('changes and persists the vase material independently from shape and flowers', () => {
+    const store = new BouquetStore();
+    const vaseId = store.state().vaseId;
+    const flowers = structuredClone(store.state().flowers);
+
+    store.setVaseMaterial('glass');
+    const exported = store.exportProject();
+    const restored = new BouquetStore();
+    restored.importProject(structuredClone(exported));
+
+    expect(store.state().vaseMaterialId).toBe('glass');
+    expect(store.state().vaseId).toBe(vaseId);
+    expect(store.state().flowers).toEqual(flowers);
+    expect(exported.bouquet.vaseMaterialId).toBe('glass');
+    expect(restored.state().vaseMaterialId).toBe('glass');
+  });
+
+  it('migrates bouquets without a material to stoneware', () => {
+    const store = new BouquetStore();
+    const legacy = structuredClone(store.state());
+    delete legacy.vaseMaterialId;
+
+    expect(store.restoreBouquet(legacy)).toBe(true);
+    expect(store.state().vaseMaterialId).toBe(DEFAULT_VASE_MATERIAL_ID);
   });
 
   it('copies a flower instance including instance-level settings', () => {

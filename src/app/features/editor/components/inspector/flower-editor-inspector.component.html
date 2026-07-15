@@ -50,12 +50,10 @@
   <div class="mb-3 flex items-center gap-2">
     <input class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 min-w-0 flex-1" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
     <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten kopieren" aria-label="Knoten kopieren" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-    @if (node.id !== definition().rootNodeId) {
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
-    }
+    <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
   </div>
 
-  @if (node.id !== definition().rootNodeId && !node.loop) {
+  @if (!node.loop) {
     @if (incomingSettings(); as incoming) {
       <section class="mb-3 border-t border-stone-200 pt-3">
         <div class="mb-3 flex items-center justify-between gap-2">
@@ -232,11 +230,155 @@
     </div>
     @if (isPaintableGraphic(graphic)) {
       <div class="mt-3 space-y-2 border-t border-stone-100 pt-3">
-        <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
-          [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendMain', $event)" />
-        <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
-          [minimum]="-100" [maximum]="100" (valueChange)="updateGraphicBend('bendCross', $event)" />
+        <p class="mb-1 mt-0 text-[8px] leading-relaxed text-stone-400">
+          Werte über ±100 rollen das Element weiter ein; mehrere hundert Prozent erzeugen vollständige Windungen. Verlaufswerte gelten absolut am Ansatz und an der Spitze.
+        </p>
+        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 text-[10px] font-semibold text-stone-600">
+          Verlauf Hauptrichtung
+          <input
+            class="m-0 size-4 shrink-0 accent-emerald-800"
+            type="checkbox"
+            [ngModel]="hasGraphicBendProfile(graphic, 'main')"
+            (ngModelChange)="setGraphicBendProfile($event, 'main')"
+          >
+        </label>
+        @if (graphic.bendMainProfile; as profile) {
+          <app-numeric-slider label="Hauptwölbung am Ansatz" unit="%" [value]="profile.base"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'base', $event)" />
+          <app-numeric-slider label="Hauptwölbung an der Spitze" unit="%" [value]="profile.tip"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'tip', $event)" />
+        } @else {
+          <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendMain', $event)" />
+        }
+        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 border-t border-stone-100 pt-2 text-[10px] font-semibold text-stone-600">
+          Verlauf Nebenrichtung
+          <input
+            class="m-0 size-4 shrink-0 accent-emerald-800"
+            type="checkbox"
+            [ngModel]="hasGraphicBendProfile(graphic, 'cross')"
+            (ngModelChange)="setGraphicBendProfile($event, 'cross')"
+          >
+        </label>
+        @if (graphic.bendCrossProfile; as profile) {
+          <app-numeric-slider label="Nebenwölbung am Ansatz" unit="%" [value]="profile.base"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'base', $event)" />
+          <app-numeric-slider label="Nebenwölbung an der Spitze" unit="%" [value]="profile.tip"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'tip', $event)" />
+        } @else {
+          <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
+            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendCross', $event)" />
+        }
       </div>
+    }
+    @if (graphicPrimitive(graphic) !== 'png') {
+      <fieldset class="mt-3 border-t border-stone-100 pt-3">
+        <legend class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Muster</legend>
+        <p class="mb-2 mt-1 text-[8px] leading-relaxed text-stone-400">
+          Ebenen werden von oben nach unten auf die Grundfarbe gemalt und bleiben im JSON reproduzierbar.
+        </p>
+        <div class="grid grid-cols-4 gap-1">
+          @for (patternType of graphicPatternTypes; track patternType.type) {
+            <button
+              class="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border border-stone-200 bg-white px-1 py-1.5 text-[8px] font-semibold text-stone-500 transition-colors hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-900"
+              type="button"
+              [attr.aria-label]="patternType.label + ' hinzufügen'"
+              (click)="addGraphicPattern(patternType.type)"
+            >
+              <mat-icon class="scale-75">{{ patternType.icon }}</mat-icon>
+              <span>{{ patternType.label }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="mt-2 space-y-2">
+          @for (pattern of graphic.patterns ?? []; track pattern.id; let patternIndex = $index) {
+            <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-2.5">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="text-[9px] font-bold text-stone-700">{{ graphicPatternLabel(pattern.type) }}</div>
+                  <div class="text-[8px] text-stone-400">Ebene {{ patternIndex + 1 }}</div>
+                </div>
+                <button
+                  class="grid size-7 shrink-0 place-items-center rounded-md border-0 bg-transparent text-stone-400 hover:bg-red-50 hover:text-red-700"
+                  type="button"
+                  matTooltip="Musterebene entfernen"
+                  [attr.aria-label]="graphicPatternLabel(pattern.type) + ' entfernen'"
+                  (click)="removeGraphicPattern(pattern.id)"
+                >
+                  <mat-icon class="scale-75">delete</mat-icon>
+                </button>
+              </div>
+
+              <label class="mb-2 block">
+                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Musterfarbe</span>
+                <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
+                  <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="pattern.color"></span>
+                  <code class="min-w-0 flex-1 text-[9px] text-stone-500">{{ pattern.color }}</code>
+                  <input
+                    class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0"
+                    type="color"
+                    [attr.aria-label]="graphicPatternLabel(pattern.type) + ' Farbe'"
+                    [ngModel]="pattern.color"
+                    (ngModelChange)="updateGraphicPattern(pattern.id, {color: $event})"
+                  >
+                </span>
+              </label>
+              <app-numeric-slider
+                label="Deckkraft"
+                unit="%"
+                [value]="pattern.opacity * 100"
+                [minimum]="0"
+                [maximum]="100"
+                (valueChange)="updateGraphicPattern(pattern.id, {opacity: $event / 100})"
+              />
+
+              @switch (pattern.type) {
+                @case ('gradient') {
+                  <label class="mt-2 block">
+                    <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Richtung</span>
+                    <select
+                      class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10"
+                      [ngModel]="pattern.direction ?? 'base-to-tip'"
+                      (ngModelChange)="updateGraphicPattern(pattern.id, {direction: $event})"
+                    >
+                      <option value="base-to-tip">Ansatz → Spitze</option>
+                      <option value="tip-to-base">Spitze → Ansatz</option>
+                    </select>
+                  </label>
+                }
+                @case ('veins') {
+                  <div class="mt-2 grid grid-cols-2 gap-2">
+                    <app-numeric-field label="Aderpaare" [value]="pattern.density ?? 7" [minimum]="1" [maximum]="24" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
+                    <app-numeric-field label="Linienbreite" unit="%" [value]="(pattern.size ?? 0.012) * 100" [minimum]="0.2" [maximum]="12" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
+                  </div>
+                }
+                @case ('spots') {
+                  <div class="mt-2 grid grid-cols-2 gap-2">
+                    <app-numeric-field label="Anzahl" [value]="pattern.density ?? 18" [minimum]="1" [maximum]="160" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
+                    <app-numeric-field label="Größe" unit="%" [value]="(pattern.size ?? 0.035) * 100" [minimum]="0.3" [maximum]="30" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
+                    <app-numeric-field label="Verteilung" [value]="pattern.seed ?? 0.42" [minimum]="0" [maximum]="1" [step]="0.01" (valueChange)="updateGraphicPattern(pattern.id, {seed: $event})" />
+                  </div>
+                }
+                @case ('edge') {
+                  <div class="mt-2">
+                    <app-numeric-field label="Randbreite" unit="%" [value]="(pattern.width ?? 0.055) * 100" [minimum]="0.3" [maximum]="40" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {width: $event / 100})" />
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        @if (restorablePattern(); as removed) {
+          <div class="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[9px] text-amber-900">
+            <span>{{ graphicPatternLabel(removed.pattern.type) }} entfernt</span>
+            <button class="rounded-md border border-amber-300 bg-white px-2 py-1 font-bold hover:bg-amber-100" type="button" (click)="restoreRemovedPattern()">
+              Rückgängig
+            </button>
+          </div>
+        }
+      </fieldset>
     }
     <div class="mt-3 space-y-3 border-t border-stone-100 pt-3">
       <div>

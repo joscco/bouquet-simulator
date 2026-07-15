@@ -1,4 +1,9 @@
-import {FlowerDefinition} from './flower.models';
+import {
+  FlowerDefinition,
+  GraphicBendProfile,
+  GraphicPatternLayer,
+  MAX_GRAPHIC_BEND,
+} from './flower.models';
 import {effectiveConnection} from './flower-connections';
 
 export interface FlowerValidationIssue {
@@ -6,7 +11,15 @@ export interface FlowerValidationIssue {
   message: string;
 }
 
-export function validateFlowerDefinition(definition: FlowerDefinition): FlowerValidationIssue[] {
+export interface FlowerValidationOptions {
+  /** Der Editor darf während des freien Verknüpfens vorübergehend keinen aktiven Baum haben. */
+  allowForest?: boolean;
+}
+
+export function validateFlowerDefinition(
+  definition: FlowerDefinition,
+  options: FlowerValidationOptions = {},
+): FlowerValidationIssue[] {
   const issues: FlowerValidationIssue[] = [];
   const ids = new Set<string>();
 
@@ -18,11 +31,10 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
     ids.add(node.id);
   }
   if (!ids.has(definition.rootNodeId)) {
-    issues.push({severity: 'error', message: `Der Basisknoten „${definition.rootNodeId}“ fehlt.`});
-    return issues;
-  }
-  if (definition.nodes.find((node) => node.id === definition.rootNodeId)?.loop) {
-    issues.push({severity: 'error', message: 'Ein Loop kann nicht der Basisknoten sein.'});
+    if (!options.allowForest) {
+      issues.push({severity: 'error', message: `Der Basisknoten „${definition.rootNodeId}“ fehlt.`});
+      return issues;
+    }
   }
   if (definition.outputNodeIds?.some((id) => !ids.has(id))) {
     issues.push({severity: 'error', message: 'Die Komponentenausgänge enthalten einen fehlenden Knoten.'});
@@ -82,8 +94,10 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
         issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Größe.`});
       }
       if (
-        Math.abs(node.graphic.bendMain ?? 0) > 100
-        || Math.abs(node.graphic.bendCross ?? 0) > 100
+        invalidGraphicBend(node.graphic.bendMain)
+        || invalidGraphicBend(node.graphic.bendCross)
+        || invalidGraphicBendProfile(node.graphic.bendMainProfile)
+        || invalidGraphicBendProfile(node.graphic.bendCrossProfile)
       ) {
         issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Wölbung.`});
       }
@@ -102,6 +116,11 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
       }
       if ((node.graphic.scale ?? 1) <= 0) {
         issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Grafikskalierung.`});
+      }
+      if ((node.graphic.primitive ?? 'png') === 'png' && node.graphic.patterns?.length) {
+        issues.push({severity: 'error', message: `„${node.name}“ kann keine parametrischen Muster auf eine PNG-Grafik legen.`});
+      } else if (!validGraphicPatterns(node.graphic.patterns)) {
+        issues.push({severity: 'error', message: `„${node.name}“ enthält ungültige Musterebenen.`});
       }
       if ((node.graphic.paint ?? []).some((stroke) =>
         stroke.x < 0
@@ -190,7 +209,7 @@ export function validateFlowerDefinition(definition: FlowerDefinition): FlowerVa
     active.delete(id);
   }
 
-  visit(definition.rootNodeId);
+  if (ids.has(definition.rootNodeId)) visit(definition.rootNodeId);
   for (const node of definition.nodes) {
     if (!reachable.has(node.id)) {
       issues.push({
@@ -209,4 +228,49 @@ function invalidDegreeRange(range: {min: number; max: number} | undefined): bool
     || Math.abs(range.min) > 360
     || Math.abs(range.max) > 360
   );
+}
+
+function validGraphicPatterns(patterns: GraphicPatternLayer[] | undefined): boolean {
+  if (!patterns) return true;
+  const ids = new Set<string>();
+  for (const pattern of patterns) {
+    if (!pattern.id.trim() || ids.has(pattern.id)) return false;
+    ids.add(pattern.id);
+    if (!['gradient', 'veins', 'spots', 'edge'].includes(pattern.type)) return false;
+    if (!pattern.color.trim() || !Number.isFinite(pattern.opacity) || pattern.opacity < 0 || pattern.opacity > 1) {
+      return false;
+    }
+    if (pattern.type === 'gradient'
+      && pattern.direction !== undefined
+      && !['base-to-tip', 'tip-to-base'].includes(pattern.direction)) return false;
+    if (pattern.type === 'veins' && (
+      !within(pattern.density ?? 7, 1, 24)
+      || !within(pattern.size ?? 0.012, 0.002, 0.12)
+    )) return false;
+    if (pattern.type === 'spots' && (
+      !within(pattern.density ?? 18, 1, 160)
+      || !within(pattern.size ?? 0.035, 0.003, 0.3)
+      || !Number.isFinite(pattern.seed ?? 0.42)
+    )) return false;
+    if (pattern.type === 'edge' && !within(pattern.width ?? 0.055, 0.003, 0.4)) return false;
+  }
+  return true;
+}
+
+function within(value: number, minimum: number, maximum: number): boolean {
+  return Number.isFinite(value) && value >= minimum && value <= maximum;
+}
+
+function invalidGraphicBendProfile(
+  profile: GraphicBendProfile | undefined,
+): boolean {
+  return !!profile && (
+    !within(profile.base, -MAX_GRAPHIC_BEND, MAX_GRAPHIC_BEND)
+    || !within(profile.tip, -MAX_GRAPHIC_BEND, MAX_GRAPHIC_BEND)
+  );
+}
+
+function invalidGraphicBend(value: number | undefined): boolean {
+  return value !== undefined
+    && (!Number.isFinite(value) || Math.abs(value) > MAX_GRAPHIC_BEND);
 }

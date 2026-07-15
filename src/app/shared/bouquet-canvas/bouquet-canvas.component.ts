@@ -16,6 +16,7 @@ import {
   Box3Helper,
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   CatmullRomCurve3,
   Color,
   Curve,
@@ -28,6 +29,7 @@ import {
   LineBasicMaterial,
   LineSegments,
   Mesh,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Object3D,
   OrthographicCamera,
@@ -39,6 +41,7 @@ import {
   TextureLoader,
   TorusGeometry,
   Quaternion,
+  RepeatWrapping,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -54,7 +57,11 @@ import {createGraphicPaintTexture} from '../../core/rendering/graphic-paint';
 import {graphicOrientationQuaternion} from '../../core/rendering/graphic-orientation';
 import {FlowerTree, FlowerTreeEdge, FlowerTreeNode, flattenFlowerTemplates, generateFlowerTree} from '../../core/rendering/flower-tree';
 import {cutFlowerTree} from '../../core/rendering/flower-tree-cut';
-import {DEFAULT_VASE_ID} from '../../core/data/vases';
+import {
+  DEFAULT_VASE_ID,
+  VaseMaterialId,
+  normalizedVaseMaterialId,
+} from '../../core/data/vases';
 import {resolvedStemWidths} from '../../core/models/flower-connections';
 import {isFlowerTemplateHighlighted} from '../../core/rendering/flower-highlights';
 
@@ -90,23 +97,70 @@ export type BouquetCanvasViewMode = 'pan' | 'rotate';
 
 interface VaseRenderDefinition {
   profile: Array<[number, number]>;
-  bodyColor: number;
-  openingColor: number;
-  rimColor: number;
   rimRadius: number;
   rimTube: number;
   openingRadius: number;
   openingY: number;
-  roughness?: number;
-  metalness?: number;
-  opacity?: number;
   rings?: Array<{
     radius: number;
     y: number;
     tube: number;
-    color?: number;
   }>;
 }
+
+interface VaseMaterialDefinition {
+  bodyColor: number;
+  openingColor: number;
+  rimColor: number;
+  roughness: number;
+  metalness: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  transmission?: number;
+  thickness?: number;
+  opacity?: number;
+  texture?: 'speckled' | 'grainy';
+}
+
+const VASE_MATERIAL_DEFINITIONS: Record<VaseMaterialId, VaseMaterialDefinition> = {
+  clay: {
+    bodyColor: 0xb96f4d,
+    openingColor: 0x5d3327,
+    rimColor: 0xd08a65,
+    roughness: 0.86,
+    metalness: 0,
+  },
+  stoneware: {
+    bodyColor: 0xc9d2c9,
+    openingColor: 0x43524b,
+    rimColor: 0xe8ede6,
+    roughness: 0.24,
+    metalness: 0.02,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.2,
+    texture: 'speckled',
+  },
+  concrete: {
+    bodyColor: 0x96958f,
+    openingColor: 0x4c4c49,
+    rimColor: 0xb8b7b1,
+    roughness: 0.96,
+    metalness: 0,
+    texture: 'grainy',
+  },
+  glass: {
+    bodyColor: 0xd8eef2,
+    openingColor: 0x56777b,
+    rimColor: 0xeffcfc,
+    roughness: 0.06,
+    metalness: 0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+    transmission: 0.94,
+    thickness: 5,
+    opacity: 0.46,
+  },
+};
 
 const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
   classic: {
@@ -114,19 +168,13 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -62], [24, -62], [38, -60], [48, -54], [54, -44], [57, -30],
       [56, -14], [52, 0], [47, 11], [44, 18], [41, 21],
     ],
-    bodyColor: 0xcbd5cf,
-    openingColor: 0x3f514b,
-    rimColor: 0xe7ece8,
     openingRadius: 39,
     openingY: 20,
     rimRadius: 42,
     rimTube: 2.6,
-    roughness: 0.24,
-    metalness: 0.08,
-    opacity: 0.92,
     rings: [
-      {radius: 41, y: -60, tube: 2.4, color: 0xe7ece8},
-      {radius: 50, y: -3, tube: 1.3, color: 0xdde5df},
+      {radius: 41, y: -60, tube: 2.4},
+      {radius: 50, y: -3, tube: 1.3},
     ],
   },
   tulip: {
@@ -134,17 +182,12 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -63], [19, -63], [28, -60], [33, -52], [35, -42], [35, -30],
       [37, -18], [42, -6], [50, 8], [59, 20], [66, 27],
     ],
-    bodyColor: 0xf3d7d4,
-    openingColor: 0x6f3f46,
-    rimColor: 0xffeee9,
     openingRadius: 58,
     openingY: 26,
     rimRadius: 64,
     rimTube: 2.4,
-    roughness: 0.32,
-    opacity: 0.94,
     rings: [
-      {radius: 30, y: -60, tube: 2, color: 0xffeee9},
+      {radius: 30, y: -60, tube: 2},
     ],
   },
   cylinder: {
@@ -152,20 +195,14 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -64], [31, -64], [37, -62], [40, -57], [40, -34], [39, -10],
       [40, 12], [39, 23], [36, 28],
     ],
-    bodyColor: 0xd7e4ed,
-    openingColor: 0x334c5c,
-    rimColor: 0xf3f8fb,
     openingRadius: 34,
     openingY: 27,
     rimRadius: 38,
     rimTube: 2,
-    roughness: 0.18,
-    metalness: 0.04,
-    opacity: 0.82,
     rings: [
-      {radius: 37, y: -62, tube: 2, color: 0xf3f8fb},
-      {radius: 40, y: -43, tube: .7, color: 0xe7f1f7},
-      {radius: 40, y: 6, tube: .7, color: 0xe7f1f7},
+      {radius: 37, y: -62, tube: 2},
+      {radius: 40, y: -43, tube: .7},
+      {radius: 40, y: 6, tube: .7},
     ],
   },
   bowl: {
@@ -173,17 +210,13 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -50], [32, -50], [49, -47], [61, -40], [69, -29], [73, -16],
       [71, -4], [64, 7], [53, 15], [43, 19],
     ],
-    bodyColor: 0xd9c7aa,
-    openingColor: 0x5b4731,
-    rimColor: 0xf4e8d5,
     openingRadius: 41,
     openingY: 18,
     rimRadius: 45,
     rimTube: 3.2,
-    roughness: 0.46,
     rings: [
-      {radius: 49, y: -48, tube: 2.2, color: 0xf1dfc4},
-      {radius: 69, y: -5, tube: 1.1, color: 0xe8d5b7},
+      {radius: 49, y: -48, tube: 2.2},
+      {radius: 69, y: -5, tube: 1.1},
     ],
   },
   bud: {
@@ -191,20 +224,14 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -68], [12, -68], [19, -65], [25, -57], [28, -46], [27, -31],
       [24, -14], [19, 3], [17, 18], [19, 29], [22, 34],
     ],
-    bodyColor: 0xcfd7f0,
-    openingColor: 0x3e456f,
-    rimColor: 0xedf0ff,
     openingRadius: 17,
     openingY: 33,
     rimRadius: 21,
     rimTube: 2,
-    roughness: 0.28,
-    metalness: 0.03,
-    opacity: 0.9,
     rings: [
-      {radius: 19, y: -66, tube: 1.8, color: 0xedf0ff},
-      {radius: 25, y: -42, tube: .9, color: 0xdde4f6},
-      {radius: 18, y: 17, tube: .8, color: 0xdde4f6},
+      {radius: 19, y: -66, tube: 1.8},
+      {radius: 25, y: -42, tube: .9},
+      {radius: 18, y: 17, tube: .8},
     ],
   },
 };
@@ -285,6 +312,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private lastHighlightedConnection: {sourceId: string; index: number} | null = null;
   private lastVaseEnabled: boolean | null = null;
   private lastVaseId: string | null = null;
+  private lastVaseMaterialId: VaseMaterialId | null = null;
   private lastGeometrySignature: string | null = null;
   private backgroundDrag: {
     pointerId: number;
@@ -317,6 +345,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
       const vaseId = state.vaseId ?? DEFAULT_VASE_ID;
+      const vaseMaterialId = normalizedVaseMaterialId(state.vaseMaterialId);
       this.zoom();
       this.fitToContent();
       this.viewportInsets();
@@ -335,7 +364,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         || state.flowers.length !== this.lastFlowerCount
         || geometrySignature !== this.lastGeometrySignature
         || vaseEnabled !== this.lastVaseEnabled
-        || vaseId !== this.lastVaseId;
+        || vaseId !== this.lastVaseId
+        || vaseMaterialId !== this.lastVaseMaterialId;
       const structureChanged = state.flowers !== this.lastFlowers
         || definitions !== this.lastDefinitions
         || selectedId !== this.lastSelectedId
@@ -344,7 +374,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         || highlightedConnection?.sourceId !== this.lastHighlightedConnection?.sourceId
         || highlightedConnection?.index !== this.lastHighlightedConnection?.index
         || vaseEnabled !== this.lastVaseEnabled
-        || vaseId !== this.lastVaseId;
+        || vaseId !== this.lastVaseId
+        || vaseMaterialId !== this.lastVaseMaterialId;
 
       this.lastFlowers = state.flowers;
       this.lastDefinitions = definitions;
@@ -355,6 +386,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastHighlightedConnection = highlightedConnection;
       this.lastVaseEnabled = vaseEnabled;
       this.lastVaseId = vaseId;
+      this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
       if (structureChanged) {
         this.recenterOnNextRebuild ||= shouldRecenter;
@@ -488,7 +520,12 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.bouquet.rotation.set(0, 0, 0);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
 
-    if (this.vaseEnabled()) this.bouquet.add(this.createVase(this.state().vaseId ?? DEFAULT_VASE_ID));
+    if (this.vaseEnabled()) {
+      this.bouquet.add(this.createVase(
+        this.state().vaseId ?? DEFAULT_VASE_ID,
+        normalizedVaseMaterialId(this.state().vaseMaterialId),
+      ));
+    }
 
     for (const flower of this.state().flowers) {
       const definition = definitions.get(flower.definitionId);
@@ -650,59 +687,91 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     return group;
   }
 
-  private createVase(vaseId: string): Group {
+  private createVase(vaseId: string, vaseMaterialId: VaseMaterialId): Group {
     const definition = VASE_RENDER_DEFINITIONS[vaseId] ?? VASE_RENDER_DEFINITIONS[DEFAULT_VASE_ID]!;
+    const surface = VASE_MATERIAL_DEFINITIONS[vaseMaterialId];
+    const glass = vaseMaterialId === 'glass';
     const vase = new Group();
     const profile = smoothVaseProfile(definition.profile);
-    const opacity = definition.opacity ?? 1;
+    const bodyTexture = createVaseSurfaceTexture(surface.texture);
     const body = new Mesh(
       new LatheGeometry(profile, 144),
-      new MeshStandardMaterial({
-        color: definition.bodyColor,
-        roughness: definition.roughness ?? 0.35,
-        metalness: definition.metalness ?? 0.06,
-        transparent: opacity < 1,
-        opacity,
+      new MeshPhysicalMaterial({
+        color: surface.bodyColor,
+        roughness: surface.roughness,
+        metalness: surface.metalness,
+        clearcoat: surface.clearcoat ?? 0,
+        clearcoatRoughness: surface.clearcoatRoughness ?? 0,
+        transmission: surface.transmission ?? 0,
+        thickness: surface.thickness ?? 0,
+        transparent: glass,
+        opacity: surface.opacity ?? 1,
+        depthWrite: !glass,
+        side: glass ? DoubleSide : undefined,
+        map: bodyTexture,
+        bumpMap: bodyTexture,
+        bumpScale: surface.texture === 'grainy' ? 0.9 : surface.texture === 'speckled' ? 0.25 : 0,
       }),
     );
     body.geometry.computeVertexNormals();
+    body.renderOrder = glass ? 2 : 0;
     const opening = new Mesh(
       new CylinderGeometry(definition.openingRadius * 0.94, definition.openingRadius, 2.8, 144),
-      new MeshStandardMaterial({
-        color: definition.openingColor,
-        roughness: 0.86,
-        metalness: 0.04,
+      new MeshPhysicalMaterial({
+        color: surface.openingColor,
+        roughness: glass ? 0.12 : Math.max(0.5, surface.roughness),
+        metalness: surface.metalness,
+        transmission: glass ? 0.72 : 0,
+        thickness: glass ? 1.5 : 0,
+        transparent: glass,
+        opacity: glass ? 0.22 : 1,
+        depthWrite: !glass,
       }),
     );
     opening.position.y = definition.openingY;
+    opening.renderOrder = glass ? 1 : 0;
     const rim = new Mesh(
       new TorusGeometry(definition.rimRadius, definition.rimTube, 18, 144),
-      new MeshStandardMaterial({
-        color: definition.rimColor,
-        roughness: Math.max(0.18, (definition.roughness ?? 0.35) - 0.08),
-        metalness: (definition.metalness ?? 0.06) + 0.03,
+      new MeshPhysicalMaterial({
+        color: surface.rimColor,
+        roughness: glass ? 0.04 : Math.max(0.16, surface.roughness - 0.12),
+        metalness: surface.metalness,
+        clearcoat: surface.clearcoat ?? 0,
+        transmission: surface.transmission ?? 0,
+        thickness: glass ? Math.max(2, surface.thickness ?? 0) : 0,
+        transparent: glass,
+        opacity: glass ? 0.68 : 1,
+        depthWrite: !glass,
       }),
     );
     rim.rotation.x = Math.PI / 2;
     rim.position.y = definition.openingY + 1;
+    rim.renderOrder = glass ? 3 : 0;
     vase.add(body, opening, rim);
     for (const ringDefinition of definition.rings ?? []) {
       const ring = new Mesh(
         new TorusGeometry(ringDefinition.radius, ringDefinition.tube, 12, 144),
-        new MeshStandardMaterial({
-          color: ringDefinition.color ?? definition.rimColor,
-          roughness: definition.roughness ?? 0.35,
-          metalness: definition.metalness ?? 0.06,
+        new MeshPhysicalMaterial({
+          color: surface.rimColor,
+          roughness: glass ? 0.06 : surface.roughness,
+          metalness: surface.metalness,
+          clearcoat: surface.clearcoat ?? 0,
+          transmission: surface.transmission ?? 0,
+          thickness: glass ? 2 : 0,
+          transparent: glass,
+          opacity: glass ? 0.5 : 1,
+          depthWrite: !glass,
         }),
       );
       ring.rotation.x = Math.PI / 2;
       ring.position.y = ringDefinition.y;
+      ring.renderOrder = glass ? 3 : 0;
       vase.add(ring);
     }
     vase.traverse((object) => {
       if (object instanceof Mesh) {
-        object.castShadow = true;
-        object.receiveShadow = true;
+        object.castShadow = !glass;
+        object.receiveShadow = !glass;
       }
     });
     return vase;
@@ -799,6 +868,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         depth,
         graphic.bendMain,
         graphic.bendCross,
+        graphic.bendMainProfile,
+        graphic.bendCrossProfile,
       );
     }
 
@@ -807,7 +878,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       roughness: 0.72,
       side: DoubleSide,
     });
-    if (graphic.paint?.length) {
+    if (graphic.patterns?.length || graphic.paint?.length) {
       material.color.set(0xffffff);
       material.map = createGraphicPaintTexture(graphic);
     }
@@ -1106,6 +1177,53 @@ function applySelectionGlow(mesh: Mesh): void {
     material.emissiveIntensity = SELECTION_GLOW_INTENSITY;
     material.userData['editorSelection'] = true;
   }
+}
+
+function createVaseSurfaceTexture(
+  textureType: VaseMaterialDefinition['texture'],
+): CanvasTexture | null {
+  if (!textureType || typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const random = deterministicVaseRandom(textureType === 'speckled' ? 0x51a7 : 0xc0ac);
+  const count = textureType === 'speckled' ? 210 : 1250;
+  for (let index = 0; index < count; index++) {
+    const alpha = textureType === 'speckled'
+      ? 0.1 + random() * 0.22
+      : 0.025 + random() * 0.09;
+    const shade = textureType === 'speckled'
+      ? 45 + Math.floor(random() * 65)
+      : 70 + Math.floor(random() * 120);
+    const radius = textureType === 'speckled'
+      ? 0.45 + random() * 1.35
+      : 0.25 + random() * 0.7;
+    context.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
+    context.beginPath();
+    context.arc(random() * canvas.width, random() * canvas.height, radius, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(textureType === 'speckled' ? 2 : 3, textureType === 'speckled' ? 3 : 5);
+  return texture;
+}
+
+function deterministicVaseRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = Math.imul(state ^ state >>> 15, 1 | state);
+    state ^= state + Math.imul(state ^ state >>> 7, 61 | state);
+    return ((state ^ state >>> 14) >>> 0) / 4294967296;
+  };
 }
 
 function createNaturalStemCurve(

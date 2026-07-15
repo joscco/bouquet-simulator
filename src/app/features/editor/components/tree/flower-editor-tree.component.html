@@ -26,6 +26,7 @@
         rx="24"
         [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? '#fffbeb' : '#fffcf2'"
         stroke="none"
+        [attr.opacity]="isActiveNode(node.id) ? 1 : 0.22"
         class="pointer-events-none"
       />
       <rect
@@ -60,10 +61,11 @@
       [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : edge.color"
       [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 6 : selectedNodeId() === edge.targetId ? 5 : 4"
       stroke-linecap="round"
+      [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.2"
       class="pointer-events-none"
     />
     @if (edge.label) {
-      <g class="pointer-events-none" [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'">
+      <g class="pointer-events-none" [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.2" [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'">
         <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" />
         <text y="3" class="fill-stone-500 text-[10px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
       </g>
@@ -85,6 +87,7 @@
   @for (node of graphLayout().nodes; track node.id) {
     <g
       class="cursor-grab outline-none active:cursor-grabbing"
+      [attr.opacity]="isActiveNode(node.id) ? 1 : 0.28"
       [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
       tabindex="0"
       role="button"
@@ -133,8 +136,10 @@
             {{ node.outputPorts.length === 1 ? 'AUSGANG' : 'AUSGÄNGE' }}
           </text>
         } @else {
-          <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)" />
-          <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Start · {{ node.loopStartName }}</text>
+          <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)">
+            <title>Zum ersten Knoten der Wiederholung ziehen</title>
+          </circle>
+          <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Ersten Knoten hierher ziehen</text>
           <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)" />
           <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
         }
@@ -149,7 +154,7 @@
         <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
         <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
         <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
-          {{ node.root ? 'BASIS' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
+          {{ node.root ? 'AKTIVE WURZEL' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
         </text>
         @for (port of node.outputPorts; track $index) {
           <g>

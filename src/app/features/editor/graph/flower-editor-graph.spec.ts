@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {FlowerDefinition} from '../../../core/models/flower.models';
+import {materializeDefinitionComponents} from '../../../core/models/flower-components';
 import {createCompactGraphPositions, createGraphLayout} from './flower-editor-graph';
 
 describe('flower editor graph layout', () => {
@@ -241,6 +242,49 @@ describe('flower editor graph layout', () => {
 
     expect(component.componentOutputCount).toBe(0);
     expect(component.outputPorts).toEqual([]);
+  });
+
+  it('shows declared outputs of a catalog component reference after materialization', () => {
+    const source: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'thorn-stem',
+      name: 'Thorn stem',
+      rootNodeId: 'base',
+      outputNodeIds: ['out'],
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
+        {id: 'base', name: 'Base', draggable: false, graphic: null, connections: [connection('out')]},
+        {id: 'out', name: 'Output', draggable: false, graphic: null, connections: []},
+      ],
+    };
+    const consumer: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'flower',
+      name: 'Flower',
+      rootNodeId: 'thorn-stem',
+      stem: source.stem,
+      nodes: [{
+        id: 'thorn-stem',
+        name: 'Thorn stem',
+        draggable: false,
+        graphic: null,
+        connections: [],
+        component: {
+          schemaVersion: 1,
+          id: source.id,
+          name: source.name,
+          sourceDefinitionId: source.id,
+        },
+      }],
+    };
+
+    const materialized = materializeDefinitionComponents([consumer, source])[0]!;
+    const component = createGraphLayout(materialized, {})
+      .nodes.find((node) => node.id === 'thorn-stem')!;
+
+    expect(consumer.nodes[0]!.component?.nodes).toBeUndefined();
+    expect(component.componentOutputCount).toBe(1);
+    expect(component.outputPorts).toHaveLength(1);
   });
 
   it('keeps auto layout compact for long linear trees', () => {

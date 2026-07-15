@@ -9,7 +9,14 @@ import {
   ProjectExport,
 } from '../models/flower.models';
 import {validateFlowerDefinition} from '../models/flower-validation';
-import {DEFAULT_VASE_ID, isVaseId, vaseInsertionRadius} from '../data/vases';
+import {
+  DEFAULT_VASE_ID,
+  DEFAULT_VASE_MATERIAL_ID,
+  VaseMaterialId,
+  isVaseId,
+  isVaseMaterialId,
+  vaseInsertionRadius,
+} from '../data/vases';
 import {materializeDefinitionComponents} from '../models/flower-components';
 import {normalizeConnectionReferences} from '../models/flower-connections';
 import {normalizeFlowerCatalogCapabilities} from '../models/flower-catalog';
@@ -58,7 +65,13 @@ export class BouquetStore {
     const bouquet: BouquetProject = {
       id: this.createBouquetId(),
       name: `Strauß ${nextIndex}`,
-      state: {schemaVersion: 2, rotation: 0, vaseId: DEFAULT_VASE_ID, flowers: []},
+      state: {
+        schemaVersion: 2,
+        rotation: 0,
+        vaseId: DEFAULT_VASE_ID,
+        vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+        flowers: [],
+      },
     };
     this.bouquets.update((bouquets) => [...bouquets, bouquet]);
     this.activeBouquetId.set(bouquet.id);
@@ -162,6 +175,11 @@ export class BouquetStore {
   setVase(vaseId: string): void {
     if (!isVaseId(vaseId)) return;
     this.updateActiveBouquetState((state) => this.withArrangedFlowers({...state, vaseId}));
+  }
+
+  setVaseMaterial(vaseMaterialId: VaseMaterialId): void {
+    if (!isVaseMaterialId(vaseMaterialId)) return;
+    this.updateActiveBouquetState((state) => ({...state, vaseMaterialId}));
   }
 
   rotateBy(delta: number): void {
@@ -318,7 +336,13 @@ export class BouquetStore {
   }
 
   resetBouquet(): void {
-    this.updateActiveBouquetState(() => ({schemaVersion: 2, rotation: 0, vaseId: DEFAULT_VASE_ID, flowers: []}));
+    this.updateActiveBouquetState(() => ({
+      schemaVersion: 2,
+      rotation: 0,
+      vaseId: DEFAULT_VASE_ID,
+      vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+      flowers: [],
+    }));
   }
 
   private createInitialBouquet(): BouquetState {
@@ -326,6 +350,7 @@ export class BouquetStore {
       schemaVersion: 2,
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
+      vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
       flowers: [
         this.createPlacement('garden-rose', -18, -16, 4, 1.03, 0.04, 0.16),
         this.createPlacement('meadow-daisy', 16, -15, -9, 0.92, -0.08, -0.14),
@@ -403,6 +428,9 @@ export class BouquetStore {
     return {
       ...structuredClone(state),
       vaseId: isVaseId(state.vaseId) ? state.vaseId : DEFAULT_VASE_ID,
+      vaseMaterialId: isVaseMaterialId(state.vaseMaterialId)
+        ? state.vaseMaterialId
+        : DEFAULT_VASE_MATERIAL_ID,
     };
   }
 
@@ -523,6 +551,7 @@ function normalizeDefinition(definition: FlowerDefinition): FlowerDefinition {
 function isBouquetState(value: unknown): value is BouquetState {
   if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
   if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
+  if (value['vaseMaterialId'] !== undefined && !isVaseMaterialId(value['vaseMaterialId'])) return false;
   if (!Array.isArray(value['flowers'])) return false;
 
   return value['flowers'].every((flower) =>

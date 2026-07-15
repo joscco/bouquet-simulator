@@ -2,12 +2,138 @@ import {describe, expect, it} from 'vitest';
 import {FlowerDefinition, FlowerNodeConnection, FlowerNodeDefinition} from '../../../core/models/flower.models';
 import {
   absorbConnectedSubtreeIntoLoop,
+  initializeEmptyLoopWithNode,
   pruneDisconnectedLoopMembers,
 } from './flower-editor-loops';
 
 const stem = {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8};
 
 describe('flower editor loop membership', () => {
+  it('can initialize an empty loop with the currently active root node', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'root-into-loop',
+      name: 'Root into loop',
+      rootNodeId: 'member',
+      stem,
+      nodes: [
+        {
+          ...node('loop'),
+          loop: {repeat: {min: 2, max: 2}, startNodeId: null, endNodeId: null},
+        },
+        node('member'),
+      ],
+    };
+
+    const update = initializeEmptyLoopWithNode(definition, 'loop', 'member');
+
+    expect(update.addedNodeIds).toEqual(['member']);
+    expect(update.definition.nodes.find((candidate) => candidate.id === 'loop')?.loop)
+      .toEqual(expect.objectContaining({
+        startNodeId: 'member',
+        endNodeId: 'member',
+        memberNodeIds: ['member'],
+      }));
+  });
+
+  it('initializes an empty loop with one existing node and rewires its parent', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'empty-loop',
+      name: 'Empty loop',
+      rootNodeId: 'root',
+      stem,
+      nodes: [
+        node('root', [connection('member')]),
+        {
+          ...node('loop'),
+          loop: {
+            repeat: {min: 2, max: 3},
+            startNodeId: null,
+            endNodeId: null,
+          },
+        },
+        node('member', [connection('outside')]),
+        node('outside'),
+      ],
+    };
+
+    const update = initializeEmptyLoopWithNode(definition, 'loop', 'member');
+    const loopNode = update.definition.nodes.find((candidate) => candidate.id === 'loop')!;
+    const member = update.definition.nodes.find((candidate) => candidate.id === 'member')!;
+
+    expect(update.addedNodeIds).toEqual(['member']);
+    expect(update.definition.nodes.find((candidate) => candidate.id === 'root')!.connections)
+      .toEqual([expect.objectContaining({childId: 'loop'})]);
+    expect(loopNode.loop).toEqual({
+      repeat: {min: 2, max: 3},
+      startNodeId: 'member',
+      endNodeId: 'member',
+      memberNodeIds: ['member'],
+      continuationOutputNodeIds: ['member'],
+    });
+    expect(loopNode.connections).toEqual([connection('outside')]);
+    expect(member.connections).toEqual([]);
+  });
+
+  it('initializes an already connected empty loop from a detached node', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'connected-empty-loop',
+      name: 'Connected empty loop',
+      rootNodeId: 'root',
+      stem,
+      nodes: [
+        node('root', [connection('loop')]),
+        {
+          ...node('loop'),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: null,
+            endNodeId: null,
+          },
+        },
+        node('member'),
+      ],
+    };
+
+    const update = initializeEmptyLoopWithNode(definition, 'loop', 'member');
+    const loop = update.definition.nodes.find((candidate) => candidate.id === 'loop')!.loop!;
+
+    expect(update.addedNodeIds).toEqual(['member']);
+    expect(loop.memberNodeIds).toEqual(['member']);
+    expect(loop.startNodeId).toBe('member');
+    expect(loop.endNodeId).toBe('member');
+  });
+
+  it('does not steal a node when both it and the empty loop already have parents', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'occupied-empty-loop',
+      name: 'Occupied empty loop',
+      rootNodeId: 'root',
+      stem,
+      nodes: [
+        node('root', [connection('loop'), connection('branch')]),
+        {
+          ...node('loop'),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: null,
+            endNodeId: null,
+          },
+        },
+        node('branch', [connection('member')]),
+        node('member'),
+      ],
+    };
+
+    const update = initializeEmptyLoopWithNode(definition, 'loop', 'member');
+
+    expect(update.addedNodeIds).toEqual([]);
+    expect(update.definition).toBe(definition);
+  });
+
   it('absorbs a newly connected subtree into the loop of its source node', () => {
     const definition: FlowerDefinition = {
       schemaVersion: 2,
@@ -189,6 +315,38 @@ describe('flower editor loop membership', () => {
     expect(loop.startNodeId).toBe('thorn-hub');
     expect(loop.memberNodeIds).toEqual(['thorn-hub', 'thorn', 'leaf-hub', 'leaf', 'out']);
     expect(loop.continuationOutputNodeIds).toEqual(['out', 'thorn']);
+  });
+
+  it('can absorb the current root when it is connected to a loop member', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'root-prepend',
+      name: 'Root prepend',
+      rootNodeId: 'new-start',
+      stem,
+      nodes: [
+        node('new-start', [connection('side'), connection('old-start')]),
+        node('side'),
+        {
+          ...node('loop'),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'old-start',
+            endNodeId: 'old-start',
+            memberNodeIds: ['old-start'],
+            continuationOutputNodeIds: ['old-start'],
+          },
+        },
+        node('old-start'),
+      ],
+    };
+
+    const update = absorbConnectedSubtreeIntoLoop(definition, 'new-start', 'old-start');
+    const loop = update.definition.nodes.find((candidate) => candidate.id === 'loop')!.loop!;
+
+    expect(update.addedNodeIds).toEqual(['new-start', 'side']);
+    expect(loop.startNodeId).toBe('new-start');
+    expect(loop.memberNodeIds).toEqual(['new-start', 'side', 'old-start']);
   });
 
   it('prunes a detached member subtree and updates the loop output', () => {

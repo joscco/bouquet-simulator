@@ -8,6 +8,14 @@ export interface GraphicPoint {
   y: number;
 }
 
+/** Mehrere vollständige Windungen bleiben editierbar, ohne unbeschränkte Extremwerte zuzulassen. */
+export const MAX_GRAPHIC_BEND = 800;
+
+export interface GraphicBendProfile {
+  base: number;
+  tip: number;
+}
+
 export type GraphicPrimitive =
   | 'leaf-pointed'
   | 'leaf-round'
@@ -23,6 +31,27 @@ export interface GraphicPaintStroke {
   /** Pinseldurchmesser relativ zur Grafikbreite. */
   size: number;
   color: string;
+}
+
+export type GraphicPatternType = 'gradient' | 'veins' | 'spots' | 'edge';
+
+/** Reproduzierbare UV-Musterebene. */
+export interface GraphicPatternLayer {
+  id: string;
+  type: GraphicPatternType;
+  color: string;
+  /** Deckkraft der Ebene von 0 bis 1. */
+  opacity: number;
+  /** Richtung eines Verlaufs. */
+  direction?: 'base-to-tip' | 'tip-to-base';
+  /** Anzahl der Aderpaare beziehungsweise Flecken. */
+  density?: number;
+  /** Relative Flecken- oder Liniengröße. */
+  size?: number;
+  /** Deterministischer Startwert für verteilte Muster. */
+  seed?: number;
+  /** Relative Breite eines Randmusters. */
+  width?: number;
 }
 
 export interface FlowerStemSettings {
@@ -69,12 +98,18 @@ export interface FlowerNodeGraphic {
   primitive?: GraphicPrimitive;
   color?: string;
   accentColor?: string;
-  /** Freihand-Bemalung in UV-Koordinaten. */
+  /** Parametrische, reproduzierbare Musterebenen in Zeichenreihenfolge. */
+  patterns?: GraphicPatternLayer[];
+  /** @deprecated Alte Freihandpunkte bleiben darstellbar, werden aber nicht mehr neu erzeugt. */
   paint?: GraphicPaintStroke[];
-  /** Wölbung entlang der Wachstumsrichtung, -100 bis 100. */
+  /** Wölbung entlang der Wachstumsrichtung; Werte über ±100 erzeugen stärkere Windungen. */
   bendMain?: number;
-  /** Wölbung quer zur Wachstumsrichtung, -100 bis 100. */
+  /** Absolute Hauptrichtungswölbung am Ansatz und an der Spitze. */
+  bendMainProfile?: GraphicBendProfile;
+  /** Wölbung quer zur Wachstumsrichtung; Werte über ±100 rollen das Element ein. */
   bendCross?: number;
+  /** Absolute Nebenrichtungswölbung am Ansatz und an der Spitze. */
+  bendCrossProfile?: GraphicBendProfile;
   /** Roll-Ausrichtung der Grafik um ihre Wachstumsrichtung. */
   orientation?: 'connection' | 'toward-parent';
   /** Konstante Drehung um die Wachstumsrichtung, in Grad. */
@@ -191,6 +226,8 @@ export interface BouquetState {
   schemaVersion: 2;
   rotation: number;
   vaseId?: string;
+  /** Von der Vasenform unabhängige Oberflächenoptik. */
+  vaseMaterialId?: string;
   flowers: BouquetFlower[];
 }
 

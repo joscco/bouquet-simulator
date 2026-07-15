@@ -109,6 +109,39 @@ describe('procedural flower tree generator', () => {
     expect(bloom?.parentId).toBe(stems[1]!.id);
   });
 
+  it('renders a member loop when the loop itself is the dynamic root', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'root-loop',
+      name: 'Root loop',
+      rootNodeId: 'loop',
+      stem: {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8},
+      nodes: [
+        {
+          ...node('loop', [connection('bloom')]),
+          loop: {
+            repeat: {min: 2, max: 2},
+            startNodeId: 'stem',
+            endNodeId: 'stem',
+            memberNodeIds: ['stem'],
+            continuationOutputNodeIds: ['stem'],
+          },
+        },
+        node('stem', []),
+        node('bloom', []),
+      ],
+    };
+
+    const tree = generateFlowerTree(definition, 0.2);
+    const stems = tree.nodes.filter((treeNode) => treeNode.templateId === 'stem');
+    const bloom = tree.nodes.find((treeNode) => treeNode.templateId === 'bloom');
+
+    expect(stems).toHaveLength(2);
+    expect(stems[0]!.x).toBe(0);
+    expect(stems[0]!.y).toBe(0);
+    expect(bloom?.parentId).toBe(stems[1]!.id);
+  });
+
   it('executes a nested loop as one member of an outer loop', () => {
     const definition: FlowerDefinition = {
       schemaVersion: 2,

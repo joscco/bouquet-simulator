@@ -5,6 +5,7 @@ import {componentOutputIds, createGraphEdges, createOutputPorts} from './flower-
 import {GraphLayout, GraphNode, Point} from './flower-editor-graph-types';
 import {layoutLoopFrames, loopMemberIds} from './flower-editor-loop-layout';
 import {COMPACT_LEVEL_GAP} from './flower-editor-tree-geometry';
+import {resolveFlowerEditorForest} from '../domain/flower-editor-roots';
 
 export function materializePositions(definition: FlowerDefinition): Record<string, Point> {
   const layout = createGraphLayout(definition, definition.editor?.nodePositions ?? {});
@@ -47,7 +48,8 @@ export function createGraphLayout(
 }
 
 function graphLevels(definition: FlowerDefinition): Map<string, number> {
-  const levels = new Map<string, number>([[definition.rootNodeId, 0]]);
+  const roots = resolveFlowerEditorForest(definition).rootCandidateIds;
+  const levels = new Map<string, number>(roots.map((id) => [id, 0]));
   for (let pass = 0; pass < definition.nodes.length; pass++) {
     for (const node of definition.nodes) {
       const level = levels.get(node.id);

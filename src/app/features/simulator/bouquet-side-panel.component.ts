@@ -3,7 +3,7 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatSliderModule} from '@angular/material/slider';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetSummary} from '../../core/state/bouquet.store';
-import {VaseOption} from '../../core/data/vases';
+import {VaseMaterialId, VaseMaterialOption, VaseOption} from '../../core/data/vases';
 import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
 
 type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
@@ -186,6 +186,8 @@ export class BouquetSidePanelComponent {
   readonly rotationDegrees = input.required<number>();
   readonly vaseOptions = input.required<readonly VaseOption[]>();
   readonly activeVaseId = input.required<string>();
+  readonly vaseMaterialOptions = input.required<readonly VaseMaterialOption[]>();
+  readonly activeVaseMaterialId = input.required<VaseMaterialId>();
 
   readonly pickerOpen = output<void>();
   readonly shuffle = output<void>();
@@ -199,6 +201,7 @@ export class BouquetSidePanelComponent {
   readonly flowerRemove = output<string>();
   readonly rotationChange = output<number>();
   readonly vaseChange = output<string>();
+  readonly vaseMaterialChange = output<VaseMaterialId>();
   readonly projectImport = output<Event>();
   readonly projectExport = output<void>();
   readonly menuToggle = output<void>();

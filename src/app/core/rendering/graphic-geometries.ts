@@ -4,7 +4,7 @@ import {
   CylinderGeometry,
   SphereGeometry,
 } from 'three';
-import {GraphicPrimitive} from '../models/flower.models';
+import {GraphicBendProfile, GraphicPrimitive} from '../models/flower.models';
 
 /**
  * Zentrale 3D-Modelldaten der eingebauten Grafikformen.
@@ -34,6 +34,8 @@ export function createBuiltInGeometry(
   depth: number,
   bendMain = 0,
   bendCross = 0,
+  bendMainProfile?: GraphicBendProfile,
+  bendCrossProfile?: GraphicBendProfile,
 ): BufferGeometry {
   if (primitive === 'sphere') {
     const geometry = new SphereGeometry(0.5, 20, 14);
@@ -46,7 +48,16 @@ export function createBuiltInGeometry(
     geometry.scale(width, height, depth);
     return geometry;
   }
-  return createLeafGeometry(canonicalGraphicPrimitive(primitive), width, height, depth, bendMain, bendCross);
+  return createLeafGeometry(
+    canonicalGraphicPrimitive(primitive),
+    width,
+    height,
+    depth,
+    bendMain,
+    bendCross,
+    bendMainProfile,
+    bendCrossProfile,
+  );
 }
 
 function createLeafGeometry(
@@ -56,21 +67,30 @@ function createLeafGeometry(
   depth: number,
   bendMain: number,
   bendCross: number,
+  bendMainProfile?: GraphicBendProfile,
+  bendCrossProfile?: GraphicBendProfile,
 ): BufferGeometry {
-  const rows = 28;
-  const columns = 16;
+  const maximumMainBend = maximumProfileBend(bendMain, bendMainProfile);
+  const maximumCrossBend = maximumProfileBend(bendCross, bendCrossProfile);
+  const rows = adaptiveSegments(28, maximumMainBend, 56);
+  const columns = adaptiveSegments(16, maximumCrossBend, 40);
   const vertices: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
   const layerSize = (rows + 1) * (columns + 1);
-  const mainBendAngle = bendMain / 100 * Math.PI * 0.85;
-  const crossBendAngle = bendCross / 100 * Math.PI * 0.7;
+  const mainCurve = mainCurvePoints(rows, height, bendMain, bendMainProfile);
 
   for (const side of [-1, 1]) {
     for (let row = 0; row <= rows; row++) {
       const v = row / rows;
       const halfWidth = width * 0.5 * leafWidthAt(primitive, v, row);
-      const mainArc = arcPoint(v * height, height, mainBendAngle);
+      const mainArc = mainCurve[row];
+      const crossCurvature = profileCurvature(
+        v,
+        (bendCrossProfile?.base ?? bendCross) / 100,
+        (bendCrossProfile?.tip ?? bendCross) / 100,
+      );
+      const crossBendAngle = crossCurvature * Math.PI * 0.7;
       for (let column = 0; column <= columns; column++) {
         const u = column / columns;
         const normalizedX = u * 2 - 1;
@@ -130,6 +150,51 @@ function createLeafGeometry(
   return geometry;
 }
 
+function mainCurvePoints(
+  rows: number,
+  height: number,
+  bendMain: number,
+  profile?: GraphicBendProfile,
+): Array<{forward: number; offset: number; angle: number}> {
+  const baseCurvature = (profile?.base ?? bendMain) / 100;
+  const tipCurvature = (profile?.tip ?? bendMain) / 100;
+  const maximumAngle = Math.PI * 0.85;
+  const stepLength = height / rows;
+  const points = [{forward: 0, offset: 0, angle: 0}];
+  let forward = 0;
+  let offset = 0;
+  let angle = 0;
+  for (let row = 1; row <= rows; row++) {
+    const midpoint = (row - 0.5) / rows;
+    const curvature = profileCurvature(midpoint, baseCurvature, tipCurvature);
+    const angleStep = curvature * maximumAngle / rows;
+    const midpointAngle = angle + angleStep / 2;
+    forward += Math.cos(midpointAngle) * stepLength;
+    offset += Math.sin(midpointAngle) * stepLength;
+    angle += angleStep;
+    points.push({forward, offset, angle});
+  }
+  return points;
+}
+
+/**
+ * Ansatz und Spitze sind absolute lokale Zielwölbungen. Nur in einem kurzen
+ * Bereich um die Mitte wird C1-stetig zwischen beiden Zonen überblendet.
+ */
+function profileCurvature(
+  progress: number,
+  baseCurvature: number,
+  tipCurvature: number,
+): number {
+  const transitionStart = 0.42;
+  const transitionEnd = 0.58;
+  if (progress <= transitionStart) return baseCurvature;
+  if (progress >= transitionEnd) return tipCurvature;
+  const linear = (progress - transitionStart) / (transitionEnd - transitionStart);
+  const smooth = linear * linear * (3 - 2 * linear);
+  return baseCurvature + (tipCurvature - baseCurvature) * smooth;
+}
+
 function arcPoint(
   distance: number,
   totalDistance: number,
@@ -158,4 +223,13 @@ function leafWidthAt(primitive: GraphicPrimitive, progress: number, row: number)
     profile = pointed * serration;
   }
   return Math.max(0.015, profile);
+}
+
+function maximumProfileBend(value: number, profile: GraphicBendProfile | undefined): number {
+  return Math.max(Math.abs(value), Math.abs(profile?.base ?? 0), Math.abs(profile?.tip ?? 0));
+}
+
+function adaptiveSegments(base: number, maximumBend: number, maximum: number): number {
+  if (maximumBend <= 100) return base;
+  return Math.min(maximum, base + Math.ceil((maximumBend - 100) / 25));
 }

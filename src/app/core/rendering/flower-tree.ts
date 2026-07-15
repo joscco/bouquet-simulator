@@ -93,7 +93,27 @@ export function generateFlowerTree(
   const edges: FlowerTreeEdge[] = [];
   const counters = new Map<string, number>();
 
-  expandChildren(nodes[0], rootTemplate.id, new Set([rootTemplate.id]), 0);
+  const rootEntryEdge: FlowerGraphEdge = {
+    sourceId: rootTemplate.id,
+    targetId: rootTemplate.id,
+    connectionIndex: -1,
+    connection: {
+      childId: rootTemplate.id,
+      repeat: {min: 1, max: 1},
+      length: {min: 0, max: 0},
+      angle: {min: 0, max: 0},
+      azimuth: {min: 0, max: 0},
+      roll: {min: 0, max: 0},
+      randomness: 0,
+    },
+  };
+  if (rootTemplate.component) {
+    expandComponent(nodes[0], rootTemplate, rootEntryEdge, new Set([rootTemplate.id]), 0);
+  } else if (rootTemplate.loop) {
+    expandLoop(nodes[0], rootTemplate, rootEntryEdge, new Set([rootTemplate.id]), 0);
+  } else {
+    expandChildren(nodes[0], rootTemplate.id, new Set([rootTemplate.id]), 0);
+  }
   return {rootId: 'root', nodes, edges};
 
   function expandChildren(

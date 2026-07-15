@@ -21,7 +21,10 @@ import {
   createGraphLayout,
   curvedConnectionPath,
 } from '../../graph/flower-editor-graph';
-import {absorbConnectedSubtreeIntoLoop} from '../../domain/flower-editor-loops';
+import {
+  absorbConnectedSubtreeIntoLoop,
+  initializeEmptyLoopWithNode,
+} from '../../domain/flower-editor-loops';
 
 export interface FlowerEditorTreeSelection {
   id: string;
@@ -42,8 +45,10 @@ export interface FlowerEditorTreeMessage {
 })
 export class FlowerEditorTreeComponent {
   readonly definition = input.required<FlowerDefinition>();
+  readonly layoutDefinition = input.required<FlowerDefinition>();
   readonly positions = input.required<Record<string, Point>>();
   readonly selectedNodeId = input.required<string>();
+  readonly activeNodeIds = input<ReadonlySet<string>>(new Set());
   readonly subtreeAnchorIds = input<Set<string>>(new Set());
   readonly subtreeNodeIds = input<Set<string>>(new Set());
 
@@ -60,7 +65,7 @@ export class FlowerEditorTreeComponent {
     end: Point;
     loopStartId?: string;
   } | null>(null);
-  readonly graphLayout = computed(() => createGraphLayout(this.definition(), this.positions()));
+  readonly graphLayout = computed(() => createGraphLayout(this.layoutDefinition(), this.positions()));
   readonly graphViewBox = computed(() => {
     const width = 1000 / this.graphZoom();
     const height = 1000 / this.graphZoom();
@@ -71,7 +76,7 @@ export class FlowerEditorTreeComponent {
     const pending = this.connectionDrag();
     return pending ? curvedConnectionPath(pending.start, pending.end) : '';
   });
-  readonly validationIssues = computed(() => validateFlowerDefinition(this.definition()));
+  readonly validationIssues = computed(() => validateFlowerDefinition(this.definition(), {allowForest: true}));
   readonly validationErrorCount = computed(() =>
     this.validationIssues().filter((issue) => issue.severity === 'error').length);
 
@@ -97,6 +102,15 @@ export class FlowerEditorTreeComponent {
   isSubtreeEdge(sourceId: string, targetId: string): boolean {
     const selected = this.subtreeNodeIds();
     return selected.has(sourceId) && selected.has(targetId);
+  }
+
+  isActiveNode(id: string): boolean {
+    return this.activeNodeIds().has(id);
+  }
+
+  isActiveEdge(sourceId: string, targetId: string): boolean {
+    const active = this.activeNodeIds();
+    return active.has(sourceId) && active.has(targetId);
   }
 
   selectConnection(event: PointerEvent, targetId: string): void {
@@ -244,12 +258,19 @@ export class FlowerEditorTreeComponent {
     this.connectionDrag.set(null);
     if (pending.sourceId === targetId) return;
     if (pending.loopStartId) {
-      this.definitionChange.emit({
-        ...this.definition(),
-        nodes: this.definition().nodes.map((node) => node.id === pending.loopStartId && node.loop
-          ? {...node, loop: {...node.loop, startNodeId: targetId}}
-          : node),
-      });
+      const initialized = initializeEmptyLoopWithNode(
+        this.definition(),
+        pending.loopStartId,
+        targetId,
+      );
+      if (!initialized.addedNodeIds.length) {
+        this.message.emit({
+          text: 'Dieser Knoten kann nicht als erstes Mitglied der Wiederholung verwendet werden.',
+          error: true,
+        });
+        return;
+      }
+      this.definitionChange.emit(initialized.definition);
       this.selectNode(pending.loopStartId);
       return;
     }
@@ -257,7 +278,7 @@ export class FlowerEditorTreeComponent {
       this.message.emit({text: 'Diese Verbindung würde einen Zyklus erzeugen.'});
       return;
     }
-    if (targetId === this.definition().rootNodeId || incomingConnectionReference(this.definition(), targetId)) {
+    if (incomingConnectionReference(this.definition(), targetId)) {
       this.message.emit({text: 'Dieser Knoten hat bereits eine Eingangsverbindung.'});
       return;
     }

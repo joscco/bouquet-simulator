@@ -1,5 +1,10 @@
-import {FlowerDefinition, FlowerNodeDefinition} from '../../../core/models/flower.models';
-import {effectiveConnection} from '../../../core/models/flower-connections';
+import {
+  FlowerDefinition,
+  FlowerNodeDefinition,
+  FlowerNodeIncomingConnection,
+  ResolvedFlowerNodeConnection,
+} from '../../../core/models/flower.models';
+import {effectiveConnection, incomingConnectionReference} from '../../../core/models/flower-connections';
 
 export interface LoopMembershipUpdate {
   definition: FlowerDefinition;
@@ -38,6 +43,81 @@ export function loopOutputNodeIds(
 }
 
 /**
+ * Nimmt den ersten Knoten in eine noch leere Wiederholung auf. Ein bestehender
+ * Elternanschluss des Knotens wird auf den Schleifenrahmen umgebogen; seine
+ * bisherigen Kinder bleiben als Ausgänge außerhalb der Ein-Knoten-Schleife.
+ */
+export function initializeEmptyLoopWithNode(
+  definition: FlowerDefinition,
+  loopId: string,
+  targetId: string,
+): LoopMembershipUpdate {
+  const owner = definition.nodes.find((node) => node.id === loopId);
+  const target = definition.nodes.find((node) => node.id === targetId);
+  if (
+    !owner?.loop
+    || (owner.loop.memberNodeIds?.length ?? 0) > 0
+    || !target
+    || targetId === loopId
+  ) {
+    return {definition, loopId: null, addedNodeIds: []};
+  }
+
+  const memberOfOtherLoop = definition.nodes.some((node) =>
+    node.id !== loopId && node.loop?.memberNodeIds?.includes(targetId));
+  if (memberOfOtherLoop || hasConnectionPath(definition, targetId, loopId)) {
+    return {definition, loopId: null, addedNodeIds: []};
+  }
+
+  const ownerParent = incomingConnectionReference(definition, loopId);
+  const targetParent = incomingConnectionReference(definition, targetId);
+  if (ownerParent && targetParent && targetParent.sourceId !== loopId) {
+    return {definition, loopId: null, addedNodeIds: []};
+  }
+
+  const targetIncoming = target.incoming ?? (targetParent
+    ? incomingWithoutChildId(targetParent.connection)
+    : undefined);
+  const outgoingConnections = uniqueConnections(definition, [
+    ...owner.connections.filter((connection) =>
+      effectiveConnection(definition, connection).childId !== targetId),
+    ...target.connections,
+  ]);
+
+  const nextDefinition: FlowerDefinition = {
+    ...definition,
+    nodes: definition.nodes.map((node) => {
+      if (node.id === loopId && node.loop) {
+        return {
+          ...node,
+          incoming: ownerParent || !targetIncoming ? node.incoming : targetIncoming,
+          connections: outgoingConnections,
+          loop: {
+            ...node.loop,
+            startNodeId: targetId,
+            endNodeId: targetId,
+            memberNodeIds: [targetId],
+            continuationOutputNodeIds: [targetId],
+          },
+        };
+      }
+      if (node.id === targetId) return {...node, connections: []};
+      if (!ownerParent && targetParent && node.id === targetParent.sourceId) {
+        return {
+          ...node,
+          connections: node.connections.map((connection) =>
+            effectiveConnection(definition, connection).childId === targetId
+              ? {...connection, childId: loopId}
+              : connection),
+        };
+      }
+      return node;
+    }),
+  };
+  return {definition: nextDefinition, loopId, addedNodeIds: [targetId]};
+}
+
+/**
  * Extends a loop in either direction. A connection from a member absorbs the
  * appended target subtree. A connection from an outside subtree to a member
  * prepends that subtree and turns its root into the new loop start.
@@ -66,7 +146,7 @@ export function absorbConnectedSubtreeIntoLoop(
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const subtreeRootId = prepend ? sourceId : targetId;
   const subtreeRoot = nodes.get(subtreeRootId);
-  if (!subtreeRoot || subtreeRootId === definition.rootNodeId) {
+  if (!subtreeRoot) {
     return {definition, loopId: null, addedNodeIds: []};
   }
 
@@ -87,7 +167,6 @@ export function absorbConnectedSubtreeIntoLoop(
     if (
       !node
       || id === owner.id
-      || id === definition.rootNodeId
       || membersOfOtherLoops.has(id)
     ) {
       continue;
@@ -147,6 +226,40 @@ export function absorbConnectedSubtreeIntoLoop(
   };
 
   return {definition: nextDefinition, loopId: owner.id, addedNodeIds};
+}
+
+function hasConnectionPath(
+  definition: FlowerDefinition,
+  startId: string,
+  targetId: string,
+  visited = new Set<string>(),
+): boolean {
+  if (startId === targetId) return true;
+  if (visited.has(startId)) return false;
+  visited.add(startId);
+  const node = definition.nodes.find((candidate) => candidate.id === startId);
+  return (node?.connections ?? []).some((connection) =>
+    hasConnectionPath(definition, effectiveConnection(definition, connection).childId, targetId, visited));
+}
+
+function incomingWithoutChildId(
+  connection: ResolvedFlowerNodeConnection,
+): FlowerNodeIncomingConnection {
+  const {childId: _childId, ...incoming} = structuredClone(connection);
+  return incoming;
+}
+
+function uniqueConnections(
+  definition: FlowerDefinition,
+  connections: FlowerNodeDefinition['connections'],
+): FlowerNodeDefinition['connections'] {
+  const seen = new Set<string>();
+  return connections.filter((connection) => {
+    const childId = effectiveConnection(definition, connection).childId;
+    if (seen.has(childId)) return false;
+    seen.add(childId);
+    return true;
+  });
 }
 
 /**

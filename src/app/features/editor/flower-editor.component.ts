@@ -24,6 +24,7 @@ import {
   normalizeConnectionReferences,
 } from '../../core/models/flower-connections';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
+import {materializeDefinitionComponents} from '../../core/models/flower-components';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
@@ -67,6 +68,10 @@ import {
   selectedExternalConnections,
   slugify,
 } from './domain/flower-editor-definition';
+import {
+  resolveFlowerEditorForest,
+  withDerivedFlowerRoot,
+} from './domain/flower-editor-roots';
 
 @Component({
   selector: 'app-flower-editor',
@@ -145,7 +150,14 @@ export class FlowerEditorComponent {
   });
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.draft(), this.selectedNodeId()));
-  readonly graphLayout = computed(() => createGraphLayout(this.draft(), this.graphPositions()));
+  readonly materializedDraft = computed(() => materializeDefinitionComponents([
+    this.draft(),
+    ...this.store.definitions().filter((definition) => definition.id !== this.draft().id),
+  ])[0] ?? this.draft());
+  readonly forest = computed(() =>
+    resolveFlowerEditorForest(this.draft(), this.selectedNodeId()));
+  readonly activeTreeNodeIds = computed<ReadonlySet<string>>(() => this.forest().activeNodeIds);
+  readonly graphLayout = computed(() => createGraphLayout(this.materializedDraft(), this.graphPositions()));
 
   @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
   constructor() {
@@ -189,9 +201,24 @@ export class FlowerEditorComponent {
       this.toggleSubtreeAnchor(id);
       return;
     }
+    if (id && this.draft().nodes.some((node) => node.id === id)) {
+      this.draft.update((definition) => withDerivedFlowerRoot(definition, id));
+    }
     this.selectedNodeId.set(id);
     this.subtreeAnchorIds.set(new Set());
     this.subtreeActionsOpen.set(false);
+  }
+
+  applyDefinitionChange(definition: FlowerDefinition): void {
+    const selectedNodeId = definition.nodes.some((node) => node.id === this.selectedNodeId())
+      ? this.selectedNodeId()
+      : null;
+    const normalized = withDerivedFlowerRoot(definition, selectedNodeId);
+    this.draft.set(normalized);
+    if (!selectedNodeId) {
+      this.selectedNodeId.set(normalized.rootNodeId || normalized.nodes[0]?.id || '');
+      this.subtreeAnchorIds.set(new Set());
+    }
   }
 
 
@@ -269,15 +296,12 @@ export class FlowerEditorComponent {
 
   addLoop(): void {
     this.addMenuOpen.set(false);
-    const selection = this.subtreeSelection();
+    const selection = this.subtreeSelection()
+      ?? resolveFlowerSubtreeSelection(this.draft(), [this.selectedNodeId()]);
     const existing = new Set(this.draft().nodes.map((node) => node.id));
     let index = 1;
     while (existing.has(`loop-${index}`)) index++;
     if (selection) {
-      if (selection.rootNodeId === this.draft().rootNodeId) {
-        this.notify('Die Basis kann nicht direkt in eine Wiederholung umgewandelt werden.');
-        return;
-      }
       const memberNodeIds = [...selection.nodeIds];
       const continuationOutputNodeIds = loopOutputNodeIds(this.draft(), memberNodeIds);
       const bounds = nodeBounds(this.graphLayout().nodes.filter((node) => selection.nodeIds.has(node.id)));
@@ -399,7 +423,7 @@ export class FlowerEditorComponent {
         {id, name},
       );
       this.subtreeLibrary.save(extracted.subtree);
-      this.draft.set(extracted.definition);
+      this.applyDefinitionChange(extracted.definition);
       this.graphPositions.set(extracted.nodePositions);
       this.subtreeAnchorIds.set(new Set());
       this.subtreeName.set('');
@@ -419,7 +443,7 @@ export class FlowerEditorComponent {
         tree,
         parentId,
       );
-      this.draft.set(inserted.definition);
+      this.applyDefinitionChange(inserted.definition);
       this.graphPositions.set(inserted.nodePositions);
       this.subtreeAnchorIds.set(new Set());
       this.selectNode(inserted.insertedNodeId);
@@ -443,7 +467,7 @@ export class FlowerEditorComponent {
         sourceDefinition,
         parentId,
       );
-      this.draft.set(inserted.definition);
+      this.applyDefinitionChange(inserted.definition);
       this.graphPositions.set(inserted.nodePositions);
       this.subtreeAnchorIds.set(new Set());
       this.selectNode(inserted.insertedNodeId);
@@ -687,19 +711,22 @@ export class FlowerEditorComponent {
   }
 
   private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
-    const clone = normalizeFlowerCatalogCapabilities(
+    const clone = withDerivedFlowerRoot(normalizeFlowerCatalogCapabilities(
       normalizeConnectionReferences(migrateIncomingConnections(definition)),
-    );
+    ), definition.rootNodeId);
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());
-    this.selectNode(clone.rootNodeId);
+    this.selectNode(clone.rootNodeId || clone.nodes[0]?.id || '');
   }
 
   private definitionWithEditorState(): FlowerDefinition {
-    return definitionWithEditorState(this.draft(), this.graphPositions());
+    return withDerivedFlowerRoot(
+      definitionWithEditorState(this.draft(), this.graphPositions()),
+      this.selectedNodeId(),
+    );
   }
 
   private definitionFromComponent(tree: FlowerSubtreeDefinition, role: 'flower' | 'component'): FlowerDefinition {

@@ -1,5 +1,5 @@
 import {CanvasTexture, SRGBColorSpace} from 'three';
-import {FlowerNodeGraphic} from '../models/flower.models';
+import {FlowerNodeGraphic, GraphicPatternLayer} from '../models/flower.models';
 
 export const PAINT_TEXTURE_SIZE = 512;
 
@@ -26,10 +26,92 @@ export function drawGraphicPaint(
   context.fillRect(0, 0, width, height);
   context.lineCap = 'round';
   context.lineJoin = 'round';
+  for (const pattern of graphic.patterns ?? []) {
+    drawGraphicPattern(context, pattern, width, height);
+  }
+  context.globalAlpha = 1;
   for (const stroke of graphic.paint ?? []) {
     context.fillStyle = stroke.color;
     context.beginPath();
     context.arc(stroke.x * width, (1 - stroke.y) * height, stroke.size * width / 2, 0, Math.PI * 2);
     context.fill();
   }
+  context.globalAlpha = 1;
+}
+
+function drawGraphicPattern(
+  context: CanvasRenderingContext2D,
+  pattern: GraphicPatternLayer,
+  width: number,
+  height: number,
+): void {
+  context.globalAlpha = clamp(pattern.opacity, 0, 1);
+
+  if (pattern.type === 'gradient') {
+    const gradient = context.createLinearGradient(0, 0, 0, height);
+    const fromBase = pattern.direction !== 'tip-to-base';
+    gradient.addColorStop(0, fromBase ? 'transparent' : pattern.color);
+    gradient.addColorStop(1, fromBase ? pattern.color : 'transparent');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return;
+  }
+
+  if (pattern.type === 'veins') {
+    const density = Math.round(clamp(pattern.density ?? 7, 1, 24));
+    context.strokeStyle = pattern.color;
+    context.lineWidth = clamp(pattern.size ?? 0.012, 0.002, 0.12) * width;
+    context.beginPath();
+    context.moveTo(width / 2, height);
+    context.lineTo(width / 2, 0);
+    for (let index = 1; index <= density; index++) {
+      const progress = index / (density + 1);
+      const centerY = height * (1 - progress);
+      const edgeY = Math.max(0, centerY - height * 0.13);
+      const reach = width * (0.34 + Math.sin(progress * Math.PI) * 0.12);
+      context.moveTo(width / 2, centerY);
+      context.lineTo(width / 2 - reach, edgeY);
+      context.moveTo(width / 2, centerY);
+      context.lineTo(width / 2 + reach, edgeY);
+    }
+    context.stroke();
+    return;
+  }
+
+  if (pattern.type === 'spots') {
+    const density = Math.round(clamp(pattern.density ?? 18, 1, 160));
+    const size = clamp(pattern.size ?? 0.035, 0.003, 0.3) * width;
+    const random = mulberry32(Math.floor((pattern.seed ?? 0.42) * 0xffffffff) || 1);
+    context.fillStyle = pattern.color;
+    for (let index = 0; index < density; index++) {
+      const x = random() * width;
+      const y = random() * height;
+      const radius = size * (0.55 + random() * 0.7) / 2;
+      context.beginPath();
+      context.arc(x, y, radius, 0, Math.PI * 2);
+      context.fill();
+    }
+    return;
+  }
+
+  const edgeWidth = clamp(pattern.width ?? 0.055, 0.003, 0.4);
+  context.fillStyle = pattern.color;
+  context.fillRect(0, 0, width * edgeWidth, height);
+  context.fillRect(width * (1 - edgeWidth), 0, width * edgeWidth, height);
+  context.fillRect(0, 0, width, height * edgeWidth);
+  context.fillRect(0, height * (1 - edgeWidth), width, height * edgeWidth);
+}
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0;
+    seed = seed + 0x6d2b79f5 | 0;
+    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    value = value + Math.imul(value ^ value >>> 7, 61 | value) ^ value;
+    return ((value ^ value >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }

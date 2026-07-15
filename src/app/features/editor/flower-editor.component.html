@@ -66,7 +66,7 @@
         <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Wiederholung hinzufügen" aria-label="Wiederholung hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
         <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Graph automatisch anordnen" aria-label="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
-        <span class="hidden text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
+
         @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
           <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
             {{ subtreeNodeIds().size }} gewählt
@@ -163,11 +163,13 @@
       <app-flower-editor-tree
         #graphTree
         [definition]="draft()"
+        [layoutDefinition]="materializedDraft()"
         [positions]="graphPositions()"
         [selectedNodeId]="selectedNodeId()"
+        [activeNodeIds]="activeTreeNodeIds()"
         [subtreeAnchorIds]="subtreeAnchorIds()"
         [subtreeNodeIds]="subtreeNodeIds()"
-        (definitionChange)="draft.set($event)"
+        (definitionChange)="applyDefinitionChange($event)"
         (positionsChange)="graphPositions.set($event)"
         (nodeSelection)="selectNode($event.id, $event.additive)"
         (message)="showTreeMessage($event)"
@@ -181,12 +183,13 @@
         [highlightedNodeIds]="previewHighlightedNodeIds()"
         [highlightedConnection]="selectedIncoming()"
       />
+      <span class="hidden text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
 
       <app-flower-editor-inspector
         [definition]="draft()"
         [positions]="graphPositions()"
         [selectedNodeId]="selectedNodeId()"
-        (definitionChange)="draft.set($event)"
+        (definitionChange)="applyDefinitionChange($event)"
         (positionsChange)="graphPositions.set($event)"
         (nodeSelection)="selectNode($event)"
         (message)="showInspectorMessage($event)"
