@@ -98,3 +98,4 @@ Weitere:
 
 Toasts unten gehen nicht weg -> Nervig
 Verbindungen von Nodes teilweise unschön
+Readme verbessern -> Englisch!

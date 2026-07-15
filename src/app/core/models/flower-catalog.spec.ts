@@ -8,7 +8,7 @@ import {
 
 describe('flower catalog capabilities', () => {
   it('migrates a historical flower to both catalogs', () => {
-    const definition = {...structuredClone(DEFAULT_FLOWERS[0]!), catalogRole: 'flower' as const};
+    const definition = historicalDefinition('flower');
 
     expect(isAvailableInBouquet(definition)).toBe(true);
     expect(isAvailableAsComponent(definition)).toBe(true);
@@ -19,7 +19,7 @@ describe('flower catalog capabilities', () => {
   });
 
   it('keeps a historical component out of the bouquet while allowing references', () => {
-    const definition = {...structuredClone(DEFAULT_FLOWERS[0]!), catalogRole: 'component' as const};
+    const definition = historicalDefinition('component');
 
     expect(isAvailableInBouquet(definition)).toBe(false);
     expect(isAvailableAsComponent(definition)).toBe(true);
@@ -37,3 +37,10 @@ describe('flower catalog capabilities', () => {
     expect(isAvailableAsComponent(definition)).toBe(false);
   });
 });
+
+function historicalDefinition(catalogRole: 'flower' | 'component') {
+  const definition = structuredClone(DEFAULT_FLOWERS[0]!);
+  delete definition.availableInBouquet;
+  delete definition.availableAsComponent;
+  return {...definition, catalogRole};
+}
