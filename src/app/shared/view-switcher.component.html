@@ -1,58 +1,79 @@
-<nav
-  class="absolute gap-1 right-4 top-4 z-50 flex max-w-[calc(100vw-2rem)] items-center rounded-xl border border-white/70 bg-white/85 p-1 shadow-md shadow-stone-900/10 backdrop-blur-md"
+<div
+  class="fixed right-4 top-4 z-50 grid h-9 w-[200px] max-w-[calc(100vw-2rem)] grid-cols-2 items-center overflow-hidden rounded-lg p-1 shadow-md shadow-stone-900/10 backdrop-blur-md"
+  role="tablist"
   [attr.aria-label]="'views.label' | transloco"
 >
-  <a
-    class="rounded-lg px-3 py-2 text-xs font-bold transition hover:bg-stone-100 hover:text-stone-900"
-    [class.bg-emerald-950]="activeView() === 'bouquet'"
+  <span
+    class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-md bg-emerald-950 shadow-sm motion-reduce:transition-none"
+    [class.translate-x-full]="activeView() === 'components'"
+    [class.transition-transform]="viewSwitchAnimated()"
+    [class.duration-200]="viewSwitchAnimated()"
+    [class.ease-out]="viewSwitchAnimated()"
+    aria-hidden="true"
+  ></span>
+  <button
+    #bouquetViewButton
+    class="relative z-10 h-7 min-w-0 cursor-pointer rounded-md border-0 bg-transparent px-2 text-xs font-bold text-stone-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+    type="button"
+    role="tab"
     [class.text-white]="activeView() === 'bouquet'"
-    [class.shadow-sm]="activeView() === 'bouquet'"
-    [class.text-stone-600]="activeView() !== 'bouquet'"
-    routerLink="/"
-    [attr.aria-current]="activeView() === 'bouquet' ? 'page' : null"
+    [attr.aria-selected]="activeView() === 'bouquet'"
+    [attr.tabindex]="activeView() === 'bouquet' ? 0 : -1"
+    (click)="selectView('bouquet')"
+    (keydown.arrowright)="$event.preventDefault(); selectView('components'); componentsViewButton.focus()"
   >
     {{ 'views.bouquet' | transloco }}
-  </a>
-  <a
-    class="rounded-lg px-3 py-2 text-xs font-bold transition hover:bg-stone-100 hover:text-stone-900"
-    [class.bg-emerald-950]="activeView() === 'components'"
+  </button>
+  <button
+    #componentsViewButton
+    class="relative z-10 h-7 min-w-0 cursor-pointer rounded-md border-0 bg-transparent px-2 text-xs font-bold text-stone-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+    type="button"
+    role="tab"
     [class.text-white]="activeView() === 'components'"
-    [class.shadow-sm]="activeView() === 'components'"
-    [class.text-stone-600]="activeView() !== 'components'"
-    routerLink="/editor"
-    [attr.aria-current]="activeView() === 'components' ? 'page' : null"
+    [attr.aria-selected]="activeView() === 'components'"
+    [attr.tabindex]="activeView() === 'components' ? 0 : -1"
+    (click)="selectView('components')"
+    (keydown.arrowleft)="$event.preventDefault(); selectView('bouquet'); bouquetViewButton.focus()"
   >
     {{ 'views.components' | transloco }}
-  </a>
-</nav>
+  </button>
+</div>
 
 <div
-  class="fixed bottom-4 right-4 z-50 flex items-center gap-1 rounded-xl border border-white/70 bg-white/85 p-1 shadow-md shadow-stone-900/10 backdrop-blur-md"
+  class="fixed bottom-4 right-4 z-50 grid h-9 w-[80px] grid-cols-2 items-center overflow-hidden rounded-lg p-1 shadow-md shadow-stone-900/10 backdrop-blur-md"
   role="group"
   [attr.aria-label]="'language.label' | transloco"
 >
+  <span
+    class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-md bg-emerald-950 shadow-sm motion-reduce:transition-none"
+    [class.translate-x-full]="activeLanguage() === 'en'"
+    [class.transition-transform]="languageSwitchAnimated()"
+    [class.duration-200]="languageSwitchAnimated()"
+    [class.ease-out]="languageSwitchAnimated()"
+    aria-hidden="true"
+  ></span>
   <button
-    class="grid size-9 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-xl leading-none transition hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+    #germanLanguageButton
+    class="relative z-10 h-7 min-w-0 cursor-pointer rounded-md border-0 bg-transparent px-1 text-xs font-bold text-stone-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
     type="button"
-    [class.bg-emerald-950]="activeLanguage() === 'de'"
-    [class.shadow-sm]="activeLanguage() === 'de'"
+    [class.text-white]="activeLanguage() === 'de'"
     [attr.aria-pressed]="activeLanguage() === 'de'"
     [attr.aria-label]="'language.de' | transloco"
-    [attr.title]="'language.de' | transloco"
-    (click)="setLanguage('de')"
+    (click)="selectLanguage('de')"
+    (keydown.arrowright)="$event.preventDefault(); selectLanguage('en'); englishLanguageButton.focus()"
   >
-    <span aria-hidden="true">🇩🇪</span>
+    DE
   </button>
   <button
-    class="grid size-9 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-xl leading-none transition hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+    #englishLanguageButton
+    class="relative z-10 h-7 min-w-0 cursor-pointer rounded-md border-0 bg-transparent px-1 text-xs font-bold text-stone-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
     type="button"
-    [class.bg-emerald-950]="activeLanguage() === 'en'"
-    [class.shadow-sm]="activeLanguage() === 'en'"
+    [class.text-white]="activeLanguage() === 'en'"
     [attr.aria-pressed]="activeLanguage() === 'en'"
     [attr.aria-label]="'language.en' | transloco"
-    [attr.title]="'language.en' | transloco"
-    (click)="setLanguage('en')"
+    (click)="selectLanguage('en')"
+    (keydown.arrowleft)="$event.preventDefault(); selectLanguage('de'); germanLanguageButton.focus()"
   >
-    <span aria-hidden="true">🇬🇧</span>
+    EN
   </button>
 </div>

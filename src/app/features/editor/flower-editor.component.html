@@ -1,5 +1,4 @@
 <section class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text">
-  <app-view-switcher activeView="components" />
 
   <nav class="shrink-0 border-b border-stone-200 bg-white px-2 pb-2 pt-16 lg:hidden" [attr.aria-label]="'editor.tabsLabel' | transloco">
     <div class="grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1">
@@ -192,7 +191,7 @@
       >
         <section class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3">
           <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>
-          <div class="relative">
+          <div #catalogSearchContainer class="relative">
             <mat-icon class="pointer-events-none absolute left-2.5 top-1/2 z-10 -translate-y-1/2 text-[18px]! text-stone-400">search</mat-icon>
             <input
               class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-stone-50 pl-8 pr-2.5 text-xs font-medium text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
@@ -202,14 +201,19 @@
               [value]="catalogSearch()"
               (input)="catalogSearch.set($any($event.target).value); catalogSearchOpen.set(true)"
               (focus)="catalogSearchOpen.set(true)"
-              (keydown.escape)="catalogSearchOpen.set(false)"
+              (keydown.escape)="catalogSearchOpen.set(false); $event.stopPropagation()"
+              [attr.aria-expanded]="catalogSearchOpen()"
+              aria-controls="flower-catalog-search-results"
+              aria-autocomplete="list"
             >
             @if (catalogSearchOpen()) {
-              <div class="absolute left-0 right-0 top-10 z-50 max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
+              <div id="flower-catalog-search-results" role="listbox" class="absolute left-0 right-0 top-10 z-50 max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
                 @for (entry of filteredCatalogEntries(); track entry.key) {
                   <button
                     class="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-xs transition hover:bg-stone-100"
                     type="button"
+                    role="option"
+                    [attr.aria-selected]="entry.key === selectedCatalogKey()"
                     (pointerdown)="$event.preventDefault(); chooseCatalogEntry(entry)"
                   >
                     <mat-icon class="text-[18px]! text-emerald-800">

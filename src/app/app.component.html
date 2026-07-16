@@ -1,3 +1,14 @@
+<app-view-switcher />
+
 <main class="min-h-dvh">
-  <router-outlet />
+  <div [class.hidden]="viewState.activeView() !== 'bouquet'" [attr.aria-hidden]="viewState.activeView() !== 'bouquet'">
+    @defer (when bouquetLoaded()) {
+      <app-bouquet-simulator />
+    }
+  </div>
+  <div [class.hidden]="viewState.activeView() !== 'components'" [attr.aria-hidden]="viewState.activeView() !== 'components'">
+    @defer (when componentsLoaded()) {
+      <app-flower-editor />
+    }
+  </div>
 </main>

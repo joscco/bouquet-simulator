@@ -539,46 +539,84 @@ export function generateFlowerTree(
     const connection = edge.connection;
     const randomness = clamp(connection.randomness ?? 0.35, 0, 1);
     const evenLinearUnit = repeatCount > 1 ? repeatIndex / (repeatCount - 1) : 0.5;
-    const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
-    const inclination = clamp(Math.abs(rangeValue(connection.angle, inclinationUnit)), 0, 180) * Math.PI / 180;
     const azimuthRange = connection.azimuth ?? {min: 0, max: 360};
     const evenCircularUnit = repeatCount > 1 ? repeatIndex / repeatCount : 0.5;
-    const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
-    const aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
-    const roll = connection.roll
-      ? rangeValue(connection.roll, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
-      : 0;
-    const bendRotation = connection.stem?.bendRotation
-      ? rangeValue(connection.stem.bendRotation, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
-      : 0;
     const parentDirection = sphericalDirection(parent.angle, parent.azimuth);
     const reference = Math.abs(parentDirection.y) > 0.98
       ? {x: 1, y: 0, z: 0}
       : {x: 0, y: 1, z: 0};
     const tangent = normalize(cross(reference, parentDirection));
     const bitangent = cross(parentDirection, tangent);
-    let direction = normalize({
-      x: parentDirection.x * Math.cos(inclination)
-        + (tangent.x * Math.cos(aroundParent) + bitangent.x * Math.sin(aroundParent)) * Math.sin(inclination),
-      y: parentDirection.y * Math.cos(inclination)
-        + (tangent.y * Math.cos(aroundParent) + bitangent.y * Math.sin(aroundParent)) * Math.sin(inclination),
-      z: parentDirection.z * Math.cos(inclination)
-        + (tangent.z * Math.cos(aroundParent) + bitangent.z * Math.sin(aroundParent)) * Math.sin(inclination),
-    });
+    const placementMode = connection.placement?.mode ?? 'directional';
+    let aroundParent: number;
+    let length: number;
+    let positionDirection: ReturnType<typeof sphericalDirection>;
+    let direction: ReturnType<typeof sphericalDirection>;
+
+    if (placementMode === 'directional') {
+      const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
+      const inclination = clamp(Math.abs(rangeValue(connection.angle, inclinationUnit)), 0, 180) * Math.PI / 180;
+      const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
+      aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
+      const radialDirection = directionInPlane(tangent, bitangent, aroundParent);
+      direction = normalize({
+        x: parentDirection.x * Math.cos(inclination) + radialDirection.x * Math.sin(inclination),
+        y: parentDirection.y * Math.cos(inclination) + radialDirection.y * Math.sin(inclination),
+        z: parentDirection.z * Math.cos(inclination) + radialDirection.z * Math.sin(inclination),
+      });
+      positionDirection = direction;
+    } else {
+      const baseAzimuthUnit = placementMode === 'ring'
+        ? evenCircularUnit
+        : fractional((repeatIndex + 0.5) * 0.618033988749895);
+      const azimuthUnit = lerp(baseAzimuthUnit, random(), randomness);
+      aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
+      const radialDirection = directionInPlane(tangent, bitangent, aroundParent);
+      if (placementMode === 'sphere') {
+        const polarUnit = lerp((repeatIndex + 0.5) / repeatCount, random(), randomness);
+        const axisAmount = 1 - 2 * polarUnit;
+        const radialAmount = Math.sqrt(Math.max(0, 1 - axisAmount * axisAmount));
+        positionDirection = normalize({
+          x: parentDirection.x * axisAmount + radialDirection.x * radialAmount,
+          y: parentDirection.y * axisAmount + radialDirection.y * radialAmount,
+          z: parentDirection.z * axisAmount + radialDirection.z * radialAmount,
+        });
+      } else {
+        positionDirection = radialDirection;
+      }
+      direction = connection.placement?.orientation === 'parent'
+        ? parentDirection
+        : positionDirection;
+    }
+    const roll = connection.roll
+      ? rangeValue(connection.roll, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
+      : 0;
+    const bendRotation = connection.stem?.bendRotation
+      ? rangeValue(connection.stem.bendRotation, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
+      : 0;
     if (forceUpright) {
       direction = normalize({x: direction.x * 0.32, y: direction.y * 0.32 + 0.68, z: direction.z * 0.32});
     }
     const angle = Math.acos(clamp(direction.y, -1, 1));
     const azimuth = Math.atan2(direction.z, direction.x);
-    const length = Math.max(0, randomRange(connection.length, random));
+    if (placementMode === 'directional') {
+      length = Math.max(0, randomRange(connection.length, random));
+    } else {
+      const radiusUnit = lerp((repeatIndex + 0.5) / repeatCount, random(), randomness);
+      const minimumRadius = Math.max(0, Math.min(connection.length.min, connection.length.max));
+      const maximumRadius = Math.max(0, connection.length.min, connection.length.max);
+      length = placementMode === 'disc'
+        ? Math.sqrt(minimumRadius ** 2 + (maximumRadius ** 2 - minimumRadius ** 2) * radiusUnit)
+        : lerp(minimumRadius, maximumRadius, radiusUnit);
+    }
     const offset = offsets[id] ?? {x: 0, y: 0};
     const node: FlowerTreeNode = {
       id,
       templateId,
       parentId: parent.id,
-      x: parent.x + direction.x * length + offset.x,
-      y: parent.y - direction.y * length + offset.y,
-      z: parent.z + direction.z * length,
+      x: parent.x + positionDirection.x * length + offset.x,
+      y: parent.y - positionDirection.y * length + offset.y,
+      z: parent.z + positionDirection.z * length,
       angle,
       azimuth,
       attachmentAzimuth: aroundParent,
@@ -597,4 +635,20 @@ export function generateFlowerTree(
     });
     return node;
   }
+}
+
+function directionInPlane(
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  angle: number,
+): {x: number; y: number; z: number} {
+  return normalize({
+    x: tangent.x * Math.cos(angle) + bitangent.x * Math.sin(angle),
+    y: tangent.y * Math.cos(angle) + bitangent.y * Math.sin(angle),
+    z: tangent.z * Math.cos(angle) + bitangent.z * Math.sin(angle),
+  });
+}
+
+function fractional(value: number): number {
+  return value - Math.floor(value);
 }

@@ -216,6 +216,50 @@ describe('procedural flower tree generator', () => {
     expect(new Set(branches.map((node) => node.parentId)).size).toBeGreaterThan(0);
   });
 
+  it('fills a disc area instead of only placing nodes on its edge', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.repeat = {min: 16, max: 16};
+    connection.length = {min: 0, max: 20};
+    connection.placement = {mode: 'disc', orientation: 'parent'};
+    const nodes = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+    const radii = nodes.map((node) => Math.hypot(node.x, node.z));
+
+    expect(radii.some((radius) => radius < 8)).toBe(true);
+    expect(radii.some((radius) => radius > 17)).toBe(true);
+    expect(nodes.every((node) => Math.abs(node.y) < 0.001)).toBe(true);
+    expect(nodes.every((node) => Math.abs(node.angle) < 0.001)).toBe(true);
+  });
+
+  it('distributes nodes evenly across a sphere surface', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.repeat = {min: 24, max: 24};
+    connection.length = {min: 20, max: 20};
+    connection.placement = {mode: 'sphere', orientation: 'radial'};
+    const nodes = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+
+    expect(nodes.every((node) => Math.abs(Math.hypot(node.x, node.y, node.z) - 20) < 0.001)).toBe(true);
+    expect(nodes.some((node) => node.y < -10)).toBe(true);
+    expect(nodes.some((node) => node.y > 10)).toBe(true);
+    expect(nodes.some((node) => Math.abs(node.z) > 10)).toBe(true);
+  });
+
+  it('keeps a ring on one plane with an even radius', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.repeat = {min: 12, max: 12};
+    connection.length = {min: 18, max: 18};
+    connection.placement = {mode: 'ring', orientation: 'radial'};
+    const nodes = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+
+    expect(nodes.every((node) => Math.abs(node.y) < 0.001)).toBe(true);
+    expect(nodes.every((node) => Math.abs(Math.hypot(node.x, node.z) - 18) < 0.001)).toBe(true);
+  });
+
   it.each([0, 180])('preserves the radial distribution at a polar inclination of %s°', (angle) => {
     const definition = radialDefinition({randomness: 0});
     definition.nodes[0]!.connections[0]!.angle = {min: angle, max: angle};

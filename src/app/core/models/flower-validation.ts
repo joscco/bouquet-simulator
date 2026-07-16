@@ -117,6 +117,19 @@ export function validateFlowerDefinition(
       if ((node.graphic.scale ?? 1) <= 0) {
         issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Grafikskalierung.`});
       }
+      const leafEdge = node.graphic.leafEdge;
+      if (leafEdge && (
+        leafEdge.serrationCount < 1
+        || leafEdge.serrationCount > 18
+        || leafEdge.serrationDepth < 0
+        || leafEdge.serrationDepth > 80
+        || leafEdge.serrationSharpness < 0
+        || leafEdge.serrationSharpness > 100
+        || leafEdge.edgeCurvature < -100
+        || leafEdge.edgeCurvature > 100
+      )) {
+        issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Blattkante.`});
+      }
       if ((node.graphic.primitive ?? 'png') === 'png' && node.graphic.patterns?.length) {
         issues.push({severity: 'error', message: `„${node.name}“ kann keine parametrischen Muster auf eine PNG-Grafik legen.`});
       } else if (!validGraphicPatterns(node.graphic.patterns)) {
@@ -155,6 +168,13 @@ export function validateFlowerDefinition(
       const connection = effectiveConnection(definition, legacyConnection);
       if ((connection.randomness ?? 0.35) < 0 || (connection.randomness ?? 0.35) > 1) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Zufallsverteilung.`});
+      }
+      if (connection.placement && (
+        !['directional', 'ring', 'disc', 'sphere'].includes(connection.placement.mode)
+        || (connection.placement.orientation !== undefined
+          && !['radial', 'parent'].includes(connection.placement.orientation))
+      )) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige räumliche Anordnung.`});
       }
       if (!ids.has(connection.childId)) {
         issues.push({

@@ -110,8 +110,10 @@
         <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
         <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
         @if (node.memberIds.length) {
-          <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
-          <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
+          @if (!node.root) {
+            <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
+            <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
+          }
           @for (port of node.outputPorts; track $index) {
             <g>
               <circle
@@ -151,7 +153,9 @@
           [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
           class="drop-shadow-sm"
         />
-        <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+        @if (!node.root) {
+          <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" />
+        }
         <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
         <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
           {{ node.root ? 'AKTIVE WURZEL' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}

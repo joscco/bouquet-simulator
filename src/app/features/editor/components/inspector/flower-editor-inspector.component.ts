@@ -7,6 +7,9 @@ import {
   FlowerNodeDefinition,
   FlowerNodeGraphic,
   FlowerNodeIncomingConnection,
+  FlowerNodePlacementMode,
+  FlowerNodePlacementOrientation,
+  GraphicLeafEdgeSettings,
   GraphicPatternLayer,
   GraphicPatternType,
   GraphicPrimitive,
@@ -18,7 +21,10 @@ import {
   incomingConnectionReference,
   nodeIncomingOrDefault,
 } from '../../../../core/models/flower-connections';
-import {BUILT_IN_GRAPHICS, canonicalGraphicPrimitive} from '../../../../core/rendering/graphic-geometries';
+import {
+  BUILT_IN_GRAPHICS,
+  canonicalGraphicPrimitive,
+} from '../../../../core/rendering/graphic-geometries';
 import {graphicRotationSettings} from '../../../../core/rendering/graphic-orientation';
 import {clamp} from '../../../../core/utils/numbers';
 import {IntervalSliderComponent} from '../../../../shared/interval-slider/interval-slider.component';
@@ -64,6 +70,7 @@ import {
   duplicateFlowerEditorNode,
   removeFlowerEditorNode,
 } from '../../domain/flower-editor-node-updates';
+import {GraphicLeafEdgeEditorComponent} from './graphic-leaf-edge-editor.component';
 
 @Component({
   selector: 'app-flower-editor-inspector',
@@ -76,6 +83,7 @@ import {
     NumericFieldComponent,
     NumericSliderComponent,
     EditorDisclosureComponent,
+    GraphicLeafEdgeEditorComponent,
     TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -99,6 +107,7 @@ export class FlowerEditorInspectorComponent {
   readonly connectionSectionExpanded = signal(true);
   readonly loopSectionExpanded = signal(true);
   readonly graphicBasicsExpanded = signal(true);
+  readonly graphicShapeExpanded = signal(true);
   readonly graphicPositionExpanded = signal(false);
   readonly graphicBendExpanded = signal(false);
   readonly graphicPatternsExpanded = signal(false);
@@ -106,6 +115,16 @@ export class FlowerEditorInspectorComponent {
 
   readonly graphicPrimitives = BUILT_IN_GRAPHICS;
   readonly graphicPatternTypes = GRAPHIC_PATTERN_OPTIONS;
+  readonly placementModes: ReadonlyArray<{
+    mode: FlowerNodePlacementMode;
+    icon: string;
+    labelKey: string;
+  }> = [
+    {mode: 'directional', icon: 'call_split', labelKey: 'inspector.placements.directional'},
+    {mode: 'ring', icon: 'radio_button_unchecked', labelKey: 'inspector.placements.ring'},
+    {mode: 'disc', icon: 'blur_circular', labelKey: 'inspector.placements.disc'},
+    {mode: 'sphere', icon: 'language', labelKey: 'inspector.placements.sphere'},
+  ];
   readonly graphicPatternLabel = graphicPatternLabel;
   readonly removedPattern = signal<{
     nodeId: string;
@@ -166,6 +185,10 @@ export class FlowerEditorInspectorComponent {
 
   updateGraphicPrimitive(primitive: GraphicPrimitive): void {
     this.updateSelectedNode((node) => withGraphicPatch(node, {primitive}));
+  }
+
+  updateGraphicLeafEdge(value: GraphicLeafEdgeSettings): void {
+    this.updateSelectedNode((node) => withGraphicPatch(node, {leafEdge: value}));
   }
 
   updateGraphicColor(color: string): void {
@@ -246,6 +269,55 @@ export class FlowerEditorInspectorComponent {
 
   updateIncomingRange(group: 'repeat' | 'length' | 'angle' | 'azimuth' | 'roll', value: NumberRange): void {
     this.updateIncoming((incoming) => ({...incoming, [group]: value}));
+  }
+
+  incomingPlacementMode(incoming: FlowerNodeIncomingConnection): FlowerNodePlacementMode {
+    return incoming.placement?.mode ?? 'directional';
+  }
+
+  incomingPlacementOrientation(
+    incoming: FlowerNodeIncomingConnection,
+  ): FlowerNodePlacementOrientation {
+    return incoming.placement?.orientation
+      ?? (this.incomingPlacementMode(incoming) === 'disc' ? 'parent' : 'radial');
+  }
+
+  updateIncomingPlacementMode(mode: FlowerNodePlacementMode): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
+      length: mode === 'directional'
+        ? incoming.length
+        : mode === 'disc'
+          ? {min: 0, max: this.incomingRadius(incoming)}
+          : {min: this.incomingRadius(incoming), max: this.incomingRadius(incoming)},
+      placement: mode === 'directional'
+        ? {mode}
+        : {
+          mode,
+          orientation: incoming.placement?.orientation
+            ?? (mode === 'disc' ? 'parent' : 'radial'),
+        },
+    }));
+  }
+
+  incomingRadius(incoming: FlowerNodeIncomingConnection): number {
+    return Math.max(0, incoming.length.min, incoming.length.max);
+  }
+
+  updateIncomingRadius(radius: number): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
+      length: this.incomingPlacementMode(incoming) === 'disc'
+        ? {min: 0, max: Math.max(0, Number(radius))}
+        : {min: Math.max(0, Number(radius)), max: Math.max(0, Number(radius))},
+    }));
+  }
+
+  updateIncomingPlacementOrientation(orientation: FlowerNodePlacementOrientation): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
+      placement: {mode: this.incomingPlacementMode(incoming), orientation},
+    }));
   }
 
   incomingRandomness(incoming: FlowerNodeIncomingConnection): number {

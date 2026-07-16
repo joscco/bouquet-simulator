@@ -264,6 +264,10 @@ export class FlowerEditorTreeComponent {
     event.stopPropagation();
     this.connectionDrag.set(null);
     if (pending.sourceId === targetId) return;
+    if (targetId === this.definition().rootNodeId) {
+      this.message.emit({text: 'Der Startknoten hat keinen Eingang.'});
+      return;
+    }
     if (pending.loopStartId) {
       const initialized = initializeEmptyLoopWithNode(
         this.definition(),

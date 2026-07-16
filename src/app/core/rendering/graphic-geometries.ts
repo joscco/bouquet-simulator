@@ -1,10 +1,22 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  ConeGeometry,
   CylinderGeometry,
   SphereGeometry,
 } from 'three';
-import {GraphicBendProfile, GraphicPrimitive} from '../models/flower.models';
+import {
+  GraphicBendProfile,
+  GraphicLeafEdgeSettings,
+  GraphicPrimitive,
+} from '../models/flower.models';
+
+export const DEFAULT_LEAF_EDGE: Readonly<GraphicLeafEdgeSettings> = {
+  serrationCount: 7,
+  serrationDepth: 28,
+  serrationSharpness: 70,
+  edgeCurvature: -30,
+};
 
 /**
  * Zentrale 3D-Modelldaten der eingebauten Grafikformen.
@@ -14,13 +26,16 @@ import {GraphicBendProfile, GraphicPrimitive} from '../models/flower.models';
  */
 export const BUILT_IN_GRAPHICS: ReadonlyArray<{
   value: GraphicPrimitive;
-  label: string;
+  labelKey: string;
   organic: boolean;
 }> = [
-  {value: 'leaf-pointed', label: 'Blatt', organic: true},
-  {value: 'leaf-serrated', label: 'Zackiges Blatt', organic: true},
-  {value: 'sphere', label: 'Kugel', organic: false},
-  {value: 'rod', label: 'Stäbchen', organic: false},
+  {value: 'leaf-pointed', labelKey: 'inspector.primitives.leaf', organic: true},
+  {value: 'leaf-serrated', labelKey: 'inspector.primitives.serratedLeaf', organic: true},
+  {value: 'petal-rounded', labelKey: 'inspector.primitives.petal', organic: true},
+  {value: 'sphere', labelKey: 'inspector.primitives.sphere', organic: false},
+  {value: 'rod', labelKey: 'inspector.primitives.rod', organic: false},
+  {value: 'cone', labelKey: 'inspector.primitives.cone', organic: false},
+  {value: 'disc', labelKey: 'inspector.primitives.disc', organic: false},
 ];
 
 export function canonicalGraphicPrimitive(primitive: GraphicPrimitive): GraphicPrimitive {
@@ -36,6 +51,7 @@ export function createBuiltInGeometry(
   bendCross = 0,
   bendMainProfile?: GraphicBendProfile,
   bendCrossProfile?: GraphicBendProfile,
+  leafEdge?: GraphicLeafEdgeSettings,
 ): BufferGeometry {
   if (primitive === 'sphere') {
     const geometry = new SphereGeometry(0.5, 20, 14);
@@ -44,6 +60,18 @@ export function createBuiltInGeometry(
   }
   if (primitive === 'rod') {
     const geometry = new CylinderGeometry(0.5, 0.5, 1, 12);
+    geometry.translate(0, 0.5, 0);
+    geometry.scale(width, height, depth);
+    return geometry;
+  }
+  if (primitive === 'cone') {
+    const geometry = new ConeGeometry(0.5, 1, 20);
+    geometry.translate(0, 0.5, 0);
+    geometry.scale(width, height, depth);
+    return geometry;
+  }
+  if (primitive === 'disc') {
+    const geometry = new CylinderGeometry(0.5, 0.5, 1, 28);
     geometry.translate(0, 0.5, 0);
     geometry.scale(width, height, depth);
     return geometry;
@@ -57,6 +85,7 @@ export function createBuiltInGeometry(
     bendCross,
     bendMainProfile,
     bendCrossProfile,
+    leafEdge,
   );
 }
 
@@ -69,10 +98,13 @@ function createLeafGeometry(
   bendCross: number,
   bendMainProfile?: GraphicBendProfile,
   bendCrossProfile?: GraphicBendProfile,
+  leafEdge?: GraphicLeafEdgeSettings,
 ): BufferGeometry {
   const maximumMainBend = maximumProfileBend(bendMain, bendMainProfile);
   const maximumCrossBend = maximumProfileBend(bendCross, bendCrossProfile);
-  const rows = adaptiveSegments(28, maximumMainBend, 56);
+  const serrationCount = normalizedLeafEdge(leafEdge).serrationCount;
+  const contourRows = primitive === 'leaf-serrated' ? Math.ceil(serrationCount) * 6 : 28;
+  const rows = adaptiveSegments(Math.max(28, contourRows), maximumMainBend, 96);
   const columns = adaptiveSegments(16, maximumCrossBend, 40);
   const vertices: number[] = [];
   const uvs: number[] = [];
@@ -83,7 +115,7 @@ function createLeafGeometry(
   for (const side of [-1, 1]) {
     for (let row = 0; row <= rows; row++) {
       const v = row / rows;
-      const halfWidth = width * 0.5 * leafWidthAt(primitive, v, row);
+      const halfWidth = width * 0.5 * leafWidthAt(primitive, v, leafEdge);
       const mainArc = mainCurve[row];
       const crossCurvature = profileCurvature(
         v,
@@ -212,17 +244,57 @@ function arcPoint(
   };
 }
 
-function leafWidthAt(primitive: GraphicPrimitive, progress: number, row: number): number {
+function leafWidthAt(
+  primitive: GraphicPrimitive,
+  progress: number,
+  leafEdge?: GraphicLeafEdgeSettings,
+): number {
   const pointed = Math.sin(Math.PI * progress) ** 0.72;
   let profile = pointed;
   if (primitive === 'leaf-round') {
     profile = Math.sin(Math.PI * Math.min(1, progress * 1.14)) ** 0.58;
   }
+  if (primitive === 'petal-rounded') {
+    const roundedTip = Math.sin(Math.PI * progress) ** 0.34;
+    const taperedBase = Math.min(1, progress * 4.5) ** 0.55;
+    profile = roundedTip * taperedBase;
+  }
   if (primitive === 'leaf-serrated') {
-    const serration = row === 0 || progress > 0.96 ? 1 : (row % 2 === 0 ? 0.72 : 1);
-    profile = pointed * serration;
+    profile = pointed * serrationWidth(progress, normalizedLeafEdge(leafEdge));
   }
   return Math.max(0.015, profile);
+}
+
+function normalizedLeafEdge(settings?: GraphicLeafEdgeSettings): GraphicLeafEdgeSettings {
+  return {
+    serrationCount: Math.max(1, Math.min(18, Math.round(
+      settings?.serrationCount ?? DEFAULT_LEAF_EDGE.serrationCount,
+    ))),
+    serrationDepth: Math.max(0, Math.min(80,
+      settings?.serrationDepth ?? DEFAULT_LEAF_EDGE.serrationDepth,
+    )),
+    serrationSharpness: Math.max(0, Math.min(100,
+      settings?.serrationSharpness ?? DEFAULT_LEAF_EDGE.serrationSharpness,
+    )),
+    edgeCurvature: Math.max(-100, Math.min(100,
+      settings?.edgeCurvature ?? DEFAULT_LEAF_EDGE.edgeCurvature,
+    )),
+  };
+}
+
+/** Kontinuierliches Breitenprofil ohne die früheren, an Mesh-Zeilen gebundenen Sprünge. */
+function serrationWidth(progress: number, settings: GraphicLeafEdgeSettings): number {
+  if (progress <= 0.025 || progress >= 0.975 || settings.serrationDepth <= 0) return 1;
+  const usableProgress = (progress - 0.025) / 0.95;
+  const phase = (usableProgress * settings.serrationCount) % 1;
+  const triangle = 1 - Math.abs(phase * 2 - 1);
+  const concave = 1 - Math.cos(triangle * Math.PI / 2);
+  const convex = Math.sin(triangle * Math.PI / 2);
+  const curvatureMix = (settings.edgeCurvature + 100) / 200;
+  const curvedTransition = concave + (convex - concave) * curvatureMix;
+  const sharpnessExponent = 0.65 + settings.serrationSharpness / 100 * 3.35;
+  const tooth = curvedTransition ** sharpnessExponent;
+  return 1 - settings.serrationDepth / 100 * (1 - tooth);
 }
 
 function maximumProfileBend(value: number, profile: GraphicBendProfile | undefined): number {

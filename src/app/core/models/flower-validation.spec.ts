@@ -10,6 +10,23 @@ describe('flower definition validation', () => {
     }
   });
 
+  it('validates element-specific serrated leaf settings', () => {
+    const definition = validationDefinition();
+    const graphic = definition.nodes.find((node) => node.id === 'leaf')!.graphic!;
+    graphic.primitive = 'leaf-serrated';
+    graphic.leafEdge = {
+      serrationCount: 8,
+      serrationDepth: 35,
+      serrationSharpness: 72,
+      edgeCurvature: -40,
+    };
+    expect(validateFlowerDefinition(definition)).toEqual([]);
+
+    graphic.leafEdge.serrationCount = 30;
+    expect(validateFlowerDefinition(definition).some((issue) =>
+      issue.message.includes('Blattkante'))).toBe(true);
+  });
+
   it('reports cycles in reachable connections', () => {
     const definition = validationDefinition();
     definition.nodes.find((node) => node.id === 'leaf')!.connections.push({

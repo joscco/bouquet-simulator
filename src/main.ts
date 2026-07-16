@@ -1,17 +1,14 @@
 import {bootstrapApplication} from '@angular/platform-browser';
 import {inject, isDevMode, provideAppInitializer} from '@angular/core';
-import {provideRouter, withComponentInputBinding} from '@angular/router';
 import {MatIconRegistry} from '@angular/material/icon';
 import {MAT_SNACK_BAR_DEFAULT_OPTIONS} from '@angular/material/snack-bar';
 import {provideHttpClient} from '@angular/common/http';
 import {provideTransloco} from '@jsverse/transloco';
 import {AppComponent} from './app/app.component';
-import {routes} from './app/app.routes';
 import {TranslocoHttpLoader} from './app/transloco-loader';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(),
     provideTransloco({
       config: {

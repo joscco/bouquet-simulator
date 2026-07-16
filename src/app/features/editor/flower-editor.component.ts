@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  HostListener,
   ViewChild,
   computed,
   inject,
@@ -41,8 +43,8 @@ import {
   createCompactGraphPositions,
   createGraphLayout,
   materializePositions,
+  nextEditorNodePosition,
 } from './graph/flower-editor-graph';
-import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {AppButtonComponent} from '../../shared/app-button/app-button.component';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {createFlowerLoop} from './domain/flower-editor-loop-creation';
@@ -82,7 +84,6 @@ type FlowerEditorWorkspaceTab = 'graph' | 'preview' | 'inspector';
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
-    ViewSwitcherComponent,
     FlowerEditorTreeComponent,
     FlowerEditorPreviewComponent,
     FlowerEditorInspectorComponent,
@@ -158,8 +159,19 @@ export class FlowerEditorComponent {
   readonly graphLayout = computed(() => createGraphLayout(this.materializedDraft(), this.graphPositions()));
 
   @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
+  @ViewChild('catalogSearchContainer') private catalogSearchContainer?: ElementRef<HTMLElement>;
   constructor() {
     this.graphPositions.set(materializePositions(this.draft()));
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  closeCatalogSearchOnOutsidePointer(event: PointerEvent): void {
+    if (!this.catalogSearchOpen()) return;
+    const container = this.catalogSearchContainer?.nativeElement;
+    const target = event.target as Node | null;
+    if (container && target && !container.contains(target)) {
+      this.catalogSearchOpen.set(false);
+    }
   }
 
   createNewDefinition(): void {
@@ -249,10 +261,9 @@ export class FlowerEditorComponent {
       incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
     };
-    const offset = this.draft().nodes.length * 17 % 160;
     this.graphPositions.update((positions) => ({
       ...positions,
-      [node.id]: {x: 420 + offset, y: 90 + offset / 5},
+      [node.id]: nextEditorNodePosition(positions, this.selectedNodeId()),
     }));
     this.draft.update((draft) => ({...draft, nodes: [...draft.nodes, node]}));
     this.selectNode(node.id);
@@ -544,6 +555,7 @@ export class FlowerEditorComponent {
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
     this.catalogSearch.set(clone.name);
+    this.catalogSearchOpen.set(false);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());

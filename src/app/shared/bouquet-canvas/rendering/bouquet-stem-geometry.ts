@@ -232,11 +232,14 @@ class NaturalStemCurve extends Curve<Vector3> {
 
     const envelope = 16 * t2 * (1 - t) * (1 - t);
     const asymmetry = (t - 0.5) * (0.7 + this.variation * 0.6);
-    const sideOffset = this.length * envelope
-      * (0.13 * this.bend + 0.035 * this.curveAmount * asymmetry);
+    const naturalWave = Math.sin(Math.PI * t)
+      * Math.sin(Math.PI * 2 * t + (this.variation - 0.5) * 0.9);
+    const sideOffset = this.length
+      * (0.24 * this.bend * envelope
+        + 0.105 * this.curveAmount * naturalWave * (0.8 + this.variation * 0.4));
     const liftDirection = this.variation < 0.5 ? -1 : 1;
     const liftOffset = this.length * envelope * this.curveAmount
-      * (0.018 * liftDirection + 0.018 * asymmetry);
+      * (0.055 * liftDirection + 0.035 * asymmetry);
     return target
       .addScaledVector(this.side, sideOffset)
       .addScaledVector(this.lift, liftOffset);

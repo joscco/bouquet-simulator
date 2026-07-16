@@ -1,9 +1,34 @@
 import {describe, expect, it} from 'vitest';
 import {FlowerDefinition} from '../../../core/models/flower.models';
 import {materializeDefinitionComponents} from '../../../core/models/flower-components';
-import {createCompactGraphPositions, createGraphLayout} from './flower-editor-graph';
+import {
+  createCompactGraphPositions,
+  createGraphLayout,
+  nextEditorNodePosition,
+} from './flower-editor-graph';
 
 describe('flower editor graph layout', () => {
+  it('places a newly added node close to the selected node without overlap', () => {
+    const positions = {
+      root: {x: 920, y: 780},
+      child: {x: 920, y: 620},
+    };
+
+    const position = nextEditorNodePosition(positions, 'root');
+
+    expect(Math.hypot(position.x - positions.root.x, position.y - positions.root.y)).toBeLessThan(260);
+    expect(position).toEqual({x: 1124, y: 780});
+  });
+
+  it('uses nearby free slots for several unconnected nodes', () => {
+    const positions = {root: {x: 500, y: 500}};
+    const first = nextEditorNodePosition(positions, 'root');
+    const second = nextEditorNodePosition({...positions, first}, 'root');
+
+    expect(first).not.toEqual(second);
+    expect(Math.hypot(second.x - positions.root.x, second.y - positions.root.y)).toBeLessThan(260);
+  });
+
   it('keeps the outer linear sequence on one vertical axis', () => {
     const layout = createGraphLayout(memberLoopDefinition(), {});
     const nodes = new Map(layout.nodes.map((node) => [node.id, node]));

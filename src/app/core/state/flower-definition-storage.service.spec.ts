@@ -43,6 +43,40 @@ describe('FlowerDefinitionStorage', () => {
     expect(persisted[0]!.name).toBe('Gespeicherte Definition');
   });
 
+  it('adds new built-in flowers once to an older locally saved catalog', () => {
+    const store = TestBed.inject(BouquetStore);
+    const oldCatalog = structuredClone(store.definitions())
+      .filter((definition) => !['sunflower', 'tulip', 'lavender'].includes(definition.id));
+    globalThis.localStorage.setItem(
+      FlowerDefinitionStorage.STORAGE_KEY,
+      JSON.stringify(oldCatalog),
+    );
+
+    TestBed.inject(FlowerDefinitionStorage);
+
+    expect(store.definitions().filter((definition) =>
+      ['sunflower', 'tulip', 'lavender'].includes(definition.id))).toHaveLength(3);
+  });
+
+  it('adds new placement settings without overwriting the rest of a local flower', () => {
+    const store = TestBed.inject(BouquetStore);
+    const oldCatalog = structuredClone(store.definitions());
+    const sunflower = oldCatalog.find((definition) => definition.id === 'sunflower')!;
+    sunflower.name = 'Meine Sonnenblume';
+    delete sunflower.nodes.find((node) => node.id === 'seed-crown')!.incoming!.placement;
+    globalThis.localStorage.setItem(
+      FlowerDefinitionStorage.STORAGE_KEY,
+      JSON.stringify(oldCatalog),
+    );
+
+    TestBed.inject(FlowerDefinitionStorage);
+
+    const restored = store.definitions().find((definition) => definition.id === 'sunflower')!;
+    expect(restored.name).toBe('Meine Sonnenblume');
+    expect(restored.nodes.find((node) => node.id === 'seed-crown')!.incoming!.placement)
+      .toEqual({mode: 'disc', orientation: 'parent'});
+  });
+
   it('removes an invalid stored catalog and keeps built-in defaults', () => {
     globalThis.localStorage.setItem(
       FlowerDefinitionStorage.STORAGE_KEY,

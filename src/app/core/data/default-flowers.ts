@@ -1946,7 +1946,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   {
     "schemaVersion": 2,
     "id": "neue-blume-4",
-    "name": "Lilie",
+    "name": "Lilly",
     "catalogRole": "flower",
     "availableInBouquet": true,
     "availableAsComponent": true,
@@ -2038,11 +2038,11 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "width": 8,
             "startWidth": 6,
             "endWidth": 6,
-            "bend": -12,
-            "curve": 100,
+            "bend": 0,
+            "curve": 28,
             "bendRotation": {
-              "min": 12,
-              "max": 12
+              "min": 0,
+              "max": 0
             }
           }
         },
@@ -2795,7 +2795,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "color": "#ff8ae9",
             "width": 8,
             "startWidth": 2,
-            "endWidth": 2,
+            "endWidth": 1,
             "bend": -56,
             "curve": 0,
             "bendRotation": {
@@ -2811,20 +2811,1166 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       "nodePositions": {
         "base": {
           "x": 500,
-          "y": 840
+          "y": 247
         },
         "node-2": {
-          "x": 463.0673122037541,
-          "y": 648.7957406217402
+          "x": 374,
+          "y": 99
         },
         "node-3": {
-          "x": 643.4176136363635,
-          "y": 650.9429924242424
+          "x": 626,
+          "y": 99
         }
       }
     },
     "outputNodeIds": [
       "base"
     ]
+  },
+  {
+    "schemaVersion": 2,
+    "id": "neue-blume-3",
+    "name": "Kirschblütenzweig",
+    "catalogRole": "flower",
+    "availableInBouquet": true,
+    "availableAsComponent": false,
+    "rootNodeId": "base",
+    "stem": {
+      "color": "#426f50",
+      "highlightColor": "#82a878",
+      "width": 8,
+      "taper": 1,
+      "bend": 0,
+      "curve": 14
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": []
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 500,
+          "y": 840
+        }
+      }
+    }
+  },
+  {
+    "schemaVersion": 2,
+    "id": "sunflower",
+    "name": "Sonnenblume",
+    "rootNodeId": "node-6",
+    "availableInBouquet": true,
+    "availableAsComponent": true,
+    "catalogIcon": {
+      "symbol": "☀",
+      "color": "#d59b18"
+    },
+    "outputNodeIds": [],
+    "stem": {
+      "color": "#50754a",
+      "highlightColor": "#83a86b",
+      "width": 9,
+      "taper": 0.68,
+      "bend": 0,
+      "curve": 24
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "head"
+          }
+        ],
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 250,
+            "max": 250
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.25
+        }
+      },
+      {
+        "id": "head",
+        "name": "Blütenkopf",
+        "draggable": false,
+        "graphic": {
+          "primitive": "disc",
+          "color": "#604020",
+          "width": 46,
+          "height": 8,
+          "depth": 46,
+          "scale": 1,
+          "orientation": "connection",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 72,
+            "max": 72
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.22,
+          "stem": {
+            "color": "#50754a",
+            "width": 9,
+            "startWidth": 9,
+            "endWidth": 5,
+            "bend": 8,
+            "curve": 38,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": [
+          {
+            "childId": "petal"
+          },
+          {
+            "childId": "seed-crown"
+          }
+        ]
+      },
+      {
+        "id": "petal",
+        "name": "Strahlenblüten",
+        "draggable": false,
+        "graphic": {
+          "primitive": "petal-rounded",
+          "color": "#e3ae22",
+          "width": 15,
+          "height": 43,
+          "depth": 2.5,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 90,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 90,
+            "max": 90
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "bendMain": -2,
+          "bendCross": -28,
+          "bendMainProfile": {
+            "base": -2,
+            "tip": -2
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 20,
+            "max": 24
+          },
+          "length": {
+            "min": 15,
+            "max": 21
+          },
+          "angle": {
+            "min": 73,
+            "max": 73
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": -26,
+            "max": 22
+          },
+          "randomness": 0.03,
+          "stem": {
+            "color": "#d5a01d",
+            "width": 1.4,
+            "startWidth": 1.4,
+            "endWidth": 0.7,
+            "bend": 12,
+            "curve": 24,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "seed-crown",
+        "name": "Samenkranz",
+        "draggable": false,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#674218",
+          "width": 5,
+          "height": 8,
+          "depth": 5,
+          "scale": 1,
+          "orientation": "connection",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 24,
+            "max": 30
+          },
+          "length": {
+            "min": 6,
+            "max": 18
+          },
+          "angle": {
+            "min": 35,
+            "max": 72
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0,
+          "stem": {
+            "color": "#71502a",
+            "width": 1.2,
+            "startWidth": 1.2,
+            "endWidth": 0.6,
+            "bend": 8,
+            "curve": 18,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "leaf",
+        "name": "Stängelblätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-serrated",
+          "color": "#4d7b42",
+          "width": 34,
+          "height": 78,
+          "depth": 3,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 14,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "bendMain": 32,
+          "bendCross": 22,
+          "leafEdge": {
+            "serrationCount": 9,
+            "serrationDepth": 23,
+            "serrationSharpness": 76,
+            "edgeCurvature": -42
+          },
+          "patterns": [
+            {
+              "id": "leaf-veins",
+              "type": "veins",
+              "color": "#315b35",
+              "opacity": 0.5,
+              "density": 7,
+              "size": 0.025,
+              "angle": 28
+            }
+          ]
+        },
+        "incoming": {
+          "repeat": {
+            "min": 2,
+            "max": 4
+          },
+          "length": {
+            "min": 72,
+            "max": 125
+          },
+          "angle": {
+            "min": 22,
+            "max": 48
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.42,
+          "stem": {
+            "color": "#50754a",
+            "width": 4,
+            "startWidth": 4,
+            "endWidth": 2.2,
+            "bend": 20,
+            "curve": 44,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-6",
+        "name": "Knoten 6",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 50,
+            "max": 70
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.25
+        },
+        "connections": [
+          {
+            "childId": "base"
+          },
+          {
+            "childId": "leaf"
+          }
+        ]
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 507.5417698019802,
+          "y": 655.8645685997171
+        },
+        "leaf": {
+          "x": 700,
+          "y": 520
+        },
+        "head": {
+          "x": 500,
+          "y": 520
+        },
+        "petal": {
+          "x": 315,
+          "y": 320
+        },
+        "seed-crown": {
+          "x": 500,
+          "y": 320
+        },
+        "node-6": {
+          "x": 602.7582761583774,
+          "y": 830.7921348565706
+        }
+      }
+    }
+  },
+  {
+    "schemaVersion": 2,
+    "id": "tulip",
+    "name": "Tulpe",
+    "rootNodeId": "base",
+    "availableInBouquet": true,
+    "availableAsComponent": true,
+    "catalogIcon": {
+      "symbol": "♢",
+      "color": "#cf416b"
+    },
+    "outputNodeIds": [],
+    "stem": {
+      "color": "#467744",
+      "highlightColor": "#80a86c",
+      "width": 7,
+      "taper": 0.62,
+      "bend": 0,
+      "curve": 28
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "bloom"
+          },
+          {
+            "childId": "leaf"
+          }
+        ]
+      },
+      {
+        "id": "bloom",
+        "name": "Blütenansatz",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 135,
+            "max": 170
+          },
+          "angle": {
+            "min": 0,
+            "max": 7
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.22,
+          "stem": {
+            "color": "#50754a",
+            "width": 7,
+            "startWidth": 7,
+            "endWidth": 3.5,
+            "bend": 10,
+            "curve": 46,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": [
+          {
+            "childId": "outer-petal"
+          },
+          {
+            "childId": "inner-petal"
+          },
+          {
+            "childId": "stamen"
+          }
+        ]
+      },
+      {
+        "id": "outer-petal",
+        "name": "Äußere Blütenblätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "petal-rounded",
+          "color": "#d94d78",
+          "width": 38,
+          "height": 68,
+          "depth": 3,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 4,
+          "rotationSpread": 8,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "accentColor": "#f291ad",
+          "bendMain": -46,
+          "bendCross": 38,
+          "patterns": [
+            {
+              "id": "petal-gradient",
+              "type": "gradient",
+              "color": "#8f244f",
+              "opacity": 0.42,
+              "direction": "base-to-tip"
+            }
+          ]
+        },
+        "incoming": {
+          "repeat": {
+            "min": 6,
+            "max": 6
+          },
+          "length": {
+            "min": 7,
+            "max": 11
+          },
+          "angle": {
+            "min": 17,
+            "max": 30
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.05,
+          "stem": {
+            "color": "#b93463",
+            "width": 1.5,
+            "startWidth": 1.5,
+            "endWidth": 0.7,
+            "bend": 8,
+            "curve": 20,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "inner-petal",
+        "name": "Innere Blütenblätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "petal-rounded",
+          "color": "#eb668b",
+          "width": 30,
+          "height": 60,
+          "depth": 2.5,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 30,
+          "rotationSpread": 6,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "bendMain": -22,
+          "bendCross": 50
+        },
+        "incoming": {
+          "repeat": {
+            "min": 3,
+            "max": 3
+          },
+          "length": {
+            "min": 4,
+            "max": 7
+          },
+          "angle": {
+            "min": 8,
+            "max": 16
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0,
+          "stem": {
+            "color": "#cf446d",
+            "width": 1.3,
+            "startWidth": 1.3,
+            "endWidth": 0.6,
+            "bend": 6,
+            "curve": 16,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "stamen",
+        "name": "Staubblätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "rod",
+          "color": "#3c2b2a",
+          "width": 2.5,
+          "height": 22,
+          "depth": 2.5,
+          "scale": 1,
+          "orientation": "connection",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 6,
+            "max": 6
+          },
+          "length": {
+            "min": 5,
+            "max": 9
+          },
+          "angle": {
+            "min": 7,
+            "max": 20
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.16,
+          "stem": {
+            "color": "#4a3430",
+            "width": 1.1,
+            "startWidth": 1.1,
+            "endWidth": 0.55,
+            "bend": 10,
+            "curve": 22,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "leaf",
+        "name": "Tulpenblätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#4c804b",
+          "width": 34,
+          "height": 118,
+          "depth": 3,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 8,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "bendMain": 44,
+          "bendCross": 32,
+          "patterns": [
+            {
+              "id": "leaf-gradient",
+              "type": "gradient",
+              "color": "#274f31",
+              "opacity": 0.34,
+              "direction": "base-to-tip"
+            }
+          ]
+        },
+        "incoming": {
+          "repeat": {
+            "min": 2,
+            "max": 3
+          },
+          "length": {
+            "min": 65,
+            "max": 105
+          },
+          "angle": {
+            "min": 9,
+            "max": 27
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.34,
+          "stem": {
+            "color": "#50754a",
+            "width": 3.6,
+            "startWidth": 3.6,
+            "endWidth": 1.8,
+            "bend": 18,
+            "curve": 50,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": []
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 500,
+          "y": 760
+        },
+        "bloom": {
+          "x": 500,
+          "y": 560
+        },
+        "outer-petal": {
+          "x": 260,
+          "y": 340
+        },
+        "inner-petal": {
+          "x": 470,
+          "y": 340
+        },
+        "stamen": {
+          "x": 680,
+          "y": 340
+        },
+        "leaf": {
+          "x": 720,
+          "y": 570
+        }
+      }
+    }
+  },
+  {
+    "schemaVersion": 2,
+    "id": "lavender",
+    "name": "Lavendel",
+    "rootNodeId": "base",
+    "availableInBouquet": true,
+    "availableAsComponent": true,
+    "catalogIcon": {
+      "symbol": "✦",
+      "color": "#7659a8"
+    },
+    "outputNodeIds": [],
+    "stem": {
+      "color": "#55714a",
+      "highlightColor": "#91a879",
+      "width": 5,
+      "taper": 0.58,
+      "bend": 0,
+      "curve": 32
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "tip"
+          },
+          {
+            "childId": "leaf"
+          }
+        ]
+      },
+      {
+        "id": "tip",
+        "name": "Blütenstand",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 125,
+            "max": 165
+          },
+          "angle": {
+            "min": 0,
+            "max": 9
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.22,
+          "stem": {
+            "color": "#50754a",
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 2.2,
+            "bend": 12,
+            "curve": 58,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": [
+          {
+            "childId": "floret"
+          },
+          {
+            "childId": "bud"
+          }
+        ]
+      },
+      {
+        "id": "floret",
+        "name": "Lavendelblüten",
+        "draggable": false,
+        "graphic": {
+          "primitive": "cone",
+          "color": "#7652a4",
+          "width": 9,
+          "height": 17,
+          "depth": 9,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 20,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 18,
+            "max": 24
+          },
+          "length": {
+            "min": 6,
+            "max": 36
+          },
+          "angle": {
+            "min": 24,
+            "max": 76
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": -30,
+            "max": 30
+          },
+          "randomness": 0.28,
+          "stem": {
+            "color": "#5d744e",
+            "width": 1.8,
+            "startWidth": 1.8,
+            "endWidth": 1.1,
+            "bend": 28,
+            "curve": 52,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "bud",
+        "name": "Knospen",
+        "draggable": false,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#9c7bc0",
+          "width": 7,
+          "height": 11,
+          "depth": 7,
+          "scale": 1,
+          "orientation": "connection",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 8,
+            "max": 12
+          },
+          "length": {
+            "min": 4,
+            "max": 22
+          },
+          "angle": {
+            "min": 12,
+            "max": 48
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.36,
+          "stem": {
+            "color": "#6f568a",
+            "width": 1.2,
+            "startWidth": 1.2,
+            "endWidth": 0.55,
+            "bend": 16,
+            "curve": 35,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "leaf",
+        "name": "Schmale Blätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#617c53",
+          "width": 13,
+          "height": 54,
+          "depth": 2,
+          "scale": 1,
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 16,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.92
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.08
+          },
+          "bendMain": 38,
+          "bendCross": 18
+        },
+        "incoming": {
+          "repeat": {
+            "min": 4,
+            "max": 7
+          },
+          "length": {
+            "min": 38,
+            "max": 92
+          },
+          "angle": {
+            "min": 23,
+            "max": 54
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.31,
+          "stem": {
+            "color": "#50754a",
+            "width": 2.2,
+            "startWidth": 2.2,
+            "endWidth": 1.2,
+            "bend": 24,
+            "curve": 55,
+            "bendRotation": {
+              "min": -25,
+              "max": 25
+            }
+          }
+        },
+        "connections": []
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 500,
+          "y": 720
+        },
+        "tip": {
+          "x": 500,
+          "y": 510
+        },
+        "floret": {
+          "x": 300,
+          "y": 300
+        },
+        "bud": {
+          "x": 510,
+          "y": 300
+        },
+        "leaf": {
+          "x": 720,
+          "y": 510
+        }
+      }
+    }
   }
 ];

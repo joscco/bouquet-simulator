@@ -20,9 +20,24 @@ export type GraphicPrimitive =
   | 'leaf-pointed'
   | 'leaf-round'
   | 'leaf-serrated'
+  | 'petal-rounded'
   | 'sphere'
   | 'rod'
+  | 'cone'
+  | 'disc'
   | 'png';
+
+/** Form der Blattkante. Die Werte werden nur von gezackten Blättern ausgewertet. */
+export interface GraphicLeafEdgeSettings {
+  /** Anzahl der Zacken je Blattseite. */
+  serrationCount: number;
+  /** Tiefe der Einschnitte, 0 bis 100. */
+  serrationDepth: number;
+  /** Schärfe der Zackenspitzen, 0 bis 100. */
+  serrationSharpness: number;
+  /** Negativ = konkave, positiv = konvexe Übergänge zwischen den Spitzen. */
+  edgeCurvature: number;
+}
 
 export interface GraphicPaintStroke {
   /** Position auf der Grafik, jeweils von 0 bis 1. */
@@ -72,6 +87,16 @@ export interface FlowerStemSettings {
   bendRotation?: NumberRange;
 }
 
+export type FlowerNodePlacementMode = 'directional' | 'ring' | 'disc' | 'sphere';
+export type FlowerNodePlacementOrientation = 'radial' | 'parent';
+
+export interface FlowerNodePlacementSettings {
+  /** Räumliche Verteilung relativ zum Elternknoten. */
+  mode: FlowerNodePlacementMode;
+  /** Wachstumsrichtung unabhängig von der verteilten Position. */
+  orientation?: FlowerNodePlacementOrientation;
+}
+
 export interface FlowerNodeIncomingConnection {
   repeat: NumberRange;
   length: NumberRange;
@@ -83,6 +108,8 @@ export interface FlowerNodeIncomingConnection {
   roll?: NumberRange;
   /** 0 verteilt Wiederholungen gleichmäßig, 1 vollständig zufällig. */
   randomness?: number;
+  /** Optionale räumliche Anordnung; fehlend entspricht der gerichteten Astverteilung. */
+  placement?: FlowerNodePlacementSettings;
   stem?: FlowerStemSettings;
 }
 
@@ -114,6 +141,8 @@ export interface FlowerNodeGraphic {
   bendCrossProfile?: GraphicBendProfile;
   /** Roll-Ausrichtung der Grafik um ihre Wachstumsrichtung. */
   orientation?: 'connection' | 'toward-parent';
+  /** Elementspezifische Kontur eines gezackten Blatts. */
+  leafEdge?: GraphicLeafEdgeSettings;
   /** Konstante Drehung um die Wachstumsrichtung, in Grad. */
   rotationBase?: number;
   /** Symmetrische zufällige Abweichung von rotationBase, in Grad. */

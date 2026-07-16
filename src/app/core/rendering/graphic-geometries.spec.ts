@@ -6,13 +6,39 @@ import {
 } from './graphic-geometries';
 
 describe('built-in graphic geometries', () => {
-  it('offers pointed and serrated leaves without the round leaf option', () => {
+  it('offers organic and geometric 3D elements without the legacy round leaf option', () => {
     expect(BUILT_IN_GRAPHICS.map((graphic) => graphic.value)).toEqual([
       'leaf-pointed',
       'leaf-serrated',
+      'petal-rounded',
       'sphere',
       'rod',
+      'cone',
+      'disc',
     ]);
+  });
+
+  it('uses element-specific settings for serrated leaf contours', () => {
+    const coarse = createBuiltInGeometry(
+      'leaf-serrated', 50, 80, 2, 0, 0, undefined, undefined,
+      {serrationCount: 3, serrationDepth: 15, serrationSharpness: 20, edgeCurvature: 80},
+    );
+    const detailed = createBuiltInGeometry(
+      'leaf-serrated', 50, 80, 2, 0, 0, undefined, undefined,
+      {serrationCount: 12, serrationDepth: 60, serrationSharpness: 95, edgeCurvature: -90},
+    );
+
+    expect(detailed.getAttribute('position').count).toBeGreaterThan(coarse.getAttribute('position').count);
+    coarse.dispose();
+    detailed.dispose();
+  });
+
+  it('creates the additional rounded petal, cone and disc geometries', () => {
+    for (const primitive of ['petal-rounded', 'cone', 'disc'] as const) {
+      const geometry = createBuiltInGeometry(primitive, 30, 50, 8);
+      expect(geometry.getAttribute('position').count).toBeGreaterThan(20);
+      geometry.dispose();
+    }
   });
 
   it('maps legacy round leaves to pointed leaves', () => {

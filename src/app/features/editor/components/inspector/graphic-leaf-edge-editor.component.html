@@ -1,0 +1,18 @@
+<div class="space-y-2">
+  <app-numeric-slider [label]="'inspector.serrationCount' | transloco"
+    [value]="settings().serrationCount" [minimum]="1" [maximum]="18" [step]="1"
+    (valueChange)="update('serrationCount', $event)" />
+  <app-numeric-slider [label]="'inspector.serrationDepth' | transloco" unit="%"
+    [value]="settings().serrationDepth" [minimum]="0" [maximum]="80"
+    (valueChange)="update('serrationDepth', $event)" />
+  <app-numeric-slider [label]="'inspector.serrationSharpness' | transloco" unit="%"
+    [value]="settings().serrationSharpness" [minimum]="0" [maximum]="100"
+    (valueChange)="update('serrationSharpness', $event)" />
+  <app-numeric-slider [label]="'inspector.edgeCurvature' | transloco" unit="%"
+    [value]="settings().edgeCurvature" [minimum]="-100" [maximum]="100"
+    (valueChange)="update('edgeCurvature', $event)" />
+  <div class="flex justify-between text-[9px] font-semibold text-stone-400">
+    <span>{{ 'inspector.concave' | transloco }}</span>
+    <span>{{ 'inspector.convex' | transloco }}</span>
+  </div>
+</div>

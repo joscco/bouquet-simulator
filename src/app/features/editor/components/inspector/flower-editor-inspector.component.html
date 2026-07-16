@@ -67,7 +67,7 @@
     </div>
   </section>
 
-  @if (!node.loop) {
+  @if (!node.loop && node.id !== definition().rootNodeId) {
     @if (incomingSettings(); as incoming) {
       <app-editor-disclosure
         [title]="'inspector.incoming' | transloco"
@@ -90,10 +90,28 @@
               <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.distribution' | transloco }}</div>
               <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.distributionHelp' | transloco }}</p>
             </div>
+            <div class="grid grid-cols-2 gap-1.5" role="group" [attr.aria-label]="'inspector.placement' | transloco">
+              @for (placement of placementModes; track placement.mode) {
+                <button app-button variant="icon-text" class="w-full"
+                  [tone]="incomingPlacementMode(incoming) === placement.mode ? 'primary' : 'neutral'"
+                  [attr.aria-pressed]="incomingPlacementMode(incoming) === placement.mode"
+                  (click)="updateIncomingPlacementMode(placement.mode)">
+                  <mat-icon>{{ placement.icon }}</mat-icon>
+                  {{ placement.labelKey | transloco }}
+                </button>
+              }
+            </div>
+            <p class="mb-0 mt-0 text-[10px] leading-relaxed text-stone-400">
+              {{ ('inspector.placementDescriptions.' + incomingPlacementMode(incoming)) | transloco }}
+            </p>
             <app-interval-slider [label]="'inspector.count' | transloco" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
-            <app-interval-slider [label]="'inspector.length' | transloco" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
-            <app-numeric-slider [label]="'inspector.randomness' | transloco" unit="%" [value]="incomingRandomness(incoming)"
-              [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
+            @if (incomingPlacementMode(incoming) === 'directional') {
+              <app-interval-slider [label]="'inspector.length' | transloco" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
+            } @else {
+              <app-numeric-slider [label]="'inspector.radius' | transloco" unit=" px"
+                [value]="incomingRadius(incoming)" [minimum]="0" [maximum]="250"
+                (valueChange)="updateIncomingRadius($event)" />
+            }
           </section>
 
           <section class="space-y-2 border-t border-stone-200 pt-3">
@@ -101,8 +119,34 @@
               <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.alignment' | transloco }}</div>
               <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.alignmentHelp' | transloco }}</p>
             </div>
-            <app-interval-slider [label]="'inspector.inclination' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
-            <app-interval-slider [label]="'inspector.azimuth' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+            @if (incomingPlacementMode(incoming) === 'directional') {
+              <app-interval-slider [label]="'inspector.inclination' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
+            }
+            @if (incomingPlacementMode(incoming) !== 'sphere') {
+              <app-interval-slider [label]="'inspector.azimuth' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+            }
+            <app-numeric-slider [label]="'inspector.randomness' | transloco" unit="%" [value]="incomingRandomness(incoming)"
+              [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
+            @if (incomingPlacementMode(incoming) !== 'directional') {
+              <div>
+                <div class="mb-1.5 text-[10px] font-semibold text-stone-600">{{ 'inspector.elementOrientation' | transloco }}</div>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <button app-button variant="text" class="w-full"
+                    [tone]="incomingPlacementOrientation(incoming) === 'radial' ? 'primary' : 'neutral'"
+                    [attr.aria-pressed]="incomingPlacementOrientation(incoming) === 'radial'"
+                    (click)="updateIncomingPlacementOrientation('radial')">
+                    {{ 'inspector.radial' | transloco }}
+                  </button>
+                  <button app-button variant="text" class="w-full"
+                    [tone]="incomingPlacementOrientation(incoming) === 'parent' ? 'primary' : 'neutral'"
+                    [attr.aria-pressed]="incomingPlacementOrientation(incoming) === 'parent'"
+                    (click)="updateIncomingPlacementOrientation('parent')">
+                    {{ 'inspector.parallelParent' | transloco }}
+                  </button>
+                </div>
+                <p class="mb-0 mt-1.5 text-[9px] leading-relaxed text-stone-400">{{ 'inspector.elementOrientationHelp' | transloco }}</p>
+              </div>
+            }
             <app-interval-slider [label]="'inspector.roll' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
           </section>
 
@@ -126,13 +170,25 @@
                 [minimum]="1" [maximum]="30" [step]="0.5"
                 (valueChange)="updateIncomingStem('endWidth', $event)" />
             </div>
-            <app-numeric-slider [label]="'inspector.bend' | transloco" unit="%" [value]="incomingStemBend(incoming)"
-              [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
-            <app-numeric-slider [label]="'inspector.curve' | transloco" unit="%" [value]="incomingStemCurve(incoming)"
-              [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
-            <app-interval-slider [label]="'inspector.bendDirection' | transloco" unit="°" [modeSelectable]="true"
-              [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
-              (valueChange)="updateIncomingStemBendRotation($event)" />
+            <div class="space-y-2 rounded-lg border border-stone-200 bg-white p-2.5">
+              <div>
+                <div class="text-[10px] font-bold text-stone-600">{{ 'inspector.directedBend' | transloco }}</div>
+                <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.directedBendHelp' | transloco }}</p>
+              </div>
+              <app-numeric-slider [label]="'inspector.bend' | transloco" unit="%" [value]="incomingStemBend(incoming)"
+                [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
+              <app-interval-slider [label]="'inspector.bendDirection' | transloco" unit="°" [modeSelectable]="true"
+                [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
+                (valueChange)="updateIncomingStemBendRotation($event)" />
+            </div>
+            <div class="space-y-2 rounded-lg border border-stone-200 bg-white p-2.5">
+              <div>
+                <div class="text-[10px] font-bold text-stone-600">{{ 'inspector.naturalShape' | transloco }}</div>
+                <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.naturalShapeHelp' | transloco }}</p>
+              </div>
+              <app-numeric-slider [label]="'inspector.curve' | transloco" unit="%" [value]="incomingStemCurve(incoming)"
+                [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
+            </div>
           </section>
         </div>
       </app-editor-disclosure>
@@ -203,7 +259,7 @@
     >
       <fieldset>
       <legend class="text-[11px] font-bold text-stone-600">{{ 'inspector.primitive' | transloco }}</legend>
-      <div class="mt-1.5 grid grid-cols-4 gap-1.5">
+      <div class="mt-1.5 grid grid-cols-3 gap-1.5">
         @for (primitive of graphicPrimitives; track primitive.value) {
           <button
             class="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[9px] font-semibold leading-tight"
@@ -224,6 +280,9 @@
                 @case ('leaf-serrated') {
                   <path d="M22 28 L13 24 L16 20 L7 17 L14 13 L8 9 L18 7 L22 2 L26 7 L36 9 L30 13 L37 17 L28 20 L31 24Z" fill="currentColor" />
                 }
+                @case ('petal-rounded') {
+                  <path d="M22 28 C10 26 7 17 10 9 C13 2 20 1 22 2 C24 1 31 2 34 9 C37 17 34 26 22 28Z" fill="currentColor" />
+                }
                 @case ('sphere') {
                   <circle cx="22" cy="15" r="11" fill="currentColor" />
                   <circle cx="18" cy="11" r="3" fill="white" opacity=".45" />
@@ -231,9 +290,17 @@
                 @case ('rod') {
                   <rect x="17" y="2" width="10" height="26" rx="5" fill="currentColor" />
                 }
+                @case ('cone') {
+                  <path d="M22 2 L36 27 H8Z" fill="currentColor" />
+                  <ellipse cx="22" cy="27" rx="14" ry="3" fill="currentColor" opacity=".65" />
+                }
+                @case ('disc') {
+                  <ellipse cx="22" cy="8" rx="13" ry="5" fill="currentColor" />
+                  <path d="M9 8 V22 C9 25 15 28 22 28 C29 28 35 25 35 22 V8Z" fill="currentColor" opacity=".72" />
+                }
               }
             </svg>
-            <span>{{ primitive.label }}</span>
+            <span>{{ primitive.labelKey | transloco }}</span>
           </button>
         }
       </div>
@@ -257,6 +324,20 @@
       <app-numeric-field [label]="'inspector.scale' | transloco" [value]="graphic.scale ?? 1" [minimum]="0.01" [maximum]="20" [step]="0.05" (valueChange)="updateGraphic('scale', $event)" />
     </div>
     </app-editor-disclosure>
+
+    @if (graphicPrimitive(graphic) === 'leaf-serrated') {
+      <app-editor-disclosure
+        [title]="'inspector.leafEdge' | transloco"
+        [description]="'inspector.leafEdgeDescription' | transloco"
+        icon="filter_vintage"
+        [(expanded)]="graphicShapeExpanded"
+      >
+        <app-graphic-leaf-edge-editor
+          [value]="graphic.leafEdge"
+          (valueChange)="updateGraphicLeafEdge($event)"
+        />
+      </app-editor-disclosure>
+    }
 
     <app-editor-disclosure
       [title]="'inspector.position' | transloco"
@@ -291,10 +372,10 @@
           >
         </label>
         @if (graphic.bendMainProfile; as profile) {
-          <div class="grid grid-cols-2 gap-2">
-            <app-numeric-field label="Längs · Ansatz" unit="%" [value]="profile.base"
+          <div class="space-y-2">
+            <app-numeric-slider [label]="'inspector.mainBase' | transloco" unit="%" [value]="profile.base"
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'base', $event)" />
-            <app-numeric-field label="Längs · Spitze" unit="%" [value]="profile.tip"
+            <app-numeric-slider [label]="'inspector.mainTip' | transloco" unit="%" [value]="profile.tip"
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'tip', $event)" />
           </div>
         } @else {
@@ -311,10 +392,10 @@
           >
         </label>
         @if (graphic.bendCrossProfile; as profile) {
-          <div class="grid grid-cols-2 gap-2">
-            <app-numeric-field label="Quer · Ansatz" unit="%" [value]="profile.base"
+          <div class="space-y-2">
+            <app-numeric-slider [label]="'inspector.crossBase' | transloco" unit="%" [value]="profile.base"
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'base', $event)" />
-            <app-numeric-field label="Quer · Spitze" unit="%" [value]="profile.tip"
+            <app-numeric-slider [label]="'inspector.crossTip' | transloco" unit="%" [value]="profile.tip"
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'tip', $event)" />
           </div>
         } @else {

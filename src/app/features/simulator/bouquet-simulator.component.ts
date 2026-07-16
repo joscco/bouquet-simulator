@@ -26,7 +26,6 @@ import {
   VaseMaterialId,
 } from '../../core/data/vases';
 import {isAvailableInBouquet} from '../../core/models/flower-catalog';
-import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {
   BouquetSidePanelComponent,
 } from './bouquet-side-panel.component';
@@ -54,7 +53,6 @@ import {
   imports: [
     MatSnackBarModule,
     BouquetCanvasComponent,
-    ViewSwitcherComponent,
     BouquetSidePanelComponent,
     BouquetFlowerPickerComponent,
   ],

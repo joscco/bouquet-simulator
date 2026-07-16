@@ -1,22 +1,31 @@
-import {ChangeDetectionStrategy, Component, inject, input, signal} from '@angular/core';
-import {RouterLink} from '@angular/router';
+import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
+import {AppView, AppViewState} from '../core/state/app-view.service';
 
 type AppLanguage = 'de' | 'en';
 
 @Component({
   selector: 'app-view-switcher',
-  imports: [RouterLink, TranslocoPipe],
+  imports: [TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './view-switcher.component.html',
 })
 export class ViewSwitcherComponent {
   private readonly transloco = inject(TranslocoService);
-  readonly activeView = input.required<'bouquet' | 'components'>();
+  private readonly viewState = inject(AppViewState);
+  readonly activeView = this.viewState.activeView;
+  readonly viewSwitchAnimated = signal(false);
   readonly activeLanguage = signal<AppLanguage>(this.initialLanguage());
+  readonly languageSwitchAnimated = signal(false);
 
   constructor() {
     this.setLanguage(this.activeLanguage());
+  }
+
+  selectView(view: AppView): void {
+    if (view === this.activeView()) return;
+    this.viewSwitchAnimated.set(true);
+    this.viewState.setView(view);
   }
 
   setLanguage(language: AppLanguage): void {
@@ -28,6 +37,12 @@ export class ViewSwitcherComponent {
     } catch {
       // Storage can be unavailable in privacy mode; runtime switching still works.
     }
+  }
+
+  selectLanguage(language: AppLanguage): void {
+    if (language === this.activeLanguage()) return;
+    this.languageSwitchAnimated.set(true);
+    this.setLanguage(language);
   }
 
   private initialLanguage(): AppLanguage {
