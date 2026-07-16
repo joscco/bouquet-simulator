@@ -2,6 +2,7 @@ import {TestBed} from '@angular/core/testing';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
 import {FlowerDefinitionStorage} from './flower-definition-storage.service';
+import {ADDITIONAL_DEFAULT_FLOWERS} from '../data/additional-default-flowers';
 
 describe('FlowerDefinitionStorage', () => {
   beforeEach(() => {
@@ -60,10 +61,14 @@ describe('FlowerDefinitionStorage', () => {
 
   it('adds new placement settings without overwriting the rest of a local flower', () => {
     const store = TestBed.inject(BouquetStore);
-    const oldCatalog = structuredClone(store.definitions());
-    const sunflower = oldCatalog.find((definition) => definition.id === 'sunflower')!;
+    const oldCatalog = structuredClone(store.definitions())
+      .filter((definition) => definition.id !== 'sunflower');
+    const sunflower = structuredClone(
+      ADDITIONAL_DEFAULT_FLOWERS.find((definition) => definition.id === 'sunflower')!,
+    );
     sunflower.name = 'Meine Sonnenblume';
     delete sunflower.nodes.find((node) => node.id === 'seed-crown')!.incoming!.placement;
+    oldCatalog.push(sunflower);
     globalThis.localStorage.setItem(
       FlowerDefinitionStorage.STORAGE_KEY,
       JSON.stringify(oldCatalog),

@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, input, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output, signal} from '@angular/core';
 import {MatIconModule} from '@angular/material/icon';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetState, FlowerDefinition} from '../../../../core/models/flower.models';
@@ -21,6 +21,8 @@ export class FlowerEditorPreviewComponent {
   readonly catalogDefinitions = input.required<FlowerDefinition[]>();
   readonly highlightedNodeIds = input<ReadonlySet<string>>(new Set<string>());
   readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
+  readonly modelExporting = input(false);
+  readonly modelExport = output<number>();
 
   readonly zoom = signal(1);
   readonly viewOffset = signal<Point>({x: 0, y: 0});

@@ -38,11 +38,15 @@
   "sections": {
     "vase": "Vase", "vaseDescription": "Shape and material", "vaseShape": "Vase shape", "material": "Material",
     "scene": "Scene & light", "sceneDescription": "Background and atmosphere", "background": "Background", "atmosphere": "Light & atmosphere",
-    "files": "Video & files", "filesDescription": "Record, load and save", "videoFormat": "Video format", "projectFile": "Project file"
+    "files": "Video & files", "filesDescription": "Record, load and save", "videoFormat": "Video format", "modelFile": "3D model", "projectFile": "Project file"
   },
   "files": {
     "recording": "Recording loop · {{progress}}%",
     "exportVideo": "Export loop video",
+    "exportModel": "Export bouquet as GLB",
+    "exportingModel": "Creating 3D model …",
+    "modelExported": "The 3D model was exported.",
+    "modelExportFailed": "The 3D model could not be exported.",
     "loadProject": "Load project",
     "saveProject": "Save project",
     "unsupported": "This browser does not support canvas video recording",
@@ -53,7 +57,7 @@
     "editSelection": "Edit selection as component", "addNode": "Add node or component", "addLoop": "Add repetition", "autoLayout": "Arrange graph automatically", "multiSelect": "Shift + click: multi-select", "selected": "selected",
     "sidebarTitle": "Edit definition", "search": "Search flower or component …", "noResult": "No matching entry",
     "new": "Create new definition", "duplicate": "Duplicate current definition", "delete": "Delete entire entry", "load": "Load definition", "export": "Export definition", "defaults": "Write catalog to developer defaults", "save": "Save definitions",
-    "centerView": "Center view", "regenerate": "Generate new preview", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
+    "centerView": "Center view", "regenerate": "Generate new preview", "exportModel": "Export flower as GLB", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
   },
   "inspector": {
     "definition": "Definition", "nodes": "nodes", "name": "Name", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",

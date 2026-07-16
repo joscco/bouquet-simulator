@@ -25,7 +25,7 @@ import {
 } from '../../core/models/flower-connections';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {materializeDefinitionComponents} from '../../core/models/flower-components';
-import {downloadJson, readJsonFile} from '../../shared/download-json';
+import {downloadBlob, downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {EditorNotifications} from './services/editor-notifications.service';
 import {FlowerEditorPersistence} from './services/flower-editor-persistence.service';
@@ -46,7 +46,7 @@ import {
   nextEditorNodePosition,
 } from './graph/flower-editor-graph';
 import {AppButtonComponent} from '../../shared/app-button/app-button.component';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {createFlowerLoop} from './domain/flower-editor-loop-creation';
 import {
   FlowerEditorTreeComponent,
@@ -72,6 +72,11 @@ import {
   nextAvailableSlugId,
   normalizeFlowerDefinitionForEditor,
 } from './domain/flower-editor-catalog';
+import {
+  exportBouquetModelGlb,
+  flowerModelState,
+  glbFilename,
+} from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
 
 @Component({
   selector: 'app-flower-editor',
@@ -97,6 +102,7 @@ export class FlowerEditorComponent {
   private readonly notifications = inject(EditorNotifications);
   private readonly persistence = inject(FlowerEditorPersistence);
   private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
+  private readonly transloco = inject(TranslocoService);
   readonly isDevelopment = isDevMode();
   readonly draft = signal<FlowerDefinition>(
     migrateIncomingConnections(this.store.definitions()[0]),
@@ -110,6 +116,7 @@ export class FlowerEditorComponent {
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
+  readonly modelExporting = signal(false);
   readonly savedTrees = this.subtreeLibrary.trees;
   readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() =>
     createFlowerEditorCatalog(this.store.definitions(), this.savedTrees()));
@@ -484,6 +491,25 @@ export class FlowerEditorComponent {
   exportFlower(): void {
     const definition = this.definitionWithEditorState();
     downloadJson(definition, `${definition.id || 'blume'}.flower.json`);
+  }
+
+  async exportFlowerModel(seed: number): Promise<void> {
+    if (this.modelExporting()) return;
+    this.modelExporting.set(true);
+    try {
+      const definition = this.materializedDraft();
+      const blob = await exportBouquetModelGlb(
+        flowerModelState(definition, seed),
+        [definition],
+        {includeVase: false, name: definition.name},
+      );
+      downloadBlob(blob, glbFilename(definition.name || definition.id, 'blume'));
+      this.notify(this.transloco.translate('files.modelExported'));
+    } catch {
+      this.notifyError(this.transloco.translate('files.modelExportFailed'));
+    } finally {
+      this.modelExporting.set(false);
+    }
   }
 
   async importFlower(event: Event): Promise<void> {

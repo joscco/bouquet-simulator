@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
+import {TranslocoService} from '@jsverse/transloco';
 import {gsap} from 'gsap';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
@@ -47,6 +48,10 @@ import {
   BouquetVideoFormatId,
   bouquetVideoFormat,
 } from './domain/bouquet-video-format';
+import {
+  exportBouquetModelGlb,
+  glbFilename,
+} from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -65,6 +70,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly store = inject(BouquetStore);
   readonly bouquetCanvas = viewChild.required(BouquetCanvasComponent);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly transloco = inject(TranslocoService);
   private readonly projectStorage = inject(BouquetProjectStorage);
   private readonly definitionStorage = inject(FlowerDefinitionStorage);
   private readonly flowerNameCollator = new Intl.Collator('de', {numeric: true, sensitivity: 'base'});
@@ -78,6 +84,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly viewOffset = signal({x: 0, y: 0});
   readonly videoExporting = signal(false);
   readonly videoExportProgress = signal(0);
+  readonly modelExporting = signal(false);
   readonly videoFormatId = signal<BouquetVideoFormatId>(DEFAULT_BOUQUET_VIDEO_FORMAT_ID);
   readonly videoFormat = computed(() => bouquetVideoFormat(this.videoFormatId()));
   readonly videoExportSupported = canRecordCanvasVideo();
@@ -236,6 +243,24 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   exportProject(): void {
     downloadJson(this.store.exportProject(), 'mein-blumenstrauss.json');
+  }
+
+  async exportBouquetModel(): Promise<void> {
+    if (this.modelExporting() || this.videoExporting() || !this.store.state().flowers.length) return;
+    this.modelExporting.set(true);
+    try {
+      const blob = await exportBouquetModelGlb(
+        this.store.state(),
+        this.store.materializedDefinitions(),
+        {includeVase: true, name: this.store.activeBouquetName()},
+      );
+      downloadBlob(blob, glbFilename(this.store.activeBouquetName(), 'mein-blumenstrauss'));
+      this.snackBar.open(this.transloco.translate('files.modelExported'), 'OK', {duration: 4000});
+    } catch {
+      this.snackBar.open(this.transloco.translate('files.modelExportFailed'), 'OK', {duration: 6000});
+    } finally {
+      this.modelExporting.set(false);
+    }
   }
 
   async exportTurntableVideo(): Promise<void> {

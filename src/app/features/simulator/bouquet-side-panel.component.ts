@@ -91,6 +91,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly videoExportSupported = input.required<boolean>();
   readonly videoExporting = input.required<boolean>();
   readonly videoExportProgress = input.required<number>();
+  readonly modelExporting = input.required<boolean>();
   readonly backgroundMode = input.required<BouquetBackgroundMode>();
   readonly sceneEffects = input.required<BouquetSceneEffects>();
   readonly videoFormat = input.required<BouquetVideoFormat>();
@@ -120,6 +121,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly bouquetDelete = output<string>();
   readonly bouquetNameChange = output<string>();
   readonly videoExport = output<void>();
+  readonly modelExport = output<void>();
   readonly backgroundModeChange = output<BouquetBackgroundMode>();
   readonly sceneEffectChange = output<{effectId: BouquetSceneEffectId; enabled: boolean}>();
   readonly videoFormatChange = output<BouquetVideoFormatId>();

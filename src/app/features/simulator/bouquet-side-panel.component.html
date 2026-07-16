@@ -1,6 +1,6 @@
 <aside
   class="pointer-events-none absolute inset-y-0 left-0 z-20"
-  [attr.aria-busy]="videoExporting()"
+  [attr.aria-busy]="videoExporting() || modelExporting()"
   [attr.inert]="videoExporting() ? '' : null"
 >
   <section
@@ -276,7 +276,7 @@
 
           <button app-button variant="icon-text" tone="primary"
             class="relative mt-2 w-full min-w-0 overflow-hidden"
-            [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
+            [disabled]="videoExporting() || modelExporting() || !videoExportSupported() || flowers().length === 0"
             [matTooltip]="!videoExportSupported() ? ('files.unsupported' | transloco) : flowers().length === 0 ? ('files.addFlowersFirst' | transloco) : ''"
             (click)="videoExport.emit()"
           >
@@ -291,6 +291,17 @@
               <mat-icon>video_file</mat-icon>
               <span class="truncate">{{ 'files.exportVideo' | transloco }}</span>
             }
+          </button>
+
+          <div class="mb-2 mt-4 border-t border-stone-200 pt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">
+            {{ 'sections.modelFile' | transloco }}
+          </div>
+          <button app-button variant="icon-text" tone="primary" class="w-full min-w-0"
+            [disabled]="videoExporting() || modelExporting() || flowers().length === 0"
+            (click)="modelExport.emit()"
+          >
+            <mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon>
+            <span class="truncate">{{ (modelExporting() ? 'files.exportingModel' : 'files.exportModel') | transloco }}</span>
           </button>
 
           <div class="mb-2 mt-4 border-t border-stone-200 pt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">

@@ -7,6 +7,10 @@
     <button app-button variant="icon" [matTooltip]="'editor.regenerate' | transloco" [attr.aria-label]="'editor.regenerate' | transloco" (click)="regenerate()">
       <mat-icon>refresh</mat-icon>
     </button>
+    <button app-button variant="icon" [matTooltip]="'editor.exportModel' | transloco" [attr.aria-label]="'editor.exportModel' | transloco"
+      [disabled]="modelExporting() || !hasRenderableRoot()" (click)="modelExport.emit(seed())">
+      <mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon>
+    </button>
   </div>
   <app-bouquet-canvas
     class="block h-full"

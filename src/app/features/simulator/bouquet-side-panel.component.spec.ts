@@ -73,6 +73,7 @@ function createFixture() {
     videoExportSupported: true,
     videoExporting: false,
     videoExportProgress: 0,
+    modelExporting: false,
     backgroundMode: 'light',
     sceneEffects: {sparkles: false, glowPoints: false, uplight: false},
     videoFormat: {id: 'square', name: 'Quadrat', ratio: '1:1', width: 1080, height: 1080},

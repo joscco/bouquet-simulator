@@ -136,13 +136,15 @@
 
     <aside class="contents">
       <div
-        class="h-full min-h-0 p-3 min-[1100px]:col-start-3 min-[1100px]:row-start-1"
+        class="h-full min-h-0 p-3 pt-16 min-[1100px]:col-start-3 min-[1100px]:row-start-1"
       >
         <app-flower-editor-preview
           [definition]="draft()"
           [catalogDefinitions]="store.definitions()"
           [highlightedNodeIds]="previewHighlightedNodeIds()"
           [highlightedConnection]="selectedIncoming()"
+          [modelExporting]="modelExporting()"
+          (modelExport)="exportFlowerModel($event)"
         />
       </div>
 
