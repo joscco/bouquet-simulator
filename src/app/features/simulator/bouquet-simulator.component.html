@@ -28,7 +28,9 @@
     (selectionChange)="selectedId.set($event)"
   />
 
-  <app-view-switcher activeView="bouquet" />
+  @if (!menuOpen() || viewportWidth() >= 640) {
+    <app-view-switcher activeView="bouquet" />
+  }
 
   <app-bouquet-side-panel
     [menuOpen]="menuOpen()"

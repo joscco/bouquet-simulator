@@ -1,4 +1,12 @@
-import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  computed,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import {MatIconModule} from '@angular/material/icon';
 import {MatSliderModule} from '@angular/material/slider';
 import {MatTooltipModule} from '@angular/material/tooltip';
@@ -19,14 +27,15 @@ import {
   BouquetVideoFormat,
   BouquetVideoFormatId,
 } from './domain/bouquet-video-format';
+import {EditorDisclosureComponent} from '../../shared/editor-disclosure/editor-disclosure.component';
 
 type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
 type FlowerAction = 'copy' | 'remove';
+type DisclosureSection = 'vase' | 'scene' | 'files';
 
 export interface BouquetFlowerListItem {
   instanceId: string;
   name: string;
-  symbol: string;
   color: string;
   lengthPercent: number;
   rotationDegrees: number;
@@ -35,11 +44,17 @@ export interface BouquetFlowerListItem {
 
 @Component({
   selector: 'app-bouquet-side-panel',
-  imports: [MatIconModule, MatSliderModule, MatTooltipModule, NumericSliderComponent],
+  imports: [
+    MatIconModule,
+    MatSliderModule,
+    MatTooltipModule,
+    NumericSliderComponent,
+    EditorDisclosureComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-side-panel.component.html',
 })
-export class BouquetSidePanelComponent {
+export class BouquetSidePanelComponent implements OnDestroy {
   readonly backgroundOptions = BOUQUET_BACKGROUND_OPTIONS;
   readonly sceneEffectOptions = BOUQUET_SCENE_EFFECT_OPTIONS;
   readonly videoFormatOptions = BOUQUET_VIDEO_FORMAT_OPTIONS;
@@ -47,11 +62,18 @@ export class BouquetSidePanelComponent {
     action: QuickAction;
     icon: string;
     label: string;
+    tooltip: string;
     danger?: boolean;
   }> = [
-    {action: 'shuffle', icon: 'shuffle', label: 'Mix'},
-    {action: 'viewReset', icon: 'center_focus_strong', label: 'Fokus'},
-    {action: 'bouquetReset', icon: 'delete_sweep', label: 'Leeren', danger: true},
+    {action: 'shuffle', icon: 'shuffle', label: 'Mischen', tooltip: 'Blumen neu anordnen'},
+    {action: 'viewReset', icon: 'center_focus_strong', label: 'Ansicht', tooltip: 'Kameraansicht zentrieren'},
+    {
+      action: 'bouquetReset',
+      icon: 'delete_sweep',
+      label: 'Reset',
+      tooltip: 'Strauß, Vase und Szene auf Ausgangswerte zurücksetzen',
+      danger: true,
+    },
   ];
 
   readonly flowerActions: ReadonlyArray<{
@@ -85,6 +107,15 @@ export class BouquetSidePanelComponent {
   readonly sceneEffects = input.required<BouquetSceneEffects>();
   readonly videoFormat = input.required<BouquetVideoFormat>();
 
+  readonly selectedFlower = computed(() => {
+    const selectedId = this.selectedId();
+    return this.flowers().find((flower) => flower.instanceId === selectedId) ?? null;
+  });
+  readonly expandedDisclosure = signal<DisclosureSection | null>(null);
+  private readonly resetConfirmationBouquetId = signal<string | null>(null);
+  readonly resetConfirmationPending = computed(() =>
+    this.resetConfirmationBouquetId() === this.activeBouquetId());
+
   readonly pickerOpen = output<void>();
   readonly shuffle = output<void>();
   readonly viewReset = output<void>();
@@ -111,14 +142,22 @@ export class BouquetSidePanelComponent {
   readonly videoFormatChange = output<BouquetVideoFormatId>();
 
   readonly deletingBouquetId = signal<string | null>(null);
+  private bouquetDeletionTimer: ReturnType<typeof setTimeout> | null = null;
+  private resetConfirmationTimer: ReturnType<typeof setTimeout> | null = null;
+
+  ngOnDestroy(): void {
+    if (this.bouquetDeletionTimer !== null) clearTimeout(this.bouquetDeletionTimer);
+    if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+  }
 
   deleteActiveBouquet(): void {
     if (this.bouquets().length <= 1 || this.deletingBouquetId()) return;
     const bouquetId = this.activeBouquetId();
     this.deletingBouquetId.set(bouquetId);
-    setTimeout(() => {
+    this.bouquetDeletionTimer = setTimeout(() => {
       this.bouquetDelete.emit(bouquetId);
       this.deletingBouquetId.set(null);
+      this.bouquetDeletionTimer = null;
     }, 180);
   }
 
@@ -131,6 +170,18 @@ export class BouquetSidePanelComponent {
         this.viewReset.emit();
         return;
       case 'bouquetReset':
+        if (this.resetConfirmationBouquetId() !== this.activeBouquetId()) {
+          if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+          this.resetConfirmationBouquetId.set(this.activeBouquetId());
+          this.resetConfirmationTimer = setTimeout(() => {
+            this.resetConfirmationBouquetId.set(null);
+            this.resetConfirmationTimer = null;
+          }, 3000);
+          return;
+        }
+        if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+        this.resetConfirmationTimer = null;
+        this.resetConfirmationBouquetId.set(null);
         this.bouquetReset.emit();
         return;
     }
@@ -145,5 +196,13 @@ export class BouquetSidePanelComponent {
         this.flowerRemove.emit(instanceId);
         return;
     }
+  }
+
+  setDisclosureExpanded(section: DisclosureSection, expanded: boolean): void {
+    if (expanded) {
+      this.expandedDisclosure.set(section);
+      return;
+    }
+    if (this.expandedDisclosure() === section) this.expandedDisclosure.set(null);
   }
 }

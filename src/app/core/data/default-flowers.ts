@@ -6,7 +6,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "schemaVersion": 2,
     "id": "garden-rose",
     "name": "Pfingstrose",
-    "rootNodeId": "dornenstaengel",
+    "rootNodeId": "node-3",
     "stem": {
       "color": "#477348",
       "highlightColor": "#76a56e",
@@ -30,7 +30,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "angle": {
             "min": 0,
-            "max": 5
+            "max": 0
           },
           "azimuth": {
             "min": 0,
@@ -68,8 +68,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 50,
-            "max": 70
+            "min": 24,
+            "max": 24
           },
           "angle": {
             "min": 0,
@@ -108,17 +108,55 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "name": "Dornenstängel",
           "sourceDefinitionId": "dornenstaengel"
         }
+      },
+      {
+        "id": "node-3",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 50,
+            "max": 70
+          },
+          "angle": {
+            "min": 0,
+            "max": 0
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.25
+        },
+        "connections": [
+          {
+            "childId": "dornenstaengel"
+          }
+        ]
       }
     ],
     "editor": {
       "nodePositions": {
-        "pfingstrosenbluete": {
-          "x": 648.3642994037479,
-          "y": 263.29780664395236
+        "node-3": {
+          "x": 500,
+          "y": 415
         },
         "dornenstaengel": {
-          "x": 644.2791146232893,
-          "y": 511.4694542884829
+          "x": 500,
+          "y": 262
+        },
+        "pfingstrosenbluete": {
+          "x": 500,
+          "y": 104
         }
       }
     },
@@ -2199,7 +2237,18 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "bendCross": 41,
           "orientation": "toward-parent",
           "rotationBase": 90,
-          "rotationSpread": 7
+          "rotationSpread": 7,
+          "patterns": [
+            {
+              "id": "veins",
+              "type": "veins",
+              "color": "#315c3a",
+              "opacity": 0.87,
+              "density": 7,
+              "size": 0.012,
+              "angle": -24
+            }
+          ]
         },
         "connections": [],
         "incoming": {
@@ -2567,5 +2616,222 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         }
       }
     }
+  },
+  {
+    "schemaVersion": 2,
+    "id": "neue-blume-5",
+    "name": "Kirschblüte",
+    "catalogRole": "flower",
+    "availableInBouquet": false,
+    "availableAsComponent": true,
+    "rootNodeId": "base",
+    "stem": {
+      "color": "#426f50",
+      "highlightColor": "#82a878",
+      "width": 8,
+      "taper": 1,
+      "bend": 0,
+      "curve": 14
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "node-2"
+          },
+          {
+            "childId": "node-3"
+          }
+        ],
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 50,
+            "max": 70
+          },
+          "angle": {
+            "min": 0,
+            "max": 10
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0.25,
+          "stem": {
+            "color": "#426f50",
+            "width": 8,
+            "startWidth": 2,
+            "endWidth": 2,
+            "bend": 0,
+            "curve": 14,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        }
+      },
+      {
+        "id": "node-2",
+        "name": "Blatt",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#ffffff",
+          "width": 20,
+          "height": 30,
+          "depth": 1,
+          "scale": 1,
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 91,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 91,
+            "max": 91
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          },
+          "bendMain": -1,
+          "bendMainProfile": {
+            "base": -10,
+            "tip": -1
+          },
+          "bendCross": 24,
+          "bendCrossProfile": {
+            "base": 20,
+            "tip": 24
+          },
+          "patterns": [
+            {
+              "id": "gradient",
+              "type": "gradient",
+              "color": "#ff8abd",
+              "opacity": 0.85,
+              "direction": "tip-to-base"
+            }
+          ]
+        },
+        "incoming": {
+          "repeat": {
+            "min": 5,
+            "max": 5
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "angle": {
+            "min": 64,
+            "max": 64
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": 0,
+            "max": 0
+          },
+          "randomness": 0,
+          "stem": {
+            "color": "#426f50",
+            "width": 8,
+            "startWidth": 2,
+            "endWidth": 2,
+            "bend": 0,
+            "curve": 0,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-3",
+        "name": "Knoten 3",
+        "draggable": false,
+        "graphic": null,
+        "incoming": {
+          "repeat": {
+            "min": 3,
+            "max": 3
+          },
+          "length": {
+            "min": 14,
+            "max": 14
+          },
+          "angle": {
+            "min": 9,
+            "max": 9
+          },
+          "azimuth": {
+            "min": 0,
+            "max": 360
+          },
+          "roll": {
+            "min": -6,
+            "max": -6
+          },
+          "randomness": 0.25,
+          "stem": {
+            "color": "#426f50",
+            "width": 8,
+            "startWidth": 2,
+            "endWidth": 2,
+            "bend": 100,
+            "curve": 0,
+            "bendRotation": {
+              "min": 73,
+              "max": 73
+            }
+          }
+        },
+        "connections": []
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 500,
+          "y": 840
+        },
+        "node-2": {
+          "x": 463.0673122037541,
+          "y": 648.7957406217402
+        },
+        "node-3": {
+          "x": 643.4176136363635,
+          "y": 650.9429924242424
+        }
+      }
+    },
+    "outputNodeIds": [
+      "base"
+    ]
   }
 ];

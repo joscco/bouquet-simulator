@@ -60,7 +60,9 @@ export function migrateIncomingConnections(definition: FlowerDefinition): Flower
     }
   }
   clone.nodes = clone.nodes.map((node) => {
-    if (node.id === clone.rootNodeId || node.incoming) return node;
+    if (node.id === clone.rootNodeId || node.incoming) {
+      return node;
+    }
     const legacy = incomingByTarget.get(node.id)?.[0];
     return legacy ? {...node, incoming: incomingFromConnection(legacy)} : node;
   });
@@ -103,7 +105,7 @@ export function resolvedStemWidths(
   connection: ResolvedFlowerNodeConnection,
   fromDepth: number,
   toDepth: number,
-): {startWidth: number; endWidth: number} {
+): { startWidth: number; endWidth: number } {
   const stem = connection.stem;
   const legacyWidth = stem?.width ?? definition.stem.width;
   if (stem?.startWidth !== undefined || stem?.endWidth !== undefined) {

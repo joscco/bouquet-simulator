@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {expandedRange, rangePercentage, sortedRange} from './interval-slider.component';
+import {expandedRange, rangePercentage, sortedRange} from './number-range';
 
 describe('interval slider value mapping', () => {
   it('uses the complete track for the complete configured interval', () => {

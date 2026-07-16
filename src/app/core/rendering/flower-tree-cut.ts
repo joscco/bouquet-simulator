@@ -1,4 +1,5 @@
 import {FlowerTree, FlowerTreeNode} from './flower-tree';
+import {clamp, lerp} from '../utils/numbers';
 
 /**
  * Removes the lower part of the longest stem path while preserving the crown.
@@ -113,12 +114,4 @@ export function cutFlowerTree(tree: FlowerTree, cutRatio: number): FlowerTree {
 
 function nodeDistance(from: FlowerTreeNode, to: FlowerTreeNode): number {
   return Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
-function lerp(start: number, end: number, amount: number): number {
-  return start + (end - start) * amount;
 }

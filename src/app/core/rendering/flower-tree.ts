@@ -2,7 +2,6 @@ import {
   FlowerDefinition,
   FlowerNodeDefinition,
   NodeOffset,
-  NumberRange,
   ResolvedFlowerNodeConnection,
 } from '../models/flower.models';
 import {
@@ -11,6 +10,16 @@ import {
   graphLoopStartEdge,
   graphOutgoing,
 } from '../models/flower-graph';
+import {clamp, lerp} from '../utils/numbers';
+import {mulberry32, randomInteger, randomRange, rangeValue} from '../utils/random';
+import {
+  componentOutputNodeIds,
+  componentTemplateKey,
+  flattenFlowerTemplates,
+} from './flower-tree-templates';
+import {cross, normalize, sphericalDirection} from './flower-tree-vectors';
+
+export {flattenFlowerTemplates} from './flower-tree-templates';
 
 export interface FlowerTreeNode {
   id: string;
@@ -47,16 +56,6 @@ export interface FlowerTree {
 
 const MAX_GENERATED_NODES = 600;
 const MAX_EXPANSION_DEPTH = 24;
-const COMPONENT_SEPARATOR = '::';
-
-export function flattenFlowerTemplates(definition: FlowerDefinition): Map<string, FlowerNodeDefinition> {
-  const templates = new Map<string, FlowerNodeDefinition>();
-  for (const node of definition.nodes) {
-    templates.set(node.id, node);
-    if (node.component?.nodes) addComponentTemplates(templates, node.id, node.component.nodes);
-  }
-  return templates;
-}
 
 /**
  * Expands a procedural node-template graph into a concrete, deterministic tree.
@@ -598,120 +597,4 @@ export function generateFlowerTree(
     });
     return node;
   }
-}
-
-function addComponentTemplates(
-  templates: Map<string, FlowerNodeDefinition>,
-  ownerId: string,
-  nodes: FlowerNodeDefinition[],
-): void {
-  const internalIds = new Set(nodes.map((node) => node.id));
-  for (const node of nodes) {
-    const key = componentTemplateKey(ownerId, node.id);
-    const clone: FlowerNodeDefinition = {
-      ...structuredClone(node),
-      id: key,
-      connections: node.connections
-        .filter((connection) => internalIds.has(connection.childId))
-        .map((connection) => ({
-          ...connection,
-          childId: componentTemplateKey(ownerId, connection.childId),
-        })),
-      loop: node.loop ? {
-        ...node.loop,
-        startNodeId: node.loop.startNodeId && internalIds.has(node.loop.startNodeId)
-          ? componentTemplateKey(ownerId, node.loop.startNodeId)
-          : null,
-        endNodeId: node.loop.endNodeId && internalIds.has(node.loop.endNodeId)
-          ? componentTemplateKey(ownerId, node.loop.endNodeId)
-          : null,
-        memberNodeIds: node.loop.memberNodeIds
-          ?.filter((id) => internalIds.has(id))
-          .map((id) => componentTemplateKey(ownerId, id)),
-        continuationOutputNodeIds: node.loop.continuationOutputNodeIds
-          ?.filter((id) => internalIds.has(id))
-          .map((id) => componentTemplateKey(ownerId, id)),
-      } : undefined,
-    };
-    templates.set(key, clone);
-    if (node.component?.nodes) addComponentTemplates(templates, key, node.component.nodes);
-  }
-}
-
-function componentTemplateKey(ownerId: string, nodeId: string): string {
-  return `${ownerId}${COMPONENT_SEPARATOR}${nodeId}`;
-}
-
-function componentOutputNodeIds(componentTemplate: FlowerNodeDefinition): string[] {
-  const component = componentTemplate.component;
-  if (!component?.nodes) return [];
-  const ids = new Set(component.nodes.map((node) => node.id));
-  if (component.outputNodeIds !== undefined) {
-    return [...new Set(component.outputNodeIds)].filter((id) => ids.has(id));
-  }
-  const parents = new Set(component.nodes.flatMap((node) =>
-    node.connections
-      .filter((connection) => ids.has(connection.childId))
-      .map(() => node.id)));
-  return component.nodes
-    .filter((node) => !parents.has(node.id))
-    .map((node) => node.id);
-}
-
-function randomRange(range: NumberRange, random: () => number): number {
-  return rangeValue(range, random());
-}
-
-function rangeValue(range: NumberRange, unit: number): number {
-  const minimum = Math.min(Number(range.min) || 0, Number(range.max) || 0);
-  const maximum = Math.max(Number(range.min) || 0, Number(range.max) || 0);
-  return minimum + clamp(unit, 0, 1) * (maximum - minimum);
-}
-
-function randomInteger(range: NumberRange, random: () => number): number {
-  const minimum = Math.max(0, Math.ceil(Math.min(Number(range.min) || 0, Number(range.max) || 0)));
-  const maximum = Math.max(minimum, Math.floor(Math.max(Number(range.min) || 0, Number(range.max) || 0)));
-  return minimum + Math.floor(random() * (maximum - minimum + 1));
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
-function lerp(start: number, end: number, amount: number): number {
-  return start + (end - start) * amount;
-}
-
-function sphericalDirection(angle: number, azimuth: number): {x: number; y: number; z: number} {
-  return {
-    x: Math.sin(angle) * Math.cos(azimuth),
-    y: Math.cos(angle),
-    z: Math.sin(angle) * Math.sin(azimuth),
-  };
-}
-
-function cross(
-  first: {x: number; y: number; z: number},
-  second: {x: number; y: number; z: number},
-): {x: number; y: number; z: number} {
-  return {
-    x: first.y * second.z - first.z * second.y,
-    y: first.z * second.x - first.x * second.z,
-    z: first.x * second.y - first.y * second.x,
-  };
-}
-
-function normalize(vector: {x: number; y: number; z: number}): {x: number; y: number; z: number} {
-  const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
-  return {x: vector.x / length, y: vector.y / length, z: vector.z / length};
-}
-
-function mulberry32(seed: number): () => number {
-  return () => {
-    seed |= 0;
-    seed = seed + 0x6d2b79f5 | 0;
-    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    value = value + Math.imul(value ^ value >>> 7, 61 | value) ^ value;
-    return ((value ^ value >>> 14) >>> 0) / 4294967296;
-  };
 }

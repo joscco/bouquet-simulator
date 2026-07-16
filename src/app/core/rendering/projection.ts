@@ -1,4 +1,5 @@
 import {BouquetFlower} from '../models/flower.models';
+import {clamp} from '../utils/numbers';
 
 export interface ProjectedFlower extends BouquetFlower {
   viewX: number;
@@ -62,8 +63,4 @@ export function viewDeltaToLocalOffset(deltaX: number, deltaY: number, rotation:
     x: localX,
     y: deltaY - localX * Math.sin(rotation) * 0.1,
   };
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }

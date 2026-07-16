@@ -1,0 +1,11 @@
+<div
+  #canvasHost
+  class="relative block h-full min-h-0 w-full touch-none select-none"
+  aria-label="Interaktive 3D-Straußansicht"
+  (wheel)="zoomWithWheel($event)"
+  (pointerdown)="startZoomGesture($event)"
+  (pointermove)="moveZoomGesture($event)"
+  (pointerup)="endZoomGesture($event)"
+  (pointercancel)="endZoomGesture($event)"
+  (contextmenu)="$event.preventDefault()"
+></div>

@@ -8,21 +8,7 @@ import {FlowerThumbnailCache} from '../../services/flower-thumbnail-cache.servic
   imports: [BouquetCanvasComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block h-full w-full'},
-  template: `
-    @if (snapshot(); as imageUrl) {
-      <img class="h-full w-full object-contain" [src]="imageUrl" alt="">
-    } @else {
-      <app-bouquet-canvas
-        class="block h-full w-full"
-        [state]="previewState()"
-        [definitions]="previewDefinitions()"
-        [fitToContent]="true"
-        [zoom]="0.9"
-        [snapshotKey]="snapshotKey()"
-        (snapshotReady)="cache.store($event.key, $event.dataUrl)"
-      />
-    }
-  `,
+  templateUrl: './flower-thumbnail.component.html',
 })
 export class FlowerThumbnailComponent {
   readonly definition = input.required<FlowerDefinition>();

@@ -1,4 +1,4 @@
-<section class="relative flex min-h-dvh w-full max-w-full flex-col overflow-x-hidden bg-stone-100 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
+<section class="relative flex h-dvh min-h-0 w-full max-w-full flex-col overflow-hidden bg-stone-100">
   <app-view-switcher activeView="components" />
 
   <header class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200 bg-white px-4 pb-3 pt-16 sm:px-6 xl:py-3 xl:pl-6 xl:pr-48">
@@ -49,8 +49,52 @@
     </div>
   </header>
 
-  <div class="grid min-h-0 flex-1 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
-    <main class="relative min-h-[620px] overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1">
+  <nav class="shrink-0 border-b border-stone-200 bg-white p-2 lg:hidden" aria-label="Editorbereich wählen">
+    <div class="grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1">
+      <button
+        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
+        type="button"
+        [attr.aria-pressed]="activeWorkspaceTab() === 'graph'"
+        [class.bg-white]="activeWorkspaceTab() === 'graph'"
+        [class.text-stone-900]="activeWorkspaceTab() === 'graph'"
+        [class.shadow-sm]="activeWorkspaceTab() === 'graph'"
+        (click)="activeWorkspaceTab.set('graph')"
+      >
+        <mat-icon class="text-[18px]! max-[379px]:hidden!">account_tree</mat-icon>
+        Graph
+      </button>
+      <button
+        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
+        type="button"
+        [attr.aria-pressed]="activeWorkspaceTab() === 'preview'"
+        [class.bg-white]="activeWorkspaceTab() === 'preview'"
+        [class.text-stone-900]="activeWorkspaceTab() === 'preview'"
+        [class.shadow-sm]="activeWorkspaceTab() === 'preview'"
+        (click)="activeWorkspaceTab.set('preview')"
+      >
+        <mat-icon class="text-[18px]! max-[379px]:hidden!">visibility</mat-icon>
+        Vorschau
+      </button>
+      <button
+        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
+        type="button"
+        [attr.aria-pressed]="activeWorkspaceTab() === 'inspector'"
+        [class.bg-white]="activeWorkspaceTab() === 'inspector'"
+        [class.text-stone-900]="activeWorkspaceTab() === 'inspector'"
+        [class.shadow-sm]="activeWorkspaceTab() === 'inspector'"
+        (click)="activeWorkspaceTab.set('inspector')"
+      >
+        <mat-icon class="text-[18px]! max-[379px]:hidden!">tune</mat-icon>
+        Eigenschaften
+      </button>
+    </div>
+  </nav>
+
+  <div class="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_340px] xl:grid-cols-[320px_minmax(0,1fr)_400px]">
+    <main
+      class="relative h-full min-h-0 overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1 lg:block"
+      [class.hidden]="activeWorkspaceTab() !== 'graph'"
+    >
       <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
         <button
           class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30"
@@ -66,6 +110,7 @@
         <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Wiederholung hinzufügen" aria-label="Wiederholung hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
         <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Graph automatisch anordnen" aria-label="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
+        <span class="hidden whitespace-nowrap px-1 text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
 
         @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
           <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
@@ -176,24 +221,36 @@
       />
     </main>
 
-    <aside class="min-h-0 border-l border-stone-200 bg-white p-3 lg:contents">
-      <app-flower-editor-preview
-        [definition]="draft()"
-        [catalogDefinitions]="store.definitions()"
-        [highlightedNodeIds]="previewHighlightedNodeIds()"
-        [highlightedConnection]="selectedIncoming()"
-      />
-      <span class="hidden text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
+    <aside
+      class="h-full min-h-0 bg-white lg:contents"
+      [class.hidden]="activeWorkspaceTab() === 'graph'"
+    >
+      <div
+        class="h-full min-h-0 p-3 lg:contents"
+        [class.hidden]="activeWorkspaceTab() !== 'preview'"
+      >
+        <app-flower-editor-preview
+          [definition]="draft()"
+          [catalogDefinitions]="store.definitions()"
+          [highlightedNodeIds]="previewHighlightedNodeIds()"
+          [highlightedConnection]="selectedIncoming()"
+        />
+      </div>
 
-      <app-flower-editor-inspector
-        [definition]="draft()"
-        [positions]="graphPositions()"
-        [selectedNodeId]="selectedNodeId()"
-        (definitionChange)="applyDefinitionChange($event)"
-        (positionsChange)="graphPositions.set($event)"
-        (nodeSelection)="selectNode($event)"
-        (message)="showInspectorMessage($event)"
-      />
+      <div
+        class="h-full min-h-0 overflow-hidden p-3 lg:contents"
+        [class.hidden]="activeWorkspaceTab() !== 'inspector'"
+      >
+        <app-flower-editor-inspector
+          [definition]="draft()"
+          [positions]="graphPositions()"
+          [selectedNodeId]="selectedNodeId()"
+          (definitionChange)="applyDefinitionChange($event)"
+          (positionsChange)="graphPositions.set($event)"
+          (nodeSelection)="selectNode($event)"
+          (message)="showInspectorMessage($event)"
+        />
+      </div>
     </aside>
   </div>
 </section>

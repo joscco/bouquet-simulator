@@ -36,6 +36,7 @@ import {BouquetProjectStorage} from './bouquet-project-storage.service';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
 import {detectBouquetFlowerOverlaps} from '../../core/rendering/bouquet-flower-overlaps';
 import {canRecordCanvasVideo} from '../../shared/media/canvas-video-recorder';
+import {clamp} from '../../core/utils/numbers';
 import {
   DEFAULT_BOUQUET_BACKGROUND,
   DEFAULT_BOUQUET_SCENE_EFFECTS,
@@ -106,7 +107,6 @@ export class BouquetSimulatorComponent implements OnDestroy {
         return {
           instanceId: flower.instanceId,
           name: definition?.name ?? 'Unbekannte Blume',
-          symbol: definition?.catalogIcon?.symbol ?? '✿',
           color: definition?.catalogIcon?.color ?? '#5b8d53',
           lengthPercent: Math.round((1 - (flower.cutRatio ?? 0)) * 100),
           rotationDegrees: normalizedDegrees(flower.rotationY ?? 0),
@@ -197,8 +197,11 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   orbitBouquet(delta: {yaw: number; pitch: number}): void {
     this.store.rotateBy(delta.yaw);
-    this.bouquetPitch.update((pitch) =>
-      Math.max(-Math.PI * 0.46, Math.min(Math.PI * 0.46, pitch + delta.pitch)));
+    this.bouquetPitch.update((pitch) => clamp(
+      pitch + delta.pitch,
+      -Math.PI * 0.46,
+      Math.PI * 0.46,
+    ));
   }
 
   panView(delta: {dx: number; dy: number}): void {

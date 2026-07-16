@@ -7,7 +7,6 @@ import {
   BouquetSceneEffectId,
   BouquetState,
   FlowerDefinition,
-  FlowerNodeComponent,
   ProjectExport,
 } from '../models/flower.models';
 import {validateFlowerDefinition} from '../models/flower-validation';
@@ -20,9 +19,8 @@ import {
   vaseInsertionRadius,
 } from '../data/vases';
 import {materializeDefinitionComponents} from '../models/flower-components';
-import {normalizeConnectionReferences} from '../models/flower-connections';
-import {normalizeFlowerCatalogCapabilities} from '../models/flower-catalog';
 import {autoCorrectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
+import {clamp} from '../utils/numbers';
 import {
   DEFAULT_BOUQUET_BACKGROUND,
   DEFAULT_BOUQUET_SCENE_EFFECTS,
@@ -30,6 +28,18 @@ import {
   normalizedBouquetBackgroundMode,
   normalizedBouquetSceneEffects,
 } from '../data/bouquet-scene';
+import {moveFlowerInsideVase} from './bouquet-flower-placement';
+import {
+  isBouquetProject,
+  isBouquetState,
+  isFlowerDefinition,
+  isProjectExport,
+  normalizeDefinition,
+  normalizeDefinitions,
+} from './bouquet-state-validation';
+import {componentMatches} from './flower-component-matches';
+
+export {moveFlowerInsideVase} from './bouquet-flower-placement';
 
 export interface DefinitionUsage {
   bouquetInstances: number;
@@ -529,132 +539,4 @@ export class BouquetStore {
   private createBouquetId(): string {
     return globalThis.crypto?.randomUUID?.() ?? `bouquet-${Date.now()}-${Math.random()}`;
   }
-}
-
-export function moveFlowerInsideVase(
-  flower: BouquetFlower,
-  deltaX: number,
-  deltaY: number,
-  deltaZ: number,
-  bouquetRotation: number,
-  insertionRadius = vaseInsertionRadius(DEFAULT_VASE_ID),
-): BouquetFlower {
-  let x = flower.x + deltaX * 0.32;
-  let z = flower.z + deltaZ * 0.32;
-  const radius = Math.hypot(x, z);
-  if (radius > insertionRadius) {
-    x = x / radius * insertionRadius;
-    z = z / radius * insertionRadius;
-  }
-
-  const depthDrag = deltaY * 0.28;
-  const tiltWorldX = deltaX + Math.sin(bouquetRotation) * depthDrag;
-  const tiltWorldZ = deltaZ + Math.cos(bouquetRotation) * depthDrag;
-  let leanX = (flower.leanX ?? 0) + tiltWorldZ * 0.0028;
-  let leanZ = (flower.leanZ ?? 0) - tiltWorldX * 0.0028;
-  const maximumLean = 0.42;
-  const leanLength = Math.hypot(leanX, leanZ);
-  if (leanLength > maximumLean) {
-    leanX = leanX / leanLength * maximumLean;
-    leanZ = leanZ / leanLength * maximumLean;
-  }
-
-  return {
-    ...flower,
-    x,
-    y: clamp(flower.y + deltaY * 0.03, -18, -14),
-    z,
-    leanX,
-    leanZ,
-  };
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
-function normalizeDefinitions(definitions: FlowerDefinition[]): FlowerDefinition[] {
-  return definitions.map(normalizeDefinition);
-}
-
-function normalizeDefinition(definition: FlowerDefinition): FlowerDefinition {
-  return normalizeFlowerCatalogCapabilities(normalizeConnectionReferences(definition));
-}
-
-function isBouquetState(value: unknown): value is BouquetState {
-  if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
-  if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
-  if (value['vaseMaterialId'] !== undefined && !isVaseMaterialId(value['vaseMaterialId'])) return false;
-  if (value['backgroundMode'] !== undefined && !isBouquetBackgroundMode(value['backgroundMode'])) return false;
-  if (
-    value['sceneEffects'] !== undefined
-    && !isBouquetSceneEffects(value['sceneEffects'])
-  ) return false;
-  if (!Array.isArray(value['flowers'])) return false;
-
-  return value['flowers'].every((flower) =>
-    isRecord(flower)
-    && typeof flower['instanceId'] === 'string'
-    && typeof flower['definitionId'] === 'string'
-    && isFiniteNumber(flower['x'])
-    && isFiniteNumber(flower['y'])
-    && isFiniteNumber(flower['z'])
-    && isFiniteNumber(flower['scale'])
-    && isFiniteNumber(flower['seed'])
-    && (flower['leanX'] === undefined || isFiniteNumber(flower['leanX']))
-    && (flower['leanZ'] === undefined || isFiniteNumber(flower['leanZ']))
-    && (flower['rotationY'] === undefined || isFiniteNumber(flower['rotationY']))
-    && (flower['cutRatio'] === undefined || isFiniteNumber(flower['cutRatio']))
-    && (flower['nodeOffsets'] === undefined || isRecord(flower['nodeOffsets'])));
-}
-
-function isFlowerDefinition(value: unknown): value is FlowerDefinition {
-  return isRecord(value)
-    && value['schemaVersion'] === 2
-    && typeof value['id'] === 'string'
-    && value['id'].length > 0
-    && typeof value['name'] === 'string'
-    && typeof value['rootNodeId'] === 'string'
-    && isRecord(value['stem'])
-    && Array.isArray(value['nodes']);
-}
-
-function isBouquetProject(value: unknown): value is BouquetProject {
-  return isRecord(value)
-    && typeof value['id'] === 'string'
-    && typeof value['name'] === 'string'
-    && isBouquetState(value['state']);
-}
-
-function isProjectExport(value: unknown): value is ProjectExport {
-  return isRecord(value)
-    && value['schemaVersion'] === 2
-    && Array.isArray(value['definitions'])
-    && isBouquetState(value['bouquet'])
-    && (value['bouquets'] === undefined || Array.isArray(value['bouquets']))
-    && (value['activeBouquetId'] === undefined || typeof value['activeBouquetId'] === 'string');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isBouquetSceneEffects(value: unknown): boolean {
-  if (!isRecord(value)) return false;
-  return ['sparkles', 'glowPoints', 'uplight', 'fireflies', 'glitter'].every((effect) =>
-    value[effect] === undefined || typeof value[effect] === 'boolean');
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function componentMatches(
-  component: FlowerNodeComponent | undefined,
-  id: string,
-  matchSourceDefinition: boolean,
-): boolean {
-  if (!component) return false;
-  if (component.id === id || (matchSourceDefinition && component.sourceDefinitionId === id)) return true;
-  return (component.nodes ?? []).some((node) => componentMatches(node.component, id, matchSourceDefinition));
 }

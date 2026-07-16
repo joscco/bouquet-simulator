@@ -1,5 +1,7 @@
 import {CanvasTexture, SRGBColorSpace} from 'three';
 import {FlowerNodeGraphic, GraphicPatternLayer} from '../models/flower.models';
+import {clamp} from '../utils/numbers';
+import {mulberry32} from '../utils/random';
 
 export const PAINT_TEXTURE_SIZE = 512;
 
@@ -101,18 +103,4 @@ function drawGraphicPattern(
   context.fillRect(width * (1 - edgeWidth), 0, width * edgeWidth, height);
   context.fillRect(0, 0, width, height * edgeWidth);
   context.fillRect(0, height * (1 - edgeWidth), width, height * edgeWidth);
-}
-
-function mulberry32(seed: number): () => number {
-  return () => {
-    seed |= 0;
-    seed = seed + 0x6d2b79f5 | 0;
-    let value = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    value = value + Math.imul(value ^ value >>> 7, 61 | value) ^ value;
-    return ((value ^ value >>> 14) >>> 0) / 4294967296;
-  };
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }

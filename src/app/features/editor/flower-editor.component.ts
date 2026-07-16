@@ -20,18 +20,15 @@ import {
   DEFAULT_INCOMING_CONNECTION,
   incomingConnectionReference,
   migrateIncomingConnections,
-  nodeIncomingOrDefault,
-  normalizeConnectionReferences,
 } from '../../core/models/flower-connections';
 import {validateFlowerDefinition} from '../../core/models/flower-validation';
 import {materializeDefinitionComponents} from '../../core/models/flower-components';
 import {downloadJson, readJsonFile} from '../../shared/download-json';
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
-import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
 import {EditorNotifications} from './services/editor-notifications.service';
+import {FlowerEditorPersistence} from './services/flower-editor-persistence.service';
 import {
   FlowerSubtreeDefinition,
-  createFlowerDefinitionComponent,
   createFlowerSubtree,
   extractFlowerSubtreeComponent,
   insertFlowerDefinitionReference,
@@ -40,18 +37,13 @@ import {
   resolveFlowerSubtreeSelection,
 } from '../../core/models/flower-subtree';
 import {
-  isAvailableAsComponent,
-  isAvailableInBouquet,
-  normalizeFlowerCatalogCapabilities,
-} from '../../core/models/flower-catalog';
-import {
   Point,
   createCompactGraphPositions,
   createGraphLayout,
   materializePositions,
 } from './graph/flower-editor-graph';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
-import {loopOutputNodeIds} from './domain/flower-editor-loops';
+import {createFlowerLoop} from './domain/flower-editor-loop-creation';
 import {
   FlowerEditorTreeComponent,
   FlowerEditorTreeMessage,
@@ -63,15 +55,21 @@ import {
   catalogEntryType,
   definitionFromComponent,
   definitionWithEditorState,
-  nodeBounds,
   normalizeSearch,
-  selectedExternalConnections,
-  slugify,
 } from './domain/flower-editor-definition';
 import {
   resolveFlowerEditorForest,
   withDerivedFlowerRoot,
 } from './domain/flower-editor-roots';
+import {
+  createEmptyFlowerDefinition,
+  createFlowerEditorCatalog,
+  duplicateFlowerDefinition,
+  nextAvailableSlugId,
+  normalizeFlowerDefinitionForEditor,
+} from './domain/flower-editor-catalog';
+
+type FlowerEditorWorkspaceTab = 'graph' | 'preview' | 'inspector';
 
 @Component({
   selector: 'app-flower-editor',
@@ -88,14 +86,14 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
   host: {'class': 'block w-full max-w-[100vw] overflow-x-hidden'},
-  providers: [EditorNotifications],
+  providers: [EditorNotifications, FlowerEditorPersistence],
 })
 export class FlowerEditorComponent {
   readonly catalogEntryType = catalogEntryType;
   readonly store = inject(BouquetStore);
   private readonly notifications = inject(EditorNotifications);
+  private readonly persistence = inject(FlowerEditorPersistence);
   private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
-  private readonly definitionStorage = inject(FlowerDefinitionStorage);
   readonly isDevelopment = isDevMode();
   readonly draft = signal<FlowerDefinition>(
     migrateIncomingConnections(this.store.definitions()[0]),
@@ -107,23 +105,10 @@ export class FlowerEditorComponent {
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
+  readonly activeWorkspaceTab = signal<FlowerEditorWorkspaceTab>('graph');
   readonly savedTrees = this.subtreeLibrary.trees;
-  readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() => [
-    ...this.store.definitions().map((definition) => ({
-      key: `definition:${definition.id}`,
-      source: 'definition' as const,
-      availableInBouquet: isAvailableInBouquet(definition),
-      availableAsComponent: isAvailableAsComponent(definition),
-      tree: createFlowerDefinitionComponent(migrateIncomingConnections(definition)),
-    })),
-    ...this.savedTrees().map((tree) => ({
-      key: `saved:${tree.id}`,
-      source: 'saved' as const,
-      availableInBouquet: false,
-      availableAsComponent: true,
-      tree,
-    })),
-  ]);
+  readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() =>
+    createFlowerEditorCatalog(this.store.definitions(), this.savedTrees()));
   readonly componentCatalog = computed(() =>
     this.catalogEntries().filter((entry) => entry.availableAsComponent));
   readonly selectedCatalogEntry = computed(() =>
@@ -166,18 +151,7 @@ export class FlowerEditorComponent {
 
   createNewDefinition(): void {
     const id = this.uniqueDefinitionId('neue-blume');
-    const definition: FlowerDefinition = {
-      schemaVersion: 2,
-      id,
-      name: 'Neue Blume',
-      catalogRole: 'flower',
-      availableInBouquet: true,
-      availableAsComponent: true,
-      rootNodeId: 'base',
-      stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 1, bend: 0, curve: 14},
-      nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
-      editor: {nodePositions: {base: {x: 500, y: 840}}},
-    };
+    const definition = createEmptyFlowerDefinition(id);
     this.store.replaceDefinition(definition);
     this.loadDefinition(definition);
     this.notify('Neue Blume angelegt.');
@@ -186,11 +160,7 @@ export class FlowerEditorComponent {
   duplicateDefinition(): void {
     const source = this.definitionWithEditorState();
     const id = this.uniqueDefinitionId(`${source.id}-kopie`);
-    const definition: FlowerDefinition = {
-      ...structuredClone(source),
-      id,
-      name: `${source.name} Kopie`,
-    };
+    const definition = duplicateFlowerDefinition(source, id);
     this.store.replaceDefinition(definition);
     this.loadDefinition(definition);
     this.notify('Blumentyp dupliziert.');
@@ -221,13 +191,10 @@ export class FlowerEditorComponent {
     }
   }
 
-
   clearSubtreeSelection(): void {
     this.subtreeAnchorIds.set(new Set());
     this.subtreeActionsOpen.set(false);
   }
-
-
 
   toggleSubtreeAnchor(id: string): void {
     const previousId = this.selectedNodeId();
@@ -255,7 +222,6 @@ export class FlowerEditorComponent {
     this.addMenuOpen.set(false);
     this.subtreeActionsOpen.update((open) => !open);
   }
-
 
   addNode(): void {
     this.addMenuOpen.set(false);
@@ -298,70 +264,16 @@ export class FlowerEditorComponent {
     this.addMenuOpen.set(false);
     const selection = this.subtreeSelection()
       ?? resolveFlowerSubtreeSelection(this.draft(), [this.selectedNodeId()]);
-    const existing = new Set(this.draft().nodes.map((node) => node.id));
-    let index = 1;
-    while (existing.has(`loop-${index}`)) index++;
-    if (selection) {
-      const memberNodeIds = [...selection.nodeIds];
-      const continuationOutputNodeIds = loopOutputNodeIds(this.draft(), memberNodeIds);
-      const bounds = nodeBounds(this.graphLayout().nodes.filter((node) => selection.nodeIds.has(node.id)));
-      const node: FlowerNodeDefinition = {
-        id: `loop-${index}`,
-        name: `Wiederholung ${index}`,
-        draggable: false,
-        graphic: null,
-        incoming: selection.rootNodeId === this.draft().rootNodeId
-          ? undefined
-          : structuredClone(nodeIncomingOrDefault(this.draft().nodes.find((candidate) => candidate.id === selection.rootNodeId)!)),
-        connections: selectedExternalConnections(this.draft(), memberNodeIds),
-        loop: {
-          repeat: {min: 2, max: 4},
-          startNodeId: selection.rootNodeId,
-          endNodeId: continuationOutputNodeIds[0] ?? selection.rootNodeId,
-          memberNodeIds,
-          continuationOutputNodeIds,
-        },
-      };
-      this.graphPositions.update((positions) => ({
-        ...positions,
-        [node.id]: {x: bounds.x, y: bounds.y},
-      }));
-      this.draft.update((draft) => ({
-        ...draft,
-        rootNodeId: selection.rootNodeId === draft.rootNodeId ? node.id : draft.rootNodeId,
-        nodes: [
-          ...draft.nodes.map((candidate) => ({
-            ...candidate,
-            connections: candidate.connections
-              .filter((connection) => !selection.nodeIds.has(candidate.id) || selection.nodeIds.has(connection.childId))
-              .map((connection) => connection.childId === selection.rootNodeId ? {...connection, childId: node.id} : connection),
-          })),
-          node,
-        ],
-      }));
-      this.clearSubtreeSelection();
-      this.selectNode(node.id);
-      return;
-    }
-    const node: FlowerNodeDefinition = {
-      id: `loop-${index}`,
-      name: `Wiederholung ${index}`,
-      draggable: false,
-      graphic: null,
-      incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
-      connections: [],
-      loop: {
-        repeat: {min: 2, max: 4},
-        startNodeId: null,
-        endNodeId: null,
-      },
-    };
-    this.graphPositions.update((positions) => ({
-      ...positions,
-      [node.id]: {x: 500, y: 330},
-    }));
-    this.draft.update((draft) => ({...draft, nodes: [...draft.nodes, node]}));
-    this.selectNode(node.id);
+    const created = createFlowerLoop(
+      this.draft(),
+      this.graphPositions(),
+      selection,
+      this.graphLayout().nodes,
+    );
+    this.draft.set(created.definition);
+    this.graphPositions.set(created.nodePositions);
+    if (created.wrappedSelection) this.clearSubtreeSelection();
+    this.selectNode(created.loopNodeId);
   }
 
   autoLayout(): void {
@@ -379,10 +291,6 @@ export class FlowerEditorComponent {
   showInspectorMessage(message: string): void {
     this.notify(message);
   }
-
-
-
-
 
   exportSelectedSubtree(): void {
     const selection = this.subtreeSelection();
@@ -524,52 +432,13 @@ export class FlowerEditorComponent {
 
   saveToCatalog(): void {
     const definition = this.definitionWithEditorState();
-    const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
-    if (error) {
-      this.notifyError(`Speichern nicht möglich: ${error.message}`);
-      return;
-    }
-    const definitions = this.store.definitions().some((candidate) => candidate.id === definition.id)
-      ? this.store.definitions().map((candidate) => candidate.id === definition.id ? definition : candidate)
-      : [...this.store.definitions(), definition];
-    try {
-      this.definitionStorage.saveDefinitions(definitions);
-      this.draft.set(definition);
-      this.store.replaceDefinition(definition);
-      this.notify('Im Browser gespeichert.');
-    } catch (saveError: unknown) {
-      this.notifyError(
-        saveError instanceof Error
-          ? `Speichern fehlgeschlagen: ${saveError.message}`
-          : 'Speichern fehlgeschlagen.',
-      );
-    }
+    if (this.persistence.saveToBrowser(definition)) this.draft.set(definition);
   }
 
   async saveToDefaults(): Promise<void> {
     if (!this.isDevelopment) return;
     const definition = this.definitionWithEditorState();
-    const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
-    if (error) {
-      this.notifyError(`Übernahme nicht möglich: ${error.message}`);
-      return;
-    }
-    const definitions = this.store.definitions().some((candidate) => candidate.id === definition.id)
-      ? this.store.definitions().map((candidate) => candidate.id === definition.id ? definition : candidate)
-      : [...this.store.definitions(), definition];
-    try {
-      await this.writeDefinitionsToDefaults(definitions);
-      this.draft.set(definition);
-      this.store.replaceDefinition(definition);
-      this.definitionStorage.trySaveDefinitions(definitions);
-      this.notify('In src/app/core/data/default-flowers.ts übernommen.');
-    } catch (saveError: unknown) {
-      this.notifyError(
-        saveError instanceof Error
-          ? `Übernahme in Defaults fehlgeschlagen: ${saveError.message}`
-          : 'Übernahme in Defaults fehlgeschlagen.',
-      );
-    }
+    if (await this.persistence.saveToDefaults(definition)) this.draft.set(definition);
   }
 
   async deleteSelectedCatalogEntry(): Promise<void> {
@@ -579,48 +448,10 @@ export class FlowerEditorComponent {
       this.deleteSavedCatalogEntry(entry);
       return;
     }
-    if (this.store.definitions().length <= 1) {
-      this.notify('Mindestens eine Definition muss erhalten bleiben.');
-      return;
-    }
-
     const definition = this.store.definitions().find((candidate) => candidate.id === entry.tree.id);
     if (!definition) return;
-    const usage = this.store.definitionUsage(definition.id);
-    const usageLines: string[] = [];
-    if (usage.bouquetInstances > 0) {
-      usageLines.push(
-        `${usage.bouquetInstances} ${usage.bouquetInstances === 1 ? 'Blume im aktuellen Strauß wird' : 'Blumen im aktuellen Strauß werden'} ebenfalls entfernt.`,
-      );
-    }
-    if (usage.componentDefinitions.length > 0) {
-      usageLines.push(
-        `Als Teilkomponente verwendet in: ${usage.componentDefinitions.map((entry) => entry.name).join(', ')}. Die dort eingebetteten Kopien bleiben erhalten.`,
-      );
-    }
-
-    const warning = usageLines.length
-      ? `„${definition.name}“ wird aktuell verwendet.\n\n${usageLines.join('\n')}\n\nDefinition trotzdem löschen?`
-      : `Definition „${definition.name}“ wirklich löschen?`;
-    if (!globalThis.confirm(warning)) return;
-    if (usageLines.length && !globalThis.confirm(
-      `„${definition.name}“ ist in Benutzung. Das Löschen jetzt endgültig bestätigen.`,
-    )) return;
-
-    const definitions = this.store.definitions().filter((candidate) => candidate.id !== definition.id);
-    try {
-      this.definitionStorage.saveDefinitions(definitions);
-      this.store.removeDefinition(definition.id);
-      const nextDefinition = definitions[0];
-      if (nextDefinition) this.loadDefinition(nextDefinition);
-      this.notify(`„${definition.name}“ wurde gelöscht.`);
-    } catch (deleteError: unknown) {
-      this.notifyError(
-        deleteError instanceof Error
-          ? `Löschen fehlgeschlagen: ${deleteError.message}`
-          : 'Löschen fehlgeschlagen.',
-      );
-    }
+    const nextDefinition = this.persistence.deleteDefinition(definition);
+    if (nextDefinition) this.loadDefinition(nextDefinition);
   }
 
   exportFlower(): void {
@@ -654,21 +485,15 @@ export class FlowerEditorComponent {
   }
 
   private uniqueDefinitionId(seed: string): string {
-    const existing = new Set(this.store.definitions().map((definition) => definition.id));
-    const base = slugify(seed) || 'blume';
-    let id = base;
-    let suffix = 2;
-    while (existing.has(id)) id = `${base}-${suffix++}`;
-    return id;
+    return nextAvailableSlugId(
+      seed,
+      this.store.definitions().map((definition) => definition.id),
+      'blume',
+    );
   }
 
   private uniqueSubtreeId(seed: string): string {
-    const existing = new Set(this.savedTrees().map((tree) => tree.id));
-    const base = slugify(seed) || 'tree';
-    let id = base;
-    let suffix = 2;
-    while (existing.has(id)) id = `${base}-${suffix++}`;
-    return id;
+    return nextAvailableSlugId(seed, this.savedTrees().map((tree) => tree.id), 'tree');
   }
 
   private notify(message: string): void {
@@ -677,21 +502,6 @@ export class FlowerEditorComponent {
 
   private notifyError(message: string): void {
     this.notifications.show(message, 'error');
-  }
-
-  private async writeDefinitionsToDefaults(definitions: FlowerDefinition[]): Promise<void> {
-    if (!this.isDevelopment) {
-      throw new Error('Der Defaults-Server ist nur in der lokalen Entwicklung verfügbar.');
-    }
-    const response = await fetch('/api/defaults', {
-      method: 'PUT',
-      headers: {'content-type': 'application/json'},
-      body: JSON.stringify(definitions),
-    });
-    if (!response.ok) {
-      const body = await response.json().catch(() => null) as {error?: string} | null;
-      throw new Error(body?.error ?? `Defaults-Server antwortet mit ${response.status}.`);
-    }
   }
 
   private deleteSavedCatalogEntry(entry: FlowerComponentCatalogEntry): void {
@@ -711,9 +521,7 @@ export class FlowerEditorComponent {
   }
 
   private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
-    const clone = withDerivedFlowerRoot(normalizeFlowerCatalogCapabilities(
-      normalizeConnectionReferences(migrateIncomingConnections(definition)),
-    ), definition.rootNodeId);
+    const clone = normalizeFlowerDefinitionForEditor(definition);
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
     const positions = materializePositions(clone);

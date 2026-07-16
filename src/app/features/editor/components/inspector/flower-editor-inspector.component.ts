@@ -20,12 +20,48 @@ import {
 } from '../../../../core/models/flower-connections';
 import {BUILT_IN_GRAPHICS, canonicalGraphicPrimitive} from '../../../../core/rendering/graphic-geometries';
 import {graphicRotationSettings} from '../../../../core/rendering/graphic-orientation';
+import {clamp} from '../../../../core/utils/numbers';
 import {IntervalSliderComponent} from '../../../../shared/interval-slider/interval-slider.component';
 import {NumericFieldComponent} from '../../../../shared/numeric-field/numeric-field.component';
 import {NumericSliderComponent} from '../../../../shared/numeric-slider/numeric-slider.component';
+import {EditorDisclosureComponent} from '../../../../shared/editor-disclosure/editor-disclosure.component';
 import {definitionOutputNodeIds} from '../../domain/flower-editor-definition';
 import {Point, createGraphLayout} from '../../graph/flower-editor-graph';
 import {loopOutputNodeIds, pruneDisconnectedLoopMembers} from '../../domain/flower-editor-loops';
+import {
+  GRAPHIC_PATTERN_OPTIONS,
+  graphicPatternLabel,
+} from '../../domain/flower-editor-graphic-patterns';
+import {
+  hasGraphicBendProfile,
+  removedGraphicPattern,
+  withAddedGraphicPattern,
+  withGraphicBendProfile,
+  withGraphicBendProfileValue,
+  withGraphicEnabled,
+  withGraphicOffset,
+  withGraphicPatch,
+  withGraphicPatternPatch,
+  withGraphicRotationRange,
+  withMovedGraphicPattern,
+  withoutGraphicPattern,
+  withRestoredGraphicPattern,
+} from '../../domain/flower-editor-graphic-updates';
+import {
+  IncomingStemProperty,
+  incomingStemBend,
+  incomingStemBendRotation,
+  incomingStemColor,
+  incomingStemCurve,
+  incomingStemEndWidth,
+  incomingStemStartWidth,
+  withIncomingStemBendRotation,
+  withIncomingStemProperty,
+} from '../../domain/flower-editor-incoming-stem';
+import {
+  duplicateFlowerEditorNode,
+  removeFlowerEditorNode,
+} from '../../domain/flower-editor-node-updates';
 
 @Component({
   selector: 'app-flower-editor-inspector',
@@ -36,11 +72,12 @@ import {loopOutputNodeIds, pruneDisconnectedLoopMembers} from '../../domain/flow
     IntervalSliderComponent,
     NumericFieldComponent,
     NumericSliderComponent,
+    EditorDisclosureComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-inspector.component.html',
   host: {
-    'class': 'min-w-0 overflow-x-hidden bg-white lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-scroll lg:border-r lg:border-stone-200 lg:p-3 [scrollbar-gutter:stable]',
+    'class': 'block h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto bg-white lg:col-start-1 lg:row-start-1 lg:border-r lg:border-stone-200 [scrollbar-gutter:stable]',
   },
 })
 export class FlowerEditorInspectorComponent {
@@ -54,13 +91,18 @@ export class FlowerEditorInspectorComponent {
   readonly nodeSelection = output<string>();
   readonly message = output<string>();
 
+  readonly definitionSectionExpanded = signal(false);
+  readonly connectionSectionExpanded = signal(true);
+  readonly loopSectionExpanded = signal(true);
+  readonly graphicBasicsExpanded = signal(true);
+  readonly graphicPositionExpanded = signal(false);
+  readonly graphicBendExpanded = signal(false);
+  readonly graphicPatternsExpanded = signal(false);
+  readonly graphicOrientationExpanded = signal(false);
+
   readonly graphicPrimitives = BUILT_IN_GRAPHICS;
-  readonly graphicPatternTypes: ReadonlyArray<{type: GraphicPatternType; label: string; icon: string}> = [
-    {type: 'gradient', label: 'Verlauf', icon: 'gradient'},
-    {type: 'veins', label: 'Adern', icon: 'account_tree'},
-    {type: 'spots', label: 'Flecken', icon: 'blur_on'},
-    {type: 'edge', label: 'Rand', icon: 'border_outer'},
-  ];
+  readonly graphicPatternTypes = GRAPHIC_PATTERN_OPTIONS;
+  readonly graphicPatternLabel = graphicPatternLabel;
   readonly removedPattern = signal<{
     nodeId: string;
     pattern: GraphicPatternLayer;
@@ -88,58 +130,18 @@ export class FlowerEditorInspectorComponent {
   }
 
   duplicateSelectedNode(): void {
-    const source = this.selectedNode();
-    if (!source) return;
-    const existing = new Set(this.definition().nodes.map((node) => node.id));
-    let suffix = 2;
-    let id = `${source.id}-copy`;
-    while (existing.has(id)) id = `${source.id}-copy-${suffix++}`;
-    const node: FlowerNodeDefinition = {
-      ...structuredClone(source),
-      id,
-      name: `${source.name} Kopie`,
-      connections: [],
-    };
-    const sourcePosition = this.positions()[source.id] ?? {x: 500, y: 300};
-    this.positionsChange.emit({
-      ...this.positions(),
-      [id]: {
-        x: clamp(sourcePosition.x + 44, 90, 910),
-        y: clamp(sourcePosition.y - 54, 55, 625),
-      },
-    });
-    this.updateDefinition((definition) => ({...definition, nodes: [...definition.nodes, node]}));
-    this.nodeSelection.emit(id);
+    const update = duplicateFlowerEditorNode(this.definition(), this.positions(), this.selectedNodeId());
+    if (!update) return;
+    this.definitionChange.emit(update.definition);
+    this.positionsChange.emit(update.positions);
+    this.nodeSelection.emit(update.selectedNodeId);
   }
 
   removeSelectedNode(): void {
-    const id = this.selectedNodeId();
-    const selectedNode = this.selectedNode();
-    const fallbackId = selectedNode?.loop?.startNodeId
-      ?? selectedNode?.connections[0]?.childId
-      ?? (this.definition().rootNodeId !== id ? this.definition().rootNodeId : null)
-      ?? this.definition().nodes.find((node) => node.id !== id)?.id
-      ?? '';
-    this.updateDefinition((definition) => pruneDisconnectedLoopMembers({
-      ...definition,
-      nodes: definition.nodes
-        .filter((node) => node.id !== id)
-        .map((node) => ({
-          ...node,
-          connections: node.connections.filter((connection) => connection.childId !== id),
-          loop: node.loop ? {
-            ...node.loop,
-            startNodeId: node.loop.startNodeId === id ? null : node.loop.startNodeId,
-            endNodeId: node.loop.endNodeId === id ? null : node.loop.endNodeId,
-            memberNodeIds: node.loop.memberNodeIds?.filter((memberId) => memberId !== id),
-            continuationOutputNodeIds: node.loop.continuationOutputNodeIds?.filter((outputId) => outputId !== id),
-          } : undefined,
-        })),
-    }).definition);
-    const positions = {...this.positions()};
-    delete positions[id];
-    this.positionsChange.emit(positions);
-    this.nodeSelection.emit(fallbackId);
+    const update = removeFlowerEditorNode(this.definition(), this.positions(), this.selectedNodeId());
+    this.definitionChange.emit(update.definition);
+    this.positionsChange.emit(update.positions);
+    this.nodeSelection.emit(update.selectedNodeId);
   }
 
   updateNodeName(value: string): void {
@@ -147,103 +149,52 @@ export class FlowerEditorInspectorComponent {
   }
 
   setHasGraphic(value: boolean): void {
-    const defaultGraphic: FlowerNodeGraphic = {
-      primitive: 'leaf-pointed',
-      color: '#5b8d53',
-      width: 50,
-      height: 50,
-      depth: 8,
-      scale: 1,
-      offset: {x: 0, y: 0, z: 0},
-      orientation: 'toward-parent',
-      rotationBase: 0,
-      rotationSpread: 0,
-      rotation: {min: 0, max: 0},
-      start: {x: 0.5, y: 0.9},
-      end: {x: 0.5, y: 0.1},
-    };
-    this.updateSelectedNode((node) => ({...node, graphic: value ? node.graphic ?? defaultGraphic : null}));
+    this.updateSelectedNode((node) => withGraphicEnabled(node, value));
   }
 
   updateGraphic(key: 'width' | 'height' | 'depth' | 'scale', value: number): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
-      : node);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {[key]: Number(value)}));
   }
 
   updateGraphicOffset(key: 'x' | 'y' | 'z', value: number): void {
-    this.updateSelectedNode((node) => node.graphic ? {
-      ...node,
-      graphic: {
-        ...node.graphic,
-        offset: {...(node.graphic.offset ?? {x: 0, y: 0, z: 0}), [key]: Number(value)},
-      },
-    } : node);
+    this.updateSelectedNode((node) => withGraphicOffset(node, key, value));
   }
 
   updateGraphicPrimitive(primitive: GraphicPrimitive): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, primitive}}
-      : node);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {primitive}));
   }
 
   updateGraphicColor(color: string): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, color}}
-      : node);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {color}));
   }
 
   addGraphicPattern(type: GraphicPatternType): void {
     const graphic = this.selectedNode()?.graphic;
     if (!graphic || this.graphicPrimitive(graphic) === 'png') return;
-    const existingIds = new Set((graphic.patterns ?? []).map((pattern) => pattern.id));
-    let suffix = 1;
-    let id: string = type;
-    while (existingIds.has(id)) id = `${type}-${++suffix}`;
-    const pattern = defaultGraphicPattern(id, type);
-    this.updateSelectedNode((node) => node.graphic ? {
-      ...node,
-      graphic: {...node.graphic, patterns: [...(node.graphic.patterns ?? []), pattern]},
-    } : node);
+    this.updateSelectedNode((node) => withAddedGraphicPattern(node, type));
     this.removedPattern.set(null);
   }
 
-  graphicPatternLabel(type: GraphicPatternType): string {
-    return this.graphicPatternTypes.find((entry) => entry.type === type)?.label ?? type;
-  }
-
   updateGraphicPattern(id: string, patch: Partial<GraphicPatternLayer>): void {
-    this.updateSelectedNode((node) => node.graphic ? {
-      ...node,
-      graphic: {
-        ...node.graphic,
-        patterns: (node.graphic.patterns ?? []).map((pattern) =>
-          pattern.id === id ? {...pattern, ...patch} : pattern),
-      },
-    } : node);
+    this.updateSelectedNode((node) => withGraphicPatternPatch(node, id, patch));
   }
 
   removeGraphicPattern(id: string): void {
     const node = this.selectedNode();
-    const patterns = node?.graphic?.patterns ?? [];
-    const index = patterns.findIndex((pattern) => pattern.id === id);
-    if (!node || index < 0) return;
-    this.removedPattern.set({nodeId: node.id, pattern: structuredClone(patterns[index]), index});
-    this.updateSelectedNode((selected) => selected.graphic ? {
-      ...selected,
-      graphic: {...selected.graphic, patterns: patterns.filter((pattern) => pattern.id !== id)},
-    } : selected);
+    const removed = removedGraphicPattern(node, id);
+    if (!node || !removed) return;
+    this.removedPattern.set({nodeId: node.id, ...removed});
+    this.updateSelectedNode((selected) => withoutGraphicPattern(selected, id));
+  }
+
+  moveGraphicPattern(id: string, direction: -1 | 1): void {
+    this.updateSelectedNode((node) => withMovedGraphicPattern(node, id, direction));
   }
 
   restoreRemovedPattern(): void {
     const removed = this.restorablePattern();
     if (!removed) return;
-    this.updateSelectedNode((node) => {
-      if (!node.graphic) return node;
-      const patterns = [...(node.graphic.patterns ?? [])];
-      patterns.splice(Math.min(removed.index, patterns.length), 0, removed.pattern);
-      return {...node, graphic: {...node.graphic, patterns}};
-    });
+    this.updateSelectedNode((node) => withRestoredGraphicPattern(node, removed));
     this.removedPattern.set(null);
   }
 
@@ -257,38 +208,15 @@ export class FlowerEditorInspectorComponent {
   }
 
   updateGraphicBend(key: 'bendMain' | 'bendCross', value: number): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, [key]: Number(value)}}
-      : node);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {[key]: Number(value)}));
   }
 
   hasGraphicBendProfile(graphic: FlowerNodeGraphic, direction: 'main' | 'cross'): boolean {
-    return direction === 'main'
-      ? graphic.bendMainProfile !== undefined
-      : graphic.bendCrossProfile !== undefined;
+    return hasGraphicBendProfile(graphic, direction);
   }
 
   setGraphicBendProfile(enabled: boolean, direction: 'main' | 'cross'): void {
-    this.updateSelectedNode((node) => {
-      if (!node.graphic) return node;
-      const bendKey = direction === 'main' ? 'bendMain' : 'bendCross';
-      const profileKey = direction === 'main' ? 'bendMainProfile' : 'bendCrossProfile';
-      if (enabled) {
-        const bend = node.graphic[bendKey] ?? 0;
-        return {
-          ...node,
-          graphic: {...node.graphic, [profileKey]: {base: bend, tip: bend}},
-        };
-      }
-      const profile = node.graphic[profileKey];
-      if (!profile) return node;
-      const graphic = structuredClone(node.graphic);
-      delete graphic[profileKey];
-      return {
-        ...node,
-        graphic: {...graphic, [bendKey]: (profile.base + profile.tip) / 2},
-      };
-    });
+    this.updateSelectedNode((node) => withGraphicBendProfile(node, enabled, direction));
   }
 
   updateGraphicBendProfile(
@@ -296,18 +224,7 @@ export class FlowerEditorInspectorComponent {
     key: 'base' | 'tip',
     value: number,
   ): void {
-    this.updateSelectedNode((node) => {
-      if (!node.graphic) return node;
-      const profileKey = direction === 'main' ? 'bendMainProfile' : 'bendCrossProfile';
-      const profile = node.graphic[profileKey];
-      return profile ? {
-        ...node,
-        graphic: {
-          ...node.graphic,
-          [profileKey]: {...profile, [key]: Number(value)},
-        },
-      } : node;
-    });
+    this.updateSelectedNode((node) => withGraphicBendProfileValue(node, direction, key, value));
   }
 
   graphicRotationRange(graphic: FlowerNodeGraphic): NumberRange {
@@ -316,18 +233,11 @@ export class FlowerEditorInspectorComponent {
   }
 
   updateGraphicRotationRange(rotation: NumberRange): void {
-    const minimum = Math.min(rotation.min, rotation.max);
-    const maximum = Math.max(rotation.min, rotation.max);
-    this.updateGraphicRotationSettings(
-      (minimum + maximum) / 2,
-      Math.min(180, (maximum - minimum) / 2),
-    );
+    this.updateSelectedNode((node) => withGraphicRotationRange(node, rotation));
   }
 
   updateGraphicOrientation(orientation: NonNullable<FlowerNodeGraphic['orientation']>): void {
-    this.updateSelectedNode((node) => node.graphic
-      ? {...node, graphic: {...node.graphic, orientation}}
-      : node);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {orientation}));
   }
 
   updateIncomingRange(group: 'repeat' | 'length' | 'angle' | 'azimuth' | 'roll', value: NumberRange): void {
@@ -341,7 +251,7 @@ export class FlowerEditorInspectorComponent {
   updateIncomingRandomness(percentage: number): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
-      randomness: Math.max(0, Math.min(1, Number(percentage) / 100)),
+      randomness: clamp(Number(percentage) / 100, 0, 1),
     }));
   }
 
@@ -401,60 +311,36 @@ export class FlowerEditorInspectorComponent {
   }
 
   incomingStemColor(incoming: FlowerNodeIncomingConnection): string {
-    return incoming.stem?.color ?? this.definition().stem.color;
+    return incomingStemColor(this.definition(), incoming);
   }
 
   incomingStemStartWidth(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.startWidth ?? incoming.stem?.width ?? this.definition().stem.width;
+    return incomingStemStartWidth(this.definition(), incoming);
   }
 
   incomingStemEndWidth(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.endWidth
-      ?? (incoming.stem?.startWidth !== undefined
-        ? incoming.stem.startWidth
-        : (incoming.stem?.width ?? this.definition().stem.width) * this.definition().stem.taper);
+    return incomingStemEndWidth(this.definition(), incoming);
   }
 
   incomingStemBend(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.bend ?? this.definition().stem.bend ?? 0;
+    return incomingStemBend(this.definition(), incoming);
   }
 
   incomingStemCurve(incoming: FlowerNodeIncomingConnection): number {
-    return incoming.stem?.curve ?? this.definition().stem.curve ?? 14;
+    return incomingStemCurve(this.definition(), incoming);
   }
 
   incomingStemBendRotation(incoming: FlowerNodeIncomingConnection): NumberRange {
-    return incoming.stem?.bendRotation ?? {min: 0, max: 0};
+    return incomingStemBendRotation(incoming);
   }
 
-  updateIncomingStem(key: 'color' | 'startWidth' | 'endWidth' | 'bend' | 'curve', value: string | number): void {
-    this.updateIncoming((incoming) => ({
-      ...incoming,
-      stem: {
-        color: key === 'color' ? String(value) : this.incomingStemColor(incoming),
-        width: incoming.stem?.width ?? this.definition().stem.width,
-        startWidth: key === 'startWidth' ? Number(value) : this.incomingStemStartWidth(incoming),
-        endWidth: key === 'endWidth' ? Number(value) : this.incomingStemEndWidth(incoming),
-        bend: key === 'bend' ? Number(value) : this.incomingStemBend(incoming),
-        curve: key === 'curve' ? Number(value) : this.incomingStemCurve(incoming),
-        bendRotation: this.incomingStemBendRotation(incoming),
-      },
-    }));
+  updateIncomingStem(key: IncomingStemProperty, value: string | number): void {
+    this.updateIncoming((incoming) => withIncomingStemProperty(this.definition(), incoming, key, value));
   }
 
   updateIncomingStemBendRotation(bendRotation: NumberRange): void {
-    this.updateIncoming((incoming) => ({
-      ...incoming,
-      stem: {
-        color: this.incomingStemColor(incoming),
-        width: incoming.stem?.width ?? this.definition().stem.width,
-        startWidth: this.incomingStemStartWidth(incoming),
-        endWidth: this.incomingStemEndWidth(incoming),
-        bend: this.incomingStemBend(incoming),
-        curve: this.incomingStemCurve(incoming),
-        bendRotation,
-      },
-    }));
+    this.updateIncoming((incoming) =>
+      withIncomingStemBendRotation(this.definition(), incoming, bendRotation));
   }
 
   removeIncomingConnection(): void {
@@ -480,20 +366,6 @@ export class FlowerEditorInspectorComponent {
     }
   }
 
-  private updateGraphicRotationSettings(base: number, spread: number): void {
-    const normalizedBase = Math.max(-180, Math.min(180, base));
-    const normalizedSpread = Math.max(0, Math.min(180, spread));
-    this.updateSelectedNode((node) => node.graphic ? {
-      ...node,
-      graphic: {
-        ...node.graphic,
-        rotationBase: normalizedBase,
-        rotationSpread: normalizedSpread,
-        rotation: {min: normalizedBase - normalizedSpread, max: normalizedBase + normalizedSpread},
-      },
-    } : node);
-  }
-
   private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {
     const selectedId = this.selectedNodeId();
     this.updateDefinition((definition) => ({
@@ -511,21 +383,4 @@ export class FlowerEditorInspectorComponent {
   private updateDefinition(update: (definition: FlowerDefinition) => FlowerDefinition): void {
     this.definitionChange.emit(update(this.definition()));
   }
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
-function defaultGraphicPattern(id: string, type: GraphicPatternType): GraphicPatternLayer {
-  if (type === 'gradient') {
-    return {id, type, color: '#fef3c7', opacity: 0.55, direction: 'base-to-tip'};
-  }
-  if (type === 'veins') {
-    return {id, type, color: '#315c3a', opacity: 0.72, density: 7, size: 0.012, angle: 22};
-  }
-  if (type === 'spots') {
-    return {id, type, color: '#7c3aed', opacity: 0.62, density: 18, size: 0.035, seed: 0.42};
-  }
-  return {id, type, color: '#14532d', opacity: 0.58, width: 0.055};
 }

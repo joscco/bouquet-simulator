@@ -9,6 +9,7 @@ import {
   connectionFromIncoming,
   nodeIncomingOrDefault,
 } from './flower-connections';
+import {clamp} from '../utils/numbers';
 
 export interface FlowerSubtreeDefinition extends FlowerNodeComponent {
   schemaVersion: 1;
@@ -487,8 +488,4 @@ function slugify(value: string): string {
     .replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }

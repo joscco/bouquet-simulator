@@ -4,7 +4,7 @@
   [attr.inert]="videoExporting() ? '' : null"
 >
   <section
-    class="absolute bottom-0 left-16 top-0 w-[min(360px,calc(100vw-4rem))] overflow-hidden border-r border-white/70 bg-white/82 shadow-2xl shadow-stone-900/10 backdrop-blur-xl transition-[transform,opacity] duration-[320ms] ease-out will-change-transform motion-reduce:transition-none"
+    class="absolute bottom-0 left-16 top-0 w-[min(360px,calc(100vw-4rem))] overflow-x-hidden overflow-y-scroll border-r border-white/70 bg-white/82 shadow-2xl shadow-stone-900/10 backdrop-blur-xl transition-[transform,opacity] duration-[320ms] ease-out will-change-transform [scrollbar-gutter:stable] motion-reduce:transition-none"
     [class.translate-x-0]="menuOpen()"
     [class.-translate-x-full]="!menuOpen()"
     [class.opacity-100]="menuOpen()"
@@ -14,8 +14,8 @@
     [attr.aria-hidden]="!menuOpen()"
     [attr.inert]="menuOpen() ? null : ''"
   >
-    <div class="flex h-full min-h-0 flex-col overflow-hidden p-4">
-      <div class="mb-4 flex shrink-0 items-center gap-2">
+    <div class="min-h-full p-4">
+      <div class="mb-4 flex items-center gap-2">
         <div class="min-w-0 flex-1">
           <input
             class="h-6 w-full truncate border-0 bg-transparent p-0 text-sm font-semibold text-stone-800 outline-none focus:text-emerald-900"
@@ -38,24 +38,33 @@
           <mat-icon class="text-[19px]!">delete</mat-icon>
         </button>
       </div>
-      <div class="mb-4 grid shrink-0 grid-cols-3 gap-2">
+      <div class="mb-4 grid grid-cols-3 gap-2">
         @for (action of quickActions; track action.action) {
           <button
-            class="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-xs font-semibold leading-4 text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            class="flex h-10 min-w-0 items-center justify-center gap-1 rounded-lg border border-stone-200 px-1 text-[10px] font-semibold leading-4 text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            [class.bg-white]="action.action !== 'bouquetReset' || !resetConfirmationPending()"
             [class.border-rose-200]="action.danger"
             [class.text-rose-700]="action.danger"
+            [class.bg-rose-100]="action.action === 'bouquetReset' && resetConfirmationPending()"
+            [class.border-rose-400]="action.action === 'bouquetReset' && resetConfirmationPending()"
             type="button"
+            [matTooltip]="action.action === 'bouquetReset' && resetConfirmationPending() ? 'Erneut klicken, um wirklich alles zurückzusetzen' : action.tooltip"
+            [attr.aria-label]="action.action === 'bouquetReset' && resetConfirmationPending()
+              ? 'Bestätigen: Strauß vollständig zurücksetzen'
+              : action.label + ': ' + action.tooltip"
             (click)="emitQuickAction(action.action)"
           >
-            <mat-icon class="shrink-0">{{ action.icon }}</mat-icon>
-            <span class="min-w-0 truncate">{{ action.label }}</span>
+            <mat-icon class="shrink-0 text-[18px]!">{{ action.icon }}</mat-icon>
+            <span class="min-w-0 truncate">
+              {{ action.action === 'bouquetReset' && resetConfirmationPending() ? 'Bestätigen' : action.label }}
+            </span>
           </button>
         }
       </div>
 
       @if (overlapCount() > 0) {
         <div
-          class="mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-950"
+          class="mb-3 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-950"
           role="status"
         >
           <mat-icon class="shrink-0 text-[17px]! text-amber-700">warning</mat-icon>
@@ -72,8 +81,8 @@
         </div>
       }
 
-      <div class="mb-4 flex min-h-0 flex-1 flex-col border-t border-stone-200/70 pt-3">
-        <div class="mb-2 flex shrink-0 items-center justify-start gap-2">
+      <div class="border-t border-stone-200/70 pt-3">
+        <div class="mb-2 flex items-center justify-start gap-2">
           <span class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Verwendete Blumen</span>
           <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
             {{ flowers().length }}
@@ -89,26 +98,22 @@
             <mat-icon>add</mat-icon>
           </button>
         </div>
-        <div class="min-h-0 flex-1 space-y-2 overflow-y-scroll pr-1 [scrollbar-gutter:stable]">
+        <div class="space-y-2 pr-1">
           @for (flower of flowers(); track flower.instanceId) {
             <section
-              class="grid min-h-[76px] grid-cols-[2rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 rounded-lg border bg-white/80 p-2 shadow-sm transition"
+              class="grid min-h-[98px] grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 rounded-lg border bg-white/80 p-2 shadow-sm transition"
               [class.border-amber-400]="flower.overlapping"
               [class.bg-amber-50]="flower.overlapping"
               [class.border-emerald-400]="selectedId() === flower.instanceId && !flower.overlapping"
               [class.bg-emerald-50]="selectedId() === flower.instanceId && !flower.overlapping"
               [class.border-stone-200]="selectedId() !== flower.instanceId && !flower.overlapping"
             >
-              <button
-                class="grid h-8 w-8 place-items-center rounded-lg bg-stone-100 text-base shadow-inner"
-                type="button"
-                [style.color]="flower.color"
-                (click)="selectionChange.emit(flower.instanceId)"
-                [attr.aria-label]="flower.name + ' auswählen'"
-              >
-                {{ flower.symbol }}
-              </button>
-              <div class="flex min-w-0 items-center gap-1 self-center">
+              <div class="flex min-w-0 items-center gap-2 self-center">
+                <span
+                  class="size-2.5 shrink-0 rounded-full border border-black/10 shadow-sm"
+                  [style.background]="flower.color"
+                  aria-hidden="true"
+                ></span>
                 <button
                   class="min-w-0 truncate text-left text-xs font-bold text-stone-800"
                   type="button"
@@ -139,30 +144,22 @@
                   </button>
                 }
               </div>
-              <div class="col-span-3 grid grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-2">
-                <mat-slider class="w-full min-w-0" min="2" max="100" step="1" aria-label="Blumenlänge">
+              <div class="col-span-2 min-w-0">
+                <div class="flex h-4 items-center justify-between gap-2 text-[9px] font-semibold text-stone-500">
+                  <span>Blumenlänge</span>
+                  <output class="shrink-0 text-right tabular-nums">
+                    {{ flower.lengthPercent }}%
+                  </output>
+                </div>
+                <mat-slider class="-my-2 w-full min-w-0" min="2" max="100" step="1">
                   <input
                     matSliderThumb
                     [value]="flower.lengthPercent"
+                    [attr.aria-label]="'Blumenlänge von ' + flower.name"
                     (input)="lengthChange.emit({instanceId: flower.instanceId, lengthPercent: +$any($event.target).value})"
                   >
                 </mat-slider>
-                <output class="text-right text-[10px] font-semibold tabular-nums text-stone-500">
-                  {{ flower.lengthPercent }}%
-                </output>
               </div>
-              @if (selectedId() === flower.instanceId) {
-                <div class="col-span-3 border-t border-stone-100 pt-1.5">
-                  <app-numeric-slider
-                    label="Eigendrehung"
-                    unit="°"
-                    [value]="flower.rotationDegrees"
-                    [minimum]="0"
-                    [maximum]="359"
-                    (valueChange)="flowerRotationChange.emit({instanceId: flower.instanceId, rotationDegrees: $event})"
-                  />
-                </div>
-              }
             </section>
           } @empty {
             <div class="rounded-xl border border-dashed border-stone-300 px-3 py-5 text-center text-[10px] text-stone-400">
@@ -172,68 +169,117 @@
         </div>
       </div>
 
-      <div class="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_42px] items-center gap-3 border-t border-stone-200/70 pt-4">
+      <section class="mt-3 h-[104px] overflow-hidden rounded-xl border border-stone-200 bg-white/70 p-3 shadow-sm">
+        <div class="mb-2 flex h-4 min-w-0 items-center gap-2">
+          <span class="shrink-0 text-[9px] font-bold uppercase tracking-wider text-stone-500">
+            Ausgewählte Blume
+          </span>
+          @if (selectedFlower(); as flower) {
+            <span class="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-stone-700">
+              {{ flower.name }}
+            </span>
+          }
+        </div>
+        @if (selectedFlower(); as flower) {
+          <app-numeric-slider
+            label="Eigendrehung"
+            unit="°"
+            [value]="flower.rotationDegrees"
+            [minimum]="0"
+            [maximum]="359"
+            (valueChange)="flowerRotationChange.emit({instanceId: flower.instanceId, rotationDegrees: $event})"
+          />
+        } @else {
+          <div class="grid h-[53px] place-items-center rounded-lg border border-dashed border-stone-200 text-[10px] text-stone-400">
+            Blume auswählen, um ihre Drehung anzupassen
+          </div>
+        }
+      </section>
+
+      <div class="mt-3 grid grid-cols-[auto_minmax(0,1fr)_42px] items-center gap-3 rounded-xl border border-stone-200 bg-white/70 px-3 py-2 shadow-sm">
         <label for="rotation" class="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-          Drehung
+          Straußdrehung
         </label>
-        <mat-slider id="rotation" class="min-w-0 w-full" min="0" max="360" step="1" discrete>
-          <input matSliderThumb [value]="rotationDegrees()" (input)="rotationChange.emit(+$any($event.target).value)">
+        <mat-slider class="min-w-0 w-full" min="0" max="360" step="1" discrete>
+          <input
+            id="rotation"
+            matSliderThumb
+            aria-label="Straußdrehung"
+            [value]="rotationDegrees()"
+            (input)="rotationChange.emit(+$any($event.target).value)"
+          >
         </mat-slider>
         <output class="text-right text-xs font-semibold tabular-nums text-stone-600">
           {{ rotationDegrees() }}°
         </output>
       </div>
 
-      <details class="group mt-3 shrink-0 border-t border-stone-200/70 pt-2 [&>summary::-webkit-details-marker]:hidden">
-        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 transition hover:bg-stone-100">
-          <mat-icon class="text-[17px]!">tune</mat-icon>
-          <span class="flex-1">Vase & Licht</span>
-          <mat-icon class="text-[17px]! transition-transform group-open:rotate-90">chevron_right</mat-icon>
-        </summary>
-        <div class="max-h-[42dvh] overflow-y-auto pt-3 pr-1 [scrollbar-gutter:stable]">
-        <div class="mb-1.5 text-[9px] font-semibold text-stone-400">Form</div>
-        <div class="grid grid-cols-5 gap-1.5">
-          @for (vase of vaseOptions(); track vase.id) {
-            <button
-              class="grid h-9 w-full place-items-center rounded-lg border border-stone-200 bg-white transition hover:bg-stone-50"
-              [class.border-emerald-950]="activeVaseId() === vase.id"
-              [class.bg-emerald-950]="activeVaseId() === vase.id"
-              [class.text-stone-600]="activeVaseId() === vase.id"
-              [class.text-stone-500]="activeVaseId() !== vase.id"
-              type="button"
-              [matTooltip]="vase.name"
-              [attr.aria-label]="'Vase ' + vase.name + ' auswählen'"
-              [attr.aria-pressed]="activeVaseId() === vase.id"
-              (click)="vaseChange.emit(vase.id)"
-            >
-              <mat-icon class="text-[20px]!">{{ vase.symbol }}</mat-icon>
-            </button>
-          }
-        </div>
-        <div class="mb-1.5 mt-3 text-[9px] font-semibold text-stone-400">Optik</div>
-        <div class="grid grid-cols-4 gap-1.5">
-          @for (material of vaseMaterialOptions(); track material.id) {
-            <button
-              class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white px-1 py-2 text-[8px] font-semibold text-stone-500 transition-colors hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-950"
-              [class.border-emerald-950]="activeVaseMaterialId() === material.id"
-              [class.bg-emerald-950]="activeVaseMaterialId() === material.id"
-              [class.text-stone-600]="activeVaseMaterialId() === material.id"
-              type="button"
-              [matTooltip]="material.name"
-              [attr.aria-label]="'Vasenoptik ' + material.name + ' auswählen'"
-              [attr.aria-pressed]="activeVaseMaterialId() === material.id"
-              (click)="vaseMaterialChange.emit(material.id)"
-            >
-              <span
-                class="size-5 rounded-full border border-black/10 shadow-inner"
-                [style.background]="material.swatch"
-              ></span>
-              <span class="truncate">{{ material.name }}</span>
-            </button>
-          }
-        </div>
-        <div class="mt-4 border-t border-stone-200/70 pt-3">
-          <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Szene</div>
+      <div class="mt-3 space-y-2 pb-1">
+        <app-editor-disclosure
+          title="Vase"
+          description="Form und Material"
+          icon="local_drink"
+          [expanded]="expandedDisclosure() === 'vase'"
+          (expandedChange)="setDisclosureExpanded('vase', $event)"
+        >
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Vasenform</div>
+          <div class="grid grid-cols-3 gap-1.5">
+            @for (vase of vaseOptions(); track vase.id) {
+              <button
+                class="flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 font-semibold transition hover:border-emerald-700 hover:shadow-sm"
+                [class.border-emerald-950]="activeVaseId() === vase.id"
+                [class.bg-emerald-950]="activeVaseId() === vase.id"
+                [class.text-white]="activeVaseId() === vase.id"
+                [class.border-stone-200]="activeVaseId() !== vase.id"
+                [class.bg-white]="activeVaseId() !== vase.id"
+                [class.text-stone-500]="activeVaseId() !== vase.id"
+                type="button"
+                [matTooltip]="vase.name"
+                [attr.aria-label]="'Vase ' + vase.name + ' auswählen'"
+                [attr.aria-pressed]="activeVaseId() === vase.id"
+                (click)="vaseChange.emit(vase.id)"
+              >
+                <mat-icon class="text-[19px]!">{{ vase.symbol }}</mat-icon>
+                <span class="max-w-full truncate text-[8px] leading-none">{{ vase.name }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">Material</div>
+          <div class="grid grid-cols-4 gap-1.5">
+            @for (material of vaseMaterialOptions(); track material.id) {
+              <button
+                class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[8px] font-semibold transition hover:border-emerald-700 hover:shadow-sm"
+                [class.border-emerald-950]="activeVaseMaterialId() === material.id"
+                [class.bg-emerald-950]="activeVaseMaterialId() === material.id"
+                [class.text-white]="activeVaseMaterialId() === material.id"
+                [class.border-stone-200]="activeVaseMaterialId() !== material.id"
+                [class.bg-white]="activeVaseMaterialId() !== material.id"
+                [class.text-stone-500]="activeVaseMaterialId() !== material.id"
+                type="button"
+                [matTooltip]="material.name"
+                [attr.aria-label]="'Vasenmaterial ' + material.name + ' auswählen'"
+                [attr.aria-pressed]="activeVaseMaterialId() === material.id"
+                (click)="vaseMaterialChange.emit(material.id)"
+              >
+                <span
+                  class="size-5 rounded-full border border-black/10 shadow-inner"
+                  [style.background]="material.swatch"
+                ></span>
+                <span class="max-w-full truncate">{{ material.name }}</span>
+              </button>
+            }
+          </div>
+        </app-editor-disclosure>
+
+        <app-editor-disclosure
+          title="Szene & Licht"
+          description="Hintergrund und Atmosphäre"
+          icon="light_mode"
+          [expanded]="expandedDisclosure() === 'scene'"
+          (expandedChange)="setDisclosureExpanded('scene', $event)"
+        >
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Hintergrund</div>
           <div class="grid grid-cols-2 gap-1.5">
             @for (background of backgroundOptions; track background.id) {
               <button
@@ -253,7 +299,11 @@
               </button>
             }
           </div>
-          <div class="mt-2 grid grid-cols-3 gap-1.5">
+
+          <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">
+            Licht & Atmosphäre
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
             @for (effect of sceneEffectOptions; track effect.id) {
               <button
                 class="flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[8px] font-bold transition"
@@ -268,23 +318,20 @@
                 (click)="sceneEffectChange.emit({effectId: effect.id, enabled: !sceneEffects()[effect.id]})"
               >
                 <mat-icon class="text-[18px]!">{{ effect.symbol }}</mat-icon>
-                <span class="truncate">{{ effect.name }}</span>
+                <span class="max-w-full truncate">{{ effect.name }}</span>
               </button>
             }
           </div>
-        </div>
-        </div>
-      </details>
+        </app-editor-disclosure>
 
-      <details class="group mt-2 shrink-0 border-t border-stone-200/70 pt-2 [&>summary::-webkit-details-marker]:hidden">
-        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-500 transition hover:bg-stone-100">
-          <mat-icon class="text-[17px]!">ios_share</mat-icon>
-          <span class="flex-1">Video & Dateien</span>
-          <mat-icon class="text-[17px]! transition-transform group-open:rotate-90">chevron_right</mat-icon>
-        </summary>
-        <div class="mt-3 grid grid-cols-2 gap-2">
-        <div class="col-span-2">
-          <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-stone-500">Videoformat</div>
+        <app-editor-disclosure
+          title="Video & Dateien"
+          description="Aufnehmen, laden und speichern"
+          icon="ios_share"
+          [expanded]="expandedDisclosure() === 'files'"
+          (expandedChange)="setDisclosureExpanded('files', $event)"
+        >
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Videoformat</div>
           <div class="grid grid-cols-3 gap-1.5">
             @for (format of videoFormatOptions; track format.id) {
               <button
@@ -317,43 +364,49 @@
               </button>
             }
           </div>
-        </div>
-        <button
-          class="relative col-span-2 flex h-10 min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-teal-800 bg-teal-700 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
-          type="button"
-          [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
-          [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden als nahtloses ' + videoFormat().width + '×' + videoFormat().height + '-Loop aufnehmen'"
-          (click)="videoExport.emit()"
-        >
-          @if (videoExporting()) {
-            <span
-              class="absolute inset-y-0 left-0 bg-teal-500/45 transition-[width] duration-100"
-              [style.width.%]="videoExportProgress()"
-            ></span>
-            <mat-icon class="relative text-[19px]!">videocam</mat-icon>
-            <span class="relative truncate">Loop wird aufgenommen · {{ videoExportProgress() }}%</span>
-          } @else {
-            <mat-icon class="text-[19px]!">video_file</mat-icon>
-            <span class="truncate">Loop-Video exportieren</span>
-          }
-        </button>
-        <label
-          class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
-        >
-          <mat-icon class="shrink-0">upload</mat-icon>
-          <span class="min-w-0 truncate">Laden</span>
-          <input class="sr-only" type="file" accept="application/json,.json" (change)="projectImport.emit($event)">
-        </label>
-        <button
-          class="flex h-10 min-w-0 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
-          type="button"
-          (click)="projectExport.emit()"
-        >
-          <mat-icon class="shrink-0">download</mat-icon>
-          <span class="min-w-0 truncate">Exportieren</span>
-        </button>
-        </div>
-      </details>
+
+          <button
+            class="relative mt-2 flex h-10 w-full min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-teal-800 bg-teal-700 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
+            type="button"
+            [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
+            [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden als nahtloses ' + videoFormat().width + '×' + videoFormat().height + '-Loop aufnehmen'"
+            (click)="videoExport.emit()"
+          >
+            @if (videoExporting()) {
+              <span
+                class="absolute inset-y-0 left-0 bg-teal-500/45 transition-[width] duration-100"
+                [style.width.%]="videoExportProgress()"
+              ></span>
+              <mat-icon class="relative text-[19px]!">videocam</mat-icon>
+              <span class="relative truncate">Loop wird aufgenommen · {{ videoExportProgress() }}%</span>
+            } @else {
+              <mat-icon class="text-[19px]!">video_file</mat-icon>
+              <span class="truncate">Loop-Video exportieren</span>
+            }
+          </button>
+
+          <div class="mb-2 mt-4 border-t border-stone-200 pt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">
+            Projektdatei
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <label
+              class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-[10px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            >
+              <mat-icon class="shrink-0 text-[18px]!">upload</mat-icon>
+              <span class="min-w-0 truncate">Projekt laden</span>
+              <input class="sr-only" type="file" accept="application/json,.json" (change)="projectImport.emit($event)">
+            </label>
+            <button
+              class="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-[10px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+              type="button"
+              (click)="projectExport.emit()"
+            >
+              <mat-icon class="shrink-0 text-[18px]!">download</mat-icon>
+              <span class="min-w-0 truncate">Projekt speichern</span>
+            </button>
+          </div>
+        </app-editor-disclosure>
+      </div>
     </div>
   </section>
 

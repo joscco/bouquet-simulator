@@ -5,6 +5,7 @@ import {BouquetState, FlowerDefinition} from '../../../../core/models/flower.mod
 import {materializeDefinitionComponents} from '../../../../core/models/flower-components';
 import {BouquetCanvasComponent} from '../../../../shared/bouquet-canvas/bouquet-canvas.component';
 import {Point} from '../../graph/flower-editor-graph';
+import {clamp} from '../../../../core/utils/numbers';
 
 @Component({
   selector: 'app-flower-editor-preview',
@@ -51,8 +52,7 @@ export class FlowerEditorPreviewComponent {
 
   orbit(delta: {yaw: number; pitch: number}): void {
     this.rotation.update((rotation) => rotation + delta.yaw);
-    this.pitch.update((pitch) =>
-      Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, pitch + delta.pitch)));
+    this.pitch.update((pitch) => clamp(pitch + delta.pitch, -Math.PI * 0.48, Math.PI * 0.48));
   }
 
   pan(delta: {dx: number; dy: number}): void {

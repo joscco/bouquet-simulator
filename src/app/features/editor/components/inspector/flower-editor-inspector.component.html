@@ -1,135 +1,162 @@
-<section class="min-w-0 border-b border-stone-200 px-1 py-3.5 first:pt-1">
-  <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600">Definition</div>
-  <label>
-    <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Name</span>
-    <input class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 w-full" [ngModel]="definition().name" (ngModelChange)="updateRoot('name', $event)">
-  </label>
-  <div class="mt-3 grid gap-2">
-    <label class="flex min-h-8 cursor-pointer items-center gap-[9px] text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
-      <input
-        type="checkbox"
-        [checked]="definition().availableInBouquet ?? true"
-        (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)"
-      >
-      Im Strauß nutzbar
+<div class="min-w-0 space-y-3 px-3 py-3">
+  <app-editor-disclosure
+    title="Definition"
+    [description]="definition().name"
+    icon="description"
+    [badge]="definition().nodes.length + ' Knoten'"
+    [(expanded)]="definitionSectionExpanded"
+  >
+    <label>
+      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">Name</span>
+      <input class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" [ngModel]="definition().name" (ngModelChange)="updateRoot('name', $event)">
     </label>
-    <label class="flex min-h-8 cursor-pointer items-center gap-[9px] text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
-      <input
-        type="checkbox"
-        [checked]="definition().availableAsComponent ?? true"
-        (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)"
-      >
-      Als Komponente nutzbar
-    </label>
-  </div>
-</section>
-@if (definition().availableAsComponent ?? true) {
-  <section class="min-w-0 border-b border-stone-200 px-1 py-3.5 first:pt-1">
-    <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600">Komponentenausgänge</div>
-    <div class="space-y-1">
-      @for (outputId of componentOutputOptions(); track outputId) {
-        <label class="flex min-h-8 cursor-pointer items-center gap-[9px] text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800 min-h-7 text-[10px]">
-          <input
-            type="checkbox"
-            [checked]="componentOutputEnabled(outputId)"
-            (change)="toggleComponentOutput(outputId, $any($event.target).checked)"
-          >
-          {{ nodeName(outputId) }}
-        </label>
-      } @empty {
-        <div class="rounded-lg border border-dashed border-stone-300 px-2 py-3 text-center text-[10px] text-stone-400">
-          Keine offenen Endknoten
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-stone-50 px-2 text-[11px] font-semibold leading-tight text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
+        <input
+          type="checkbox"
+          [checked]="definition().availableInBouquet ?? true"
+          (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)"
+        >
+        Im Strauß
+      </label>
+      <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-stone-50 px-2 text-[11px] font-semibold leading-tight text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
+        <input
+          type="checkbox"
+          [checked]="definition().availableAsComponent ?? true"
+          (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)"
+        >
+        Als Baustein
+      </label>
+    </div>
+
+    @if (definition().availableAsComponent ?? true) {
+      <div class="mt-3 border-t border-stone-200 pt-3">
+        <div class="mb-2 text-[11px] font-bold text-stone-600">Anschlusspunkte der Komponente</div>
+        <div class="grid grid-cols-2 gap-1">
+          @for (outputId of componentOutputOptions(); track outputId) {
+            <label class="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-[11px] font-semibold text-stone-600 hover:bg-stone-50 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
+              <input
+                type="checkbox"
+                [checked]="componentOutputEnabled(outputId)"
+                (change)="toggleComponentOutput(outputId, $any($event.target).checked)"
+              >
+              <span class="truncate">{{ nodeName(outputId) }}</span>
+            </label>
+          } @empty {
+            <div class="col-span-2 rounded-lg border border-dashed border-stone-300 px-2 py-3 text-center text-[11px] text-stone-400">
+              Keine offenen Endknoten
+            </div>
+          }
         </div>
-      }
+      </div>
+    }
+  </app-editor-disclosure>
+
+  @if (selectedNode(); as node) {
+  <section class="min-w-0 rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <div class="text-[11px] font-bold text-stone-700">Ausgewählter Knoten</div>
+      <span class="rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-stone-500">
+        {{ node.loop ? 'Wiederholung' : node.component ? 'Komponente' : node.graphic ? 'Grafik' : 'Knoten' }}
+      </span>
+    </div>
+    <div class="flex items-center gap-2">
+      <input class="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
+      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten kopieren" aria-label="Knoten kopieren" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
+      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
     </div>
   </section>
-}
-@if (selectedNode(); as node) {
-<section class="min-w-0 border-b border-stone-200 px-1 py-3.5 first:pt-1 border-b-0!">
-  <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600">Knoten</div>
-  <div class="mb-3 flex items-center gap-2">
-    <input class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 min-w-0 flex-1" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
-    <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten kopieren" aria-label="Knoten kopieren" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-    <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
-  </div>
 
   @if (!node.loop) {
     @if (incomingSettings(); as incoming) {
-      <section class="mb-3 border-t border-stone-200 pt-3">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <div>
-            <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600 mb-0!">Eingangsverbindung</div>
-            <div class="text-[8px] text-stone-400">
-              {{ selectedIncoming() ? 'Mit dem Elternknoten verbunden' : 'Wird beim Anschließen verwendet' }}
-            </div>
-          </div>
-          @if (selectedIncoming()) {
-            <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800" type="button"
+      <app-editor-disclosure
+        title="Eingangsverbindung"
+        [description]="selectedIncoming() ? 'Verbindung vom Elternknoten' : 'Vorgaben für eine spätere Verbindung'"
+        icon="route"
+        [(expanded)]="connectionSectionExpanded"
+      >
+        @if (selectedIncoming()) {
+          <div class="mb-3 flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-2.5 py-2 text-[11px] font-medium text-stone-500">
+            <span>Diese Verbindung ist aktiv.</span>
+            <button class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button"
               matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
               (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
-          }
-        </div>
-        <div class="space-y-2">
-          <app-interval-slider label="Anzahl" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
-          <app-interval-slider label="Länge" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
-          <div class="space-y-2 border-t border-stone-100 pt-3">
+          </div>
+        }
+
+        <div class="space-y-3">
+          <section class="space-y-2">
             <div>
-              <div class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Ausrichtung & Drehung</div>
-              <p class="mb-0 mt-1 text-[8px] leading-relaxed text-stone-400">
-                Neigung und Neigungsrichtung legen zwei lokale Richtungsachsen fest; Roll dreht den Bestandteil unabhängig um seine eigene Wachstumsachse.
-              </p>
+              <div class="text-[11px] font-bold text-stone-700">Verteilung</div>
+              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">Wie oft und in welchem Abstand dieser Knoten entsteht.</p>
+            </div>
+            <app-interval-slider label="Anzahl" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
+            <app-interval-slider label="Länge" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
+            <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
+              [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
+          </section>
+
+          <section class="space-y-2 border-t border-stone-200 pt-3">
+            <div>
+              <div class="text-[11px] font-bold text-stone-700">Ausrichtung</div>
+              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">Neigung, Richtung um den Elternstängel und Drehung um die eigene Achse.</p>
             </div>
             <app-interval-slider label="Neigung zum Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
-            <app-interval-slider label="Neigungsrichtung um den Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
-            <app-interval-slider label="Individuelle Roll-Drehung" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
-          </div>
-          <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
-            [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
-          <div class="grid grid-cols-[88px_1fr] items-end gap-3 border-t border-stone-100 pt-3">
-            <label>
-              <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
-              <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
-                <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="incomingStemColor(incoming)"></span>
-                <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color"
-                  aria-label="Stängelfarbe der Eingangsverbindung"
-                  [ngModel]="incomingStemColor(incoming)"
-                  (ngModelChange)="updateIncomingStem('color', $event)">
-              </span>
-            </label>
-            <app-numeric-slider label="Anfangsdicke" unit="px" [value]="incomingStemStartWidth(incoming)"
-              [minimum]="1" [maximum]="30" [step]="0.5"
-              (valueChange)="updateIncomingStem('startWidth', $event)" />
-          </div>
-          <app-numeric-slider label="Enddicke" unit="px" [value]="incomingStemEndWidth(incoming)"
-            [minimum]="1" [maximum]="30" [step]="0.5"
-            (valueChange)="updateIncomingStem('endWidth', $event)" />
-          <div class="border-t border-stone-100 pt-3">
+            <app-interval-slider label="Richtung um den Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+            <app-interval-slider label="Drehung um die eigene Achse" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
+          </section>
+
+          <section class="space-y-2 border-t border-stone-200 pt-3">
+            <div class="text-[11px] font-bold text-stone-700">Stängel</div>
+            <div class="grid grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
+              <label>
+                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
+                <span class="relative flex h-9 w-full cursor-pointer items-center justify-center rounded-lg border border-stone-300 bg-white px-2 focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
+                  <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="incomingStemColor(incoming)"></span>
+                  <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color"
+                    aria-label="Stängelfarbe der Eingangsverbindung"
+                    [ngModel]="incomingStemColor(incoming)"
+                    (ngModelChange)="updateIncomingStem('color', $event)">
+                </span>
+              </label>
+              <app-numeric-field label="Dicke Anfang" unit="px" [value]="incomingStemStartWidth(incoming)"
+                [minimum]="1" [maximum]="30" [step]="0.5"
+                (valueChange)="updateIncomingStem('startWidth', $event)" />
+              <app-numeric-field label="Dicke Ende" unit="px" [value]="incomingStemEndWidth(incoming)"
+                [minimum]="1" [maximum]="30" [step]="0.5"
+                (valueChange)="updateIncomingStem('endWidth', $event)" />
+            </div>
             <app-numeric-slider label="Gezielte Krümmung" unit="%" [value]="incomingStemBend(incoming)"
               [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
-          </div>
-          <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
-            [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
-          <app-interval-slider label="Kurvenrotation relativ zur Roll-Drehung" unit="°" [modeSelectable]="true"
-            [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
-            (valueChange)="updateIncomingStemBendRotation($event)" />
+            <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
+              [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
+            <app-interval-slider label="Richtung der Krümmung" unit="°" [modeSelectable]="true"
+              [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
+              (valueChange)="updateIncomingStemBendRotation($event)" />
+          </section>
         </div>
-      </section>
+      </app-editor-disclosure>
     }
   }
 
   @if (node.component) {
-    <div class="border-t border-stone-200 pt-3">
-      <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600">Komponente</div>
-      <div class="mt-1 text-xs font-semibold text-stone-800">{{ node.component.name }}</div>
-      <p class="mb-0 mt-2 text-[9px] leading-relaxed text-teal-900/70">
-        Dieser Knoten referenziert {{ node.component.name }}. 3D-Ansichten materialisieren die Referenz temporär; die Definition bleibt referenziell.
+    <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+      <div class="text-[11px] font-bold text-indigo-950">Komponente · {{ node.component.name }}</div>
+      <p class="mb-0 mt-1 text-[10px] leading-relaxed text-indigo-900/70">
+        Änderungen an der gespeicherten Komponente werden automatisch in der Vorschau übernommen.
       </p>
     </div>
   } @else if (node.loop) {
-    <div class="border-t border-stone-200 pt-3">
+    <app-editor-disclosure
+      title="Wiederholung"
+      description="Anzahl und Fortsetzung des markierten Teilbaums"
+      icon="repeat"
+      [(expanded)]="loopSectionExpanded"
+    >
       @if (selectedIncoming()) {
-        <div class="mb-2 flex justify-end">
-          <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800" type="button"
+        <div class="mb-3 flex items-center justify-between rounded-lg bg-stone-50 px-2.5 py-2 text-[11px] text-stone-500">
+          <span>Mit dem vorherigen Knoten verbunden</span>
+          <button class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button"
             matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
             (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
         </div>
@@ -137,10 +164,10 @@
       <app-interval-slider label="Wiederholungen" [modeSelectable]="true" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
       @if (node.loop.memberNodeIds?.length) {
         <div class="mt-3 border-t border-amber-100 pt-2">
-          <div class="mb-1 text-[9px] font-bold uppercase tracking-wider text-amber-900">Fortsetzungsoutputs</div>
+          <div class="mb-1 text-[11px] font-bold text-amber-900">Ansatzpunkte der nächsten Wiederholung</div>
           <div class="space-y-1">
             @for (outputId of loopOutputOptions(node); track outputId) {
-              <label class="flex min-h-8 cursor-pointer items-center gap-[9px] text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800 min-h-7 text-[10px]">
+              <label class="flex min-h-8 cursor-pointer items-center gap-2 text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
                 <input
                   type="checkbox"
                   [checked]="loopOutputEnabled(node, outputId)"
@@ -152,25 +179,34 @@
           </div>
         </div>
       }
-      <p class="mb-0 mt-2 text-[9px] leading-relaxed text-amber-900/70">
-        Der gerahmte Teilbaum wird wiederholt. Ausgewählte Outputs dienen als Ansatzpunkte für die nächste Wiederholung.
+      <p class="mb-0 mt-2 text-[10px] leading-relaxed text-amber-900/70">
+        Der gerahmte Teilbaum wird mehrfach erzeugt. Die ausgewählten Ansatzpunkte verbinden jeweils die nächste Wiederholung.
       </p>
-    </div>
+    </app-editor-disclosure>
   } @else {
-  <div class="mb-3">
-    <label class="flex min-h-8 cursor-pointer items-center gap-[9px] text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800 justify-between border-b border-stone-200 py-0.5">
-      Grafik
-      <input type="checkbox" [ngModel]="!!node.graphic" (ngModelChange)="setHasGraphic($event)">
+  <div class="rounded-xl border border-stone-200 bg-white px-3 py-2">
+    <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 text-[11px] font-semibold text-stone-700">
+      <span>
+        <span class="block">Grafik anzeigen</span>
+        <span class="mt-0.5 block text-[10px] font-normal text-stone-400">Blatt, Blüte oder geometrische Form an diesem Knoten</span>
+      </span>
+      <input class="m-0 size-4 shrink-0 accent-emerald-800" type="checkbox" [ngModel]="!!node.graphic" (ngModelChange)="setHasGraphic($event)">
     </label>
   </div>
 
   @if (node.graphic; as graphic) {
-    <fieldset>
-      <legend class="text-[9px] font-bold uppercase text-stone-400">Grundform</legend>
-      <div class="mt-1 grid grid-cols-3 gap-1.5">
+    <app-editor-disclosure
+      title="Form, Farbe & Maße"
+      description="Grundform und sichtbare Größe"
+      icon="category"
+      [(expanded)]="graphicBasicsExpanded"
+    >
+      <fieldset>
+      <legend class="text-[11px] font-bold text-stone-600">Grundform</legend>
+      <div class="mt-1.5 grid grid-cols-4 gap-1.5">
         @for (primitive of graphicPrimitives; track primitive.value) {
           <button
-            class="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[8px] font-semibold"
+            class="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-[9px] font-semibold leading-tight"
             type="button"
             [class.border-emerald-700]="graphicPrimitive(graphic) === primitive.value"
             [class.bg-emerald-50]="graphicPrimitive(graphic) === primitive.value"
@@ -201,12 +237,12 @@
           </button>
         }
       </div>
-    </fieldset>
-    <label class="mt-3 block">
-      <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
+      </fieldset>
+      <label class="mt-3 block">
+      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">Farbe</span>
       <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
         <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="graphic.color ?? '#5b8d53'"></span>
-        <code class="min-w-0 flex-1 text-[9px] text-stone-500">{{ graphic.color ?? '#5b8d53' }}</code>
+        <code class="min-w-0 flex-1 text-[10px] text-stone-500">{{ graphic.color ?? '#5b8d53' }}</code>
         <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0"
           type="color"
           aria-label="Grafikfarbe"
@@ -220,21 +256,33 @@
       <app-numeric-field label="Tiefe" unit="px" [value]="graphic.depth ?? 6" [minimum]="0.5" [maximum]="500" [step]="0.5" (valueChange)="updateGraphic('depth', $event)" />
       <app-numeric-field label="Skalierung" [value]="graphic.scale ?? 1" [minimum]="0.01" [maximum]="20" [step]="0.05" (valueChange)="updateGraphic('scale', $event)" />
     </div>
-    <div class="mt-3 border-t border-stone-100 pt-3">
-      <div class="mb-2.5 text-[10px] font-bold uppercase tracking-[.05em] text-stone-600">Grafikoffset</div>
+    </app-editor-disclosure>
+
+    <app-editor-disclosure
+      title="Position"
+      description="Versatz relativ zum Knoten"
+      icon="open_with"
+      [(expanded)]="graphicPositionExpanded"
+    >
       <div class="grid grid-cols-3 gap-2">
         <app-numeric-field label="X" unit="px" [value]="graphic.offset?.x ?? 0" (valueChange)="updateGraphicOffset('x', $event)" />
         <app-numeric-field label="Y" unit="px" [value]="graphic.offset?.y ?? 0" (valueChange)="updateGraphicOffset('y', $event)" />
         <app-numeric-field label="Z" unit="px" [value]="graphic.offset?.z ?? 0" (valueChange)="updateGraphicOffset('z', $event)" />
       </div>
-    </div>
+    </app-editor-disclosure>
     @if (isPaintableGraphic(graphic)) {
-      <div class="mt-3 space-y-2 border-t border-stone-100 pt-3">
-        <p class="mb-1 mt-0 text-[8px] leading-relaxed text-stone-400">
-          Werte über ±100 rollen das Element weiter ein; mehrere hundert Prozent erzeugen vollständige Windungen. Verlaufswerte gelten absolut am Ansatz und an der Spitze.
+      <app-editor-disclosure
+        title="Wölbung"
+        description="Form am Ansatz und an der Spitze"
+        icon="waves"
+        [(expanded)]="graphicBendExpanded"
+      >
+        <div class="space-y-2">
+        <p class="mb-1 mt-0 text-[10px] leading-relaxed text-stone-400">
+          Hohe Werte rollen die Form ein. Mit einem Verlauf lassen sich Ansatz und Spitze getrennt einstellen.
         </p>
-        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 text-[10px] font-semibold text-stone-600">
-          Verlauf Hauptrichtung
+        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 text-[11px] font-semibold text-stone-600">
+          Ansatz und Spitze getrennt · längs
           <input
             class="m-0 size-4 shrink-0 accent-emerald-800"
             type="checkbox"
@@ -243,16 +291,18 @@
           >
         </label>
         @if (graphic.bendMainProfile; as profile) {
-          <app-numeric-slider label="Hauptwölbung am Ansatz" unit="%" [value]="profile.base"
-            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'base', $event)" />
-          <app-numeric-slider label="Hauptwölbung an der Spitze" unit="%" [value]="profile.tip"
-            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'tip', $event)" />
+          <div class="grid grid-cols-2 gap-2">
+            <app-numeric-field label="Längs · Ansatz" unit="%" [value]="profile.base"
+              [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'base', $event)" />
+            <app-numeric-field label="Längs · Spitze" unit="%" [value]="profile.tip"
+              [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'tip', $event)" />
+          </div>
         } @else {
           <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
             [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendMain', $event)" />
         }
-        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 border-t border-stone-100 pt-2 text-[10px] font-semibold text-stone-600">
-          Verlauf Nebenrichtung
+        <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 border-t border-stone-100 pt-2 text-[11px] font-semibold text-stone-600">
+          Ansatz und Spitze getrennt · quer
           <input
             class="m-0 size-4 shrink-0 accent-emerald-800"
             type="checkbox"
@@ -261,26 +311,34 @@
           >
         </label>
         @if (graphic.bendCrossProfile; as profile) {
-          <app-numeric-slider label="Nebenwölbung am Ansatz" unit="%" [value]="profile.base"
-            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'base', $event)" />
-          <app-numeric-slider label="Nebenwölbung an der Spitze" unit="%" [value]="profile.tip"
-            [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'tip', $event)" />
+          <div class="grid grid-cols-2 gap-2">
+            <app-numeric-field label="Quer · Ansatz" unit="%" [value]="profile.base"
+              [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'base', $event)" />
+            <app-numeric-field label="Quer · Spitze" unit="%" [value]="profile.tip"
+              [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'tip', $event)" />
+          </div>
         } @else {
           <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
             [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendCross', $event)" />
         }
-      </div>
+        </div>
+      </app-editor-disclosure>
     }
     @if (graphicPrimitive(graphic) !== 'png') {
-      <fieldset class="mt-3 border-t border-stone-100 pt-3">
-        <legend class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Muster</legend>
-        <p class="mb-2 mt-1 text-[8px] leading-relaxed text-stone-400">
-          Ebenen werden von oben nach unten auf die Grundfarbe gemalt und bleiben im JSON reproduzierbar.
+      <app-editor-disclosure
+        title="Muster"
+        description="Verlauf, Adern, Flecken und Rand"
+        icon="texture"
+        [badge]="(graphic.patterns ?? []).length ? (graphic.patterns ?? []).length + '' : ''"
+        [(expanded)]="graphicPatternsExpanded"
+      >
+        <p class="mb-2 mt-0 text-[10px] leading-relaxed text-stone-400">
+          Mehrere Ebenen werden in der angezeigten Reihenfolge über die Grundfarbe gelegt.
         </p>
         <div class="grid grid-cols-4 gap-1">
           @for (patternType of graphicPatternTypes; track patternType.type) {
             <button
-              class="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border border-stone-200 bg-white px-1 py-1.5 text-[8px] font-semibold text-stone-500 transition-colors hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-900"
+              class="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg border border-stone-200 bg-white px-1 py-1.5 text-[9px] font-semibold text-stone-500 transition-colors hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-900"
               type="button"
               [attr.aria-label]="patternType.label + ' hinzufügen'"
               (click)="addGraphicPattern(patternType.type)"
@@ -293,22 +351,46 @@
 
         <div class="mt-2 space-y-2">
           @for (pattern of graphic.patterns ?? []; track pattern.id; let patternIndex = $index) {
-            <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-2.5">
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="text-[9px] font-bold text-stone-700">{{ graphicPatternLabel(pattern.type) }}</div>
-                  <div class="text-[8px] text-stone-400">Ebene {{ patternIndex + 1 }}</div>
+            <details class="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/70 [&>summary::-webkit-details-marker]:hidden">
+              <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2.5 py-2">
+                <span class="size-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="pattern.color"></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[11px] font-bold text-stone-700">{{ graphicPatternLabel(pattern.type) }}</span>
+                  <span class="block text-[10px] text-stone-400">Ebene {{ patternIndex + 1 }}</span>
+                </span>
+                <span class="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-stone-500">{{ (pattern.opacity * 100).toFixed(0) }}%</span>
+                <mat-icon class="text-[18px]! text-stone-400 transition-transform group-open:rotate-90">chevron_right</mat-icon>
+              </summary>
+              <div class="border-t border-stone-200 p-2.5">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <div class="flex gap-1" role="group" [attr.aria-label]="graphicPatternLabel(pattern.type) + ' Ebene verschieben'">
+                    <button
+                      class="grid size-7 place-items-center rounded-md border-0 bg-white text-stone-500 hover:bg-stone-100 disabled:cursor-default disabled:opacity-30"
+                      type="button"
+                      matTooltip="Ebene nach oben"
+                      aria-label="Ebene nach oben verschieben"
+                      [disabled]="patternIndex === 0"
+                      (click)="moveGraphicPattern(pattern.id, -1)"
+                    ><mat-icon class="scale-75">arrow_upward</mat-icon></button>
+                    <button
+                      class="grid size-7 place-items-center rounded-md border-0 bg-white text-stone-500 hover:bg-stone-100 disabled:cursor-default disabled:opacity-30"
+                      type="button"
+                      matTooltip="Ebene nach unten"
+                      aria-label="Ebene nach unten verschieben"
+                      [disabled]="patternIndex === (graphic.patterns ?? []).length - 1"
+                      (click)="moveGraphicPattern(pattern.id, 1)"
+                    ><mat-icon class="scale-75">arrow_downward</mat-icon></button>
+                  </div>
+                  <button
+                    class="grid size-7 shrink-0 place-items-center rounded-md border-0 bg-transparent text-stone-400 hover:bg-red-50 hover:text-red-700"
+                    type="button"
+                    matTooltip="Musterebene entfernen"
+                    [attr.aria-label]="graphicPatternLabel(pattern.type) + ' entfernen'"
+                    (click)="removeGraphicPattern(pattern.id)"
+                  >
+                    <mat-icon class="scale-75">delete</mat-icon>
+                  </button>
                 </div>
-                <button
-                  class="grid size-7 shrink-0 place-items-center rounded-md border-0 bg-transparent text-stone-400 hover:bg-red-50 hover:text-red-700"
-                  type="button"
-                  matTooltip="Musterebene entfernen"
-                  [attr.aria-label]="graphicPatternLabel(pattern.type) + ' entfernen'"
-                  (click)="removeGraphicPattern(pattern.id)"
-                >
-                  <mat-icon class="scale-75">delete</mat-icon>
-                </button>
-              </div>
 
               <label class="mb-2 block">
                 <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Musterfarbe</span>
@@ -354,7 +436,7 @@
                   </div>
                   <div class="mt-2">
                     <app-numeric-slider label="Aderrichtung" unit="°" [value]="pattern.angle ?? 22" [minimum]="-75" [maximum]="75" (valueChange)="updateGraphicPattern(pattern.id, {angle: $event})" />
-                    <div class="mt-1 flex justify-between text-[8px] font-medium text-stone-400">
+                    <div class="mt-1 flex justify-between text-[10px] font-medium text-stone-400">
                       <span>zum Ansatz</span>
                       <span>quer</span>
                       <span>zur Spitze</span>
@@ -374,25 +456,31 @@
                   </div>
                 }
               }
-            </div>
+              </div>
+            </details>
           }
         </div>
 
         @if (restorablePattern(); as removed) {
-          <div class="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[9px] text-amber-900">
+          <div class="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] text-amber-900">
             <span>{{ graphicPatternLabel(removed.pattern.type) }} entfernt</span>
             <button class="rounded-md border border-amber-300 bg-white px-2 py-1 font-bold hover:bg-amber-100" type="button" (click)="restoreRemovedPattern()">
               Rückgängig
             </button>
           </div>
         }
-      </fieldset>
+      </app-editor-disclosure>
     }
-    <div class="mt-3 space-y-3 border-t border-stone-100 pt-3">
+    <app-editor-disclosure
+      title="Ausrichtung & Drehung"
+      description="Bezugsachse und Eigendrehung der Grafik"
+      icon="360"
+      [(expanded)]="graphicOrientationExpanded"
+    >
+    <div class="space-y-3">
       <div>
-        <div class="text-[9px] font-bold uppercase tracking-[.05em] text-stone-500">Ausrichtung & Drehung</div>
-        <p class="mb-0 mt-1 text-[8px] leading-relaxed text-stone-400">
-          Die Ausrichtung legt die Bezugsachse fest; die Eigendrehung rollt die Grafik um ihre Wachstumsrichtung.
+        <p class="m-0 text-[10px] leading-relaxed text-stone-400">
+          Die Bezugsachse legt fest, woran sich die Form ausrichtet. Die Eigendrehung rollt sie um ihre Wachstumsrichtung.
         </p>
       </div>
       <label class="block">
@@ -410,7 +498,8 @@
         [value]="graphicRotationRange(graphic)" [minimum]="-360" [maximum]="360"
         (valueChange)="updateGraphicRotationRange($event)" />
     </div>
+    </app-editor-disclosure>
+    }
+    }
   }
-  }
-</section>
-}
+</div>

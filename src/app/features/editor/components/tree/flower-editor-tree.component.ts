@@ -16,6 +16,7 @@ import {
   nodeIncomingOrDefault,
 } from '../../../../core/models/flower-connections';
 import {validateFlowerDefinition} from '../../../../core/models/flower-validation';
+import {clamp} from '../../../../core/utils/numbers';
 import {
   Point,
   createGraphLayout,
@@ -25,6 +26,12 @@ import {
   absorbConnectedSubtreeIntoLoop,
   initializeEmptyLoopWithNode,
 } from '../../domain/flower-editor-loops';
+import {
+  centerOfGraphPositions,
+  graphPointerDistance,
+  nestedGraphNodeIds,
+  wouldCreateFlowerCycle,
+} from '../../domain/flower-editor-tree-interactions';
 
 export interface FlowerEditorTreeSelection {
   id: string;
@@ -41,7 +48,7 @@ export interface FlowerEditorTreeMessage {
   imports: [MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-tree.component.html',
-  host: {'class': 'relative block h-full min-h-[620px] w-full'},
+  host: {'class': 'relative block h-full min-h-0 w-full'},
 })
 export class FlowerEditorTreeComponent {
   readonly definition = input.required<FlowerDefinition>();
@@ -87,7 +94,7 @@ export class FlowerEditorTreeComponent {
   private graphPan: {pointerId: number; client: Point; center: Point} | null = null;
 
   resetView(positions: Record<string, Point>): void {
-    this.graphCenter.set(centerOfPositions(positions));
+    this.graphCenter.set(centerOfGraphPositions(positions));
     this.graphZoom.set(1);
   }
 
@@ -128,7 +135,7 @@ export class FlowerEditorTreeComponent {
       this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
       if (this.graphTouches.size === 2) {
         this.graphPan = null;
-        this.graphPinchDistance = this.touchDistance(this.graphTouches);
+        this.graphPinchDistance = graphPointerDistance(this.graphTouches);
         return;
       }
     }
@@ -217,7 +224,7 @@ export class FlowerEditorTreeComponent {
     if (event.pointerType === 'touch' && this.graphTouches.has(event.pointerId)) {
       this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
       if (this.graphTouches.size === 2) {
-        const distance = this.touchDistance(this.graphTouches);
+        const distance = graphPointerDistance(this.graphTouches);
         if (this.graphPinchDistance) this.setGraphZoom(this.graphZoom() * distance / this.graphPinchDistance);
         this.graphPinchDistance = distance;
         return;
@@ -274,7 +281,7 @@ export class FlowerEditorTreeComponent {
       this.selectNode(pending.loopStartId);
       return;
     }
-    if (wouldCreateCycle(this.definition(), pending.sourceId, targetId)) {
+    if (wouldCreateFlowerCycle(this.definition(), pending.sourceId, targetId)) {
       this.message.emit({text: 'Diese Verbindung würde einen Zyklus erzeugen.'});
       return;
     }
@@ -342,53 +349,4 @@ export class FlowerEditorTreeComponent {
     this.graphZoom.set(clamp(zoom, 0.2, 1.8));
   }
 
-  private touchDistance(touches: Map<number, Point>): number {
-    const points = [...touches.values()];
-    return Math.hypot(points[1]!.x - points[0]!.x, points[1]!.y - points[0]!.y);
-  }
-}
-
-function wouldCreateCycle(definition: FlowerDefinition, sourceId: string, targetId: string): boolean {
-  const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
-  const pending = [targetId];
-  const visited = new Set<string>();
-  while (pending.length) {
-    const id = pending.pop()!;
-    if (id === sourceId) return true;
-    if (visited.has(id)) continue;
-    visited.add(id);
-    pending.push(...(nodes.get(id)?.connections.map((connection) => connection.childId) ?? []));
-  }
-  return false;
-}
-
-function nestedGraphNodeIds(
-  nodes: Array<{id: string; memberIds: string[]}>,
-  rootId: string,
-): string[] {
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-  const result: string[] = [];
-  const pending = [rootId];
-  const visited = new Set<string>();
-  while (pending.length) {
-    const id = pending.pop()!;
-    if (visited.has(id)) continue;
-    visited.add(id);
-    result.push(id);
-    pending.push(...(byId.get(id)?.memberIds ?? []));
-  }
-  return result;
-}
-
-function centerOfPositions(positions: Record<string, Point>): Point {
-  const points = Object.values(positions);
-  if (!points.length) return {x: 500, y: 500};
-  return {
-    x: (Math.min(...points.map((point) => point.x)) + Math.max(...points.map((point) => point.x))) / 2,
-    y: (Math.min(...points.map((point) => point.y)) + Math.max(...points.map((point) => point.y))) / 2,
-  };
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.max(minimum, Math.min(maximum, value));
 }
