@@ -269,6 +269,26 @@ describe('procedural flower tree generator', () => {
     expect(new Set(branches.map((node) => node.attachmentAzimuth)).size).toBe(branches.length);
   });
 
+  it('places a negative inclination on the opposite side of the parent axis', () => {
+    const positiveDefinition = radialDefinition({randomness: 0});
+    const negativeDefinition = radialDefinition({randomness: 0});
+    const positiveConnection = positiveDefinition.nodes[0]!.connections[0]!;
+    const negativeConnection = negativeDefinition.nodes[0]!.connections[0]!;
+    positiveConnection.repeat = negativeConnection.repeat = {min: 1, max: 1};
+    positiveConnection.azimuth = negativeConnection.azimuth = {min: 0, max: 0};
+    positiveConnection.angle = {min: 45, max: 45};
+    negativeConnection.angle = {min: -45, max: -45};
+
+    const positive = generateFlowerTree(positiveDefinition, 0.31).nodes
+      .find((node) => node.templateId === 'branch')!;
+    const negative = generateFlowerTree(negativeDefinition, 0.31).nodes
+      .find((node) => node.templateId === 'branch')!;
+
+    expect(negative.x).toBeCloseTo(-positive.x);
+    expect(negative.y).toBeCloseTo(positive.y);
+    expect(negative.z).toBeCloseTo(-positive.z);
+  });
+
   it('samples roll and curvature rotation per generated part', () => {
     const definition = radialDefinition({randomness: 0});
     const connection = definition.nodes[0]!.connections[0]!;

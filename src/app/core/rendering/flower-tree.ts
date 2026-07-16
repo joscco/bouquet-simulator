@@ -555,7 +555,7 @@ export function generateFlowerTree(
 
     if (placementMode === 'directional') {
       const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
-      const inclination = clamp(Math.abs(rangeValue(connection.angle, inclinationUnit)), 0, 180) * Math.PI / 180;
+      const inclination = clamp(rangeValue(connection.angle, inclinationUnit), -180, 180) * Math.PI / 180;
       const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
       aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
       const radialDirection = directionInPlane(tangent, bitangent, aroundParent);

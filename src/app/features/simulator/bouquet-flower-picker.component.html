@@ -1,18 +1,18 @@
 <div class="fixed inset-0 z-50 grid place-items-center bg-stone-950/35 p-4 backdrop-blur-sm" (click)="close.emit()">
   <section
-    class="max-h-[85vh] w-full max-w-3xl overflow-auto rounded-3xl bg-white p-5 shadow-2xl"
+    class="flex h-[42rem] max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white p-5 shadow-2xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="picker-title"
     (click)="$event.stopPropagation()"
   >
-    <header class="mb-4 flex items-center justify-between">
+    <header class="mb-4 flex shrink-0 items-center justify-between">
       <h2 id="picker-title" class="text-lg font-semibold tracking-tight text-stone-900">{{ 'picker.title' | transloco }}</h2>
       <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="close.emit()">
         <mat-icon>close</mat-icon>
       </button>
     </header>
-    <label class="relative mb-3 block">
+    <label class="relative mb-3 block shrink-0">
       <mat-icon class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[19px]! text-stone-400">search</mat-icon>
       <input
         class="h-10 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-3 text-sm text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
@@ -22,7 +22,7 @@
         (input)="search.set($any($event.target).value)"
       >
     </label>
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid min-h-0 flex-1 content-start grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
       @for (flower of filteredFlowers(); track flower.id) {
         <button
           class="group grid min-h-52 overflow-hidden rounded-2xl border border-stone-200 bg-stone-50 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
