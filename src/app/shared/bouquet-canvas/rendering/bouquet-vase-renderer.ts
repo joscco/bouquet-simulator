@@ -63,17 +63,19 @@ interface VaseMaterialDefinition {
   texture?: 'speckled' | 'grainy';
 }
 
+const PEBBLE_COLOR = 0x7b5136;
+
 const VASE_MATERIAL_DEFINITIONS: Record<VaseMaterialId, VaseMaterialDefinition> = {
   clay: {
     bodyColor: 0xb96f4d,
-    openingColor: 0x5d3327,
+    openingColor: PEBBLE_COLOR,
     rimColor: 0xd08a65,
     roughness: 0.86,
     metalness: 0,
   },
   stoneware: {
     bodyColor: 0xc9d2c9,
-    openingColor: 0x43524b,
+    openingColor: PEBBLE_COLOR,
     rimColor: 0xe8ede6,
     roughness: 0.24,
     metalness: 0.02,
@@ -83,7 +85,7 @@ const VASE_MATERIAL_DEFINITIONS: Record<VaseMaterialId, VaseMaterialDefinition> 
   },
   concrete: {
     bodyColor: 0x96958f,
-    openingColor: 0x4c4c49,
+    openingColor: PEBBLE_COLOR,
     rimColor: 0xb8b7b1,
     roughness: 0.96,
     metalness: 0,
@@ -109,7 +111,7 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -62], [24, -62], [38, -60], [48, -54], [54, -44], [57, -30],
       [56, -14], [52, 0], [47, 11], [44, 18], [41, 21],
     ],
-    openingRadius: 39,
+    openingRadius: 41,
     openingY: 20,
     rimRadius: 42,
     rimTube: 2.6,
@@ -123,9 +125,9 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -63], [19, -63], [28, -60], [33, -52], [35, -42], [35, -30],
       [37, -18], [42, -6], [50, 8], [59, 20], [66, 27],
     ],
-    openingRadius: 58,
+    openingRadius: 61.5,
     openingY: 26,
-    rimRadius: 64,
+    rimRadius: 63,
     rimTube: 2.4,
     rings: [{radius: 30, y: -60, tube: 2}],
   },
@@ -134,9 +136,9 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -64], [31, -64], [37, -62], [40, -57], [40, -34], [39, -10],
       [40, 12], [39, 23], [36, 28],
     ],
-    openingRadius: 34,
+    openingRadius: 36,
     openingY: 27,
-    rimRadius: 38,
+    rimRadius: 37,
     rimTube: 2,
     rings: [
       {radius: 37, y: -62, tube: 2},
@@ -149,7 +151,7 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -50], [32, -50], [49, -47], [61, -40], [69, -29], [73, -16],
       [71, -4], [64, 7], [53, 15], [43, 19],
     ],
-    openingRadius: 41,
+    openingRadius: 42,
     openingY: 18,
     rimRadius: 45,
     rimTube: 3.2,
@@ -163,14 +165,14 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -68], [12, -68], [19, -65], [25, -57], [28, -46], [27, -31],
       [24, -14], [19, 3], [17, 18], [19, 29], [22, 34],
     ],
-    openingRadius: 17,
+    openingRadius: 19,
     openingY: 33,
-    rimRadius: 21,
+    rimRadius: 20,
     rimTube: 2,
     rings: [
       {radius: 19, y: -66, tube: 1.8},
       {radius: 25, y: -42, tube: 0.9},
-      {radius: 18, y: 17, tube: 0.8},
+      {radius: 17, y: 17, tube: 0.9},
     ],
   },
   bottle: {
@@ -180,7 +182,7 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
     ],
     openingRadius: 17,
     openingY: 33,
-    rimRadius: 19,
+    rimRadius: 18,
     rimTube: 2,
     rings: [
       {radius: 30, y: -66, tube: 1.8},
@@ -192,9 +194,9 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -64], [19, -64], [26, -61], [29, -56], [30, -50], [40, -46],
       [51, -35], [55, -20], [52, -5], [43, 8], [31, 15], [25, 21], [26, 30],
     ],
-    openingRadius: 22,
+    openingRadius: 23,
     openingY: 29,
-    rimRadius: 27,
+    rimRadius: 25,
     rimTube: 2.4,
     rings: [
       {radius: 25, y: -62, tube: 2.2},
@@ -210,9 +212,9 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -61], [28, -61], [39, -58], [46, -50], [49, -38], [49, -20],
       [47, -4], [42, 9], [37, 18], [36, 25],
     ],
-    openingRadius: 33,
+    openingRadius: 34,
     openingY: 24,
-    rimRadius: 37,
+    rimRadius: 36,
     rimTube: 2.3,
     radialSegments: 144,
     radialRibs: {count: 18, depth: 0.055},
@@ -225,10 +227,10 @@ const VASE_RENDER_DEFINITIONS: Record<string, VaseRenderDefinition> = {
       [0, -65], [26, -65], [39, -59], [46, -45], [48, -23], [45, -3],
       [37, 13], [34, 25],
     ],
-    openingRadius: 30,
+    openingRadius: 31,
     openingY: 24,
-    rimRadius: 34,
-    rimTube: 1.8,
+    rimRadius: 33,
+    rimTube: 2,
     radialSegments: 8,
     flatShading: true,
     surfaceTexture: 'hammered',
@@ -332,7 +334,7 @@ export function createBouquetVase(vaseId: string, materialId: VaseMaterialId): G
   body.renderOrder = glass ? 2 : 0;
 
   const opening = new Mesh(
-    new CylinderGeometry(definition.openingRadius * 0.94, definition.openingRadius, 2.8, radialSegments),
+    new CylinderGeometry(definition.openingRadius, definition.openingRadius, 2.8, radialSegments),
     new MeshPhysicalMaterial({
       color: surface.openingColor,
       roughness: glass ? 0.12 : Math.max(0.5, surface.roughness),
@@ -471,10 +473,10 @@ function createVaseBodyGeometry(definition: VaseRenderDefinition): BufferGeometr
 }
 
 function createVasePebbles(openingRadius: number, openingY: number): InstancedMesh {
-  const count = Math.max(50, Math.min(320, Math.round(openingRadius * openingRadius / 8)));
+  const count = Math.max(50, Math.min(320, Math.round(openingRadius * openingRadius / 6)));
   const pebbles = new InstancedMesh(
     new IcosahedronGeometry(2.8, 1),
-    new MeshStandardMaterial({color: 0x7b5136, roughness: 0.96, metalness: 0}),
+    new MeshStandardMaterial({color: PEBBLE_COLOR, roughness: 0.96, metalness: 0}),
     count,
   );
   const random = deterministicVaseRandom(Math.round(openingRadius * 1009));
