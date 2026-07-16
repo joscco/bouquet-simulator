@@ -22,6 +22,7 @@
     "@fontsource/material-icons": "^5.2.7",
     "@jsverse/transloco": "^8.4.0",
     "gsap": "^3.15.0",
+    "mediabunny": "^1.50.8",
     "rxjs": "~7.8.0",
     "three": "^0.185.1",
     "tslib": "^2.3.0"

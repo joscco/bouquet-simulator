@@ -1,3 +1,5 @@
+import {canEncodeCanvasMp4, encodeCanvasMp4} from './canvas-mp4-encoder';
+
 export interface CanvasVideoRecording {
   blob: Blob;
   extension: 'mp4' | 'webm';
@@ -13,17 +15,14 @@ export interface CanvasVideoRecordingOptions {
 }
 
 const MIME_TYPE_PREFERENCES = [
-  'video/mp4;codecs=avc1.42E01E',
-  'video/mp4',
   'video/webm;codecs=vp9',
   'video/webm;codecs=vp8',
   'video/webm',
 ] as const;
 
 export function canRecordCanvasVideo(): boolean {
-  return typeof HTMLCanvasElement !== 'undefined'
-    && typeof HTMLCanvasElement.prototype.captureStream === 'function'
-    && typeof MediaRecorder !== 'undefined';
+  if (typeof HTMLCanvasElement === 'undefined') return false;
+  return canEncodeCanvasMp4() || canRecordCanvasWithMediaRecorder();
 }
 
 export function selectCanvasVideoMimeType(
@@ -36,13 +35,20 @@ export async function recordCanvasVideo(
   canvas: HTMLCanvasElement,
   options: CanvasVideoRecordingOptions,
 ): Promise<CanvasVideoRecording> {
-  if (!canRecordCanvasVideo()) {
-    throw new Error('Dieser Browser unterstützt keine Videoaufnahme aus dem 3D-Canvas.');
-  }
   if (!Number.isInteger(options.frames) || options.frames <= 0 || options.fps <= 0) {
     throw new Error('Ungültige Einstellungen für die Videoaufnahme.');
   }
+  if (canEncodeCanvasMp4()) return encodeCanvasMp4(canvas, options);
+  if (!canRecordCanvasWithMediaRecorder()) {
+    throw new Error('Dieser Browser unterstützt keine Videoaufnahme aus dem 3D-Canvas.');
+  }
+  return recordCanvasWithMediaRecorder(canvas, options);
+}
 
+async function recordCanvasWithMediaRecorder(
+  canvas: HTMLCanvasElement,
+  options: CanvasVideoRecordingOptions,
+): Promise<CanvasVideoRecording> {
   const mimeType = selectCanvasVideoMimeType((candidate) => MediaRecorder.isTypeSupported(candidate));
   const stream = canvas.captureStream(0);
   const videoTrack = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack | undefined;
@@ -100,9 +106,14 @@ export async function recordCanvasVideo(
   const resolvedMimeType = recorder.mimeType || mimeType || 'video/webm';
   return {
     blob: new Blob(chunks, {type: resolvedMimeType}),
-    extension: resolvedMimeType.includes('mp4') ? 'mp4' : 'webm',
+    extension: 'webm',
     mimeType: resolvedMimeType,
   };
+}
+
+function canRecordCanvasWithMediaRecorder(): boolean {
+  return typeof HTMLCanvasElement.prototype.captureStream === 'function'
+    && typeof MediaRecorder !== 'undefined';
 }
 
 function wait(milliseconds: number): Promise<void> {
