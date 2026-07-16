@@ -1,4 +1,5 @@
 import {TestBed} from '@angular/core/testing';
+import {provideTestTransloco} from '../../testing/transloco-testing';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {BouquetSidePanelComponent} from './bouquet-side-panel.component';
 
@@ -50,7 +51,10 @@ describe('BouquetSidePanelComponent', () => {
 });
 
 function createFixture() {
-  TestBed.configureTestingModule({imports: [BouquetSidePanelComponent]});
+  TestBed.configureTestingModule({
+    imports: [BouquetSidePanelComponent],
+    providers: [provideTestTransloco()],
+  });
   const fixture = TestBed.createComponent(BouquetSidePanelComponent);
   const inputs = {
     menuOpen: true,

@@ -20,8 +20,7 @@ export class EditorDisclosureComponent {
   readonly badge = input('');
   readonly expanded = model(false);
 
-  syncExpandedState(event: Event): void {
-    const expanded = (event.currentTarget as HTMLDetailsElement).open;
-    if (expanded !== this.expanded()) this.expanded.set(expanded);
+  toggle(): void {
+    this.expanded.update((expanded) => !expanded);
   }
 }

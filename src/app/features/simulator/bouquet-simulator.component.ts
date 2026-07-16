@@ -28,9 +28,9 @@ import {
 import {isAvailableInBouquet} from '../../core/models/flower-catalog';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
 import {
-  BouquetFlowerListItem,
   BouquetSidePanelComponent,
 } from './bouquet-side-panel.component';
+import {BouquetFlowerListItem} from './components/bouquet-flower-list-item/bouquet-flower-list-item.component';
 import {BouquetFlowerPickerComponent} from './bouquet-flower-picker.component';
 import {BouquetProjectStorage} from './bouquet-project-storage.service';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
@@ -107,9 +107,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
         return {
           instanceId: flower.instanceId,
           name: definition?.name ?? 'Unbekannte Blume',
-          color: definition?.catalogIcon?.color ?? '#5b8d53',
           lengthPercent: Math.round((1 - (flower.cutRatio ?? 0)) * 100),
-          rotationDegrees: normalizedDegrees(flower.rotationY ?? 0),
           overlapping: overlappingIds.has(flower.instanceId),
         };
       })
@@ -189,10 +187,6 @@ export class BouquetSimulatorComponent implements OnDestroy {
 
   setFlowerLength(instanceId: string, lengthPercent: number): void {
     this.store.setFlowerCut(instanceId, (100 - lengthPercent) / 100);
-  }
-
-  setFlowerRotation(instanceId: string, rotationDegrees: number): void {
-    this.store.setFlowerRotation(instanceId, rotationDegrees * Math.PI / 180);
   }
 
   orbitBouquet(delta: {yaw: number; pitch: number}): void {
@@ -339,9 +333,4 @@ export class BouquetSimulatorComponent implements OnDestroy {
     this.zoom.set(1);
     this.viewOffset.set({x: 0, y: 0});
   }
-}
-
-function normalizedDegrees(radians: number): number {
-  const degrees = Math.round(radians * 180 / Math.PI) % 360;
-  return degrees < 0 ? degrees + 360 : degrees;
 }

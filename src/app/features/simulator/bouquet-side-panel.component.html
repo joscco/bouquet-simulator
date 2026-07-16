@@ -20,43 +20,40 @@
           <input
             class="h-6 w-full truncate border-0 bg-transparent p-0 text-sm font-semibold text-stone-800 outline-none focus:text-emerald-900"
             type="text"
-            aria-label="Straußname"
+            [attr.aria-label]="'bouquet.name' | transloco"
             [value]="activeBouquetName()"
             (change)="bouquetNameChange.emit($any($event.target).value)"
             (blur)="bouquetNameChange.emit($any($event.target).value)"
           >
-          <div class="text-[10px] text-stone-400">Ziehen: drehen · Rad/Trackpad: zoomen</div>
+          <div class="text-[10px] text-stone-400">{{ 'bouquet.interactionHint' | transloco }}</div>
         </div>
-        <button
-          class="grid size-8 shrink-0 place-items-center rounded-lg text-stone-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:pointer-events-none disabled:opacity-30"
-          type="button"
-          matTooltip="Strauß löschen"
-          aria-label="Strauß löschen"
+        <button app-button variant="icon" tone="danger"
+          [matTooltip]="'bouquet.delete' | transloco"
+          [attr.aria-label]="'bouquet.delete' | transloco"
           [disabled]="bouquets().length <= 1"
           (click)="deleteActiveBouquet()"
         >
-          <mat-icon class="text-[19px]!">delete</mat-icon>
+          <mat-icon>delete</mat-icon>
         </button>
       </div>
       <div class="mb-4 grid grid-cols-3 gap-2">
         @for (action of quickActions; track action.action) {
-          <button
-            class="flex h-10 min-w-0 items-center justify-center gap-1 rounded-lg border border-stone-200 px-1 text-[10px] font-semibold leading-4 text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+          <button app-button variant="icon-text" class="min-w-0 px-1!"
+            [tone]="action.danger ? 'danger' : 'neutral'"
             [class.bg-white]="action.action !== 'bouquetReset' || !resetConfirmationPending()"
             [class.border-rose-200]="action.danger"
             [class.text-rose-700]="action.danger"
             [class.bg-rose-100]="action.action === 'bouquetReset' && resetConfirmationPending()"
             [class.border-rose-400]="action.action === 'bouquetReset' && resetConfirmationPending()"
-            type="button"
-            [matTooltip]="action.action === 'bouquetReset' && resetConfirmationPending() ? 'Erneut klicken, um wirklich alles zurückzusetzen' : action.tooltip"
+            [matTooltip]="action.action === 'bouquetReset' && resetConfirmationPending() ? ('bouquet.resetConfirmHint' | transloco) : (action.tooltipKey | transloco)"
             [attr.aria-label]="action.action === 'bouquetReset' && resetConfirmationPending()
-              ? 'Bestätigen: Strauß vollständig zurücksetzen'
-              : action.label + ': ' + action.tooltip"
+              ? ('bouquet.resetConfirmLabel' | transloco)
+              : (action.labelKey | transloco) + ': ' + (action.tooltipKey | transloco)"
             (click)="emitQuickAction(action.action)"
           >
-            <mat-icon class="shrink-0 text-[18px]!">{{ action.icon }}</mat-icon>
+            <mat-icon>{{ action.icon }}</mat-icon>
             <span class="min-w-0 truncate">
-              {{ action.action === 'bouquetReset' && resetConfirmationPending() ? 'Bestätigen' : action.label }}
+              {{ action.action === 'bouquetReset' && resetConfirmationPending() ? ('common.confirm' | transloco) : (action.labelKey | transloco) }}
             </span>
           </button>
         }
@@ -69,30 +66,26 @@
         >
           <mat-icon class="shrink-0 text-[17px]! text-amber-700">warning</mat-icon>
           <span class="min-w-0 flex-1 font-semibold leading-4">
-            {{ overlapCount() }} {{ overlapCount() === 1 ? 'Blume überlappt' : 'Blumen überlappen' }}
+            {{ overlapCount() }} {{ (overlapCount() === 1 ? 'bouquet.overlapOne' : 'bouquet.overlapMany') | transloco }}
           </span>
-          <button
-            class="shrink-0 rounded-md bg-amber-200 px-2 py-1 font-bold transition hover:bg-amber-300"
-            type="button"
+          <button app-button variant="text" class="shrink-0"
             (click)="overlapCorrection.emit()"
           >
-            Entflechten
+            {{ 'bouquet.untangle' | transloco }}
           </button>
         </div>
       }
 
       <div class="border-t border-stone-200/70 pt-3">
         <div class="mb-2 flex items-center justify-start gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Verwendete Blumen</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-stone-500">{{ 'bouquet.usedFlowers' | transloco }}</span>
           <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
             {{ flowers().length }}
           </span>
           <span class="flex-1"></span>
-          <button
-            class="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-950 text-white transition hover:bg-emerald-800"
-            type="button"
-            matTooltip="Blume hinzufügen"
-            aria-label="Blume hinzufügen"
+          <button app-button variant="icon" tone="primary"
+            [matTooltip]="'bouquet.addFlower' | transloco"
+            [attr.aria-label]="'bouquet.addFlower' | transloco"
             (click)="pickerOpen.emit()"
           >
             <mat-icon>add</mat-icon>
@@ -100,115 +93,34 @@
         </div>
         <div class="space-y-2 pr-1">
           @for (flower of flowers(); track flower.instanceId) {
-            <section
-              class="grid min-h-[98px] grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 rounded-lg border bg-white/80 p-2 shadow-sm transition"
-              [class.border-amber-400]="flower.overlapping"
-              [class.bg-amber-50]="flower.overlapping"
-              [class.border-emerald-400]="selectedId() === flower.instanceId && !flower.overlapping"
-              [class.bg-emerald-50]="selectedId() === flower.instanceId && !flower.overlapping"
-              [class.border-stone-200]="selectedId() !== flower.instanceId && !flower.overlapping"
-            >
-              <div class="flex min-w-0 items-center gap-2 self-center">
-                <span
-                  class="size-2.5 shrink-0 rounded-full border border-black/10 shadow-sm"
-                  [style.background]="flower.color"
-                  aria-hidden="true"
-                ></span>
-                <button
-                  class="min-w-0 truncate text-left text-xs font-bold text-stone-800"
-                  type="button"
-                  (click)="selectionChange.emit(flower.instanceId)"
-                >
-                  {{ flower.name }}
-                </button>
-                @if (flower.overlapping) {
-                  <mat-icon
-                    class="shrink-0 text-[16px]! text-amber-700"
-                    matTooltip="Starke Überschneidung der Blütenkrone"
-                    aria-label="Starke Überschneidung der Blütenkrone"
-                  >warning</mat-icon>
-                }
-              </div>
-              <div class="flex items-center justify-end gap-0.5">
-                @for (action of flowerActions; track action.action) {
-                  <button
-                    class="grid size-7 shrink-0 place-items-center rounded-md text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
-                    [class.bg-rose-50]="action.danger"
-                    [class.text-rose-700]="action.danger"
-                    type="button"
-                    [matTooltip]="action.tooltip"
-                    [attr.aria-label]="flower.name + ' ' + action.ariaVerb"
-                    (click)="emitFlowerAction(action.action, flower.instanceId)"
-                  >
-                    <mat-icon class="text-[18px]!">{{ action.icon }}</mat-icon>
-                  </button>
-                }
-              </div>
-              <div class="col-span-2 min-w-0">
-                <div class="flex h-4 items-center justify-between gap-2 text-[9px] font-semibold text-stone-500">
-                  <span>Blumenlänge</span>
-                  <output class="shrink-0 text-right tabular-nums">
-                    {{ flower.lengthPercent }}%
-                  </output>
-                </div>
-                <mat-slider class="-my-2 w-full min-w-0" min="2" max="100" step="1">
-                  <input
-                    matSliderThumb
-                    [value]="flower.lengthPercent"
-                    [attr.aria-label]="'Blumenlänge von ' + flower.name"
-                    (input)="lengthChange.emit({instanceId: flower.instanceId, lengthPercent: +$any($event.target).value})"
-                  >
-                </mat-slider>
-              </div>
-            </section>
+            <app-bouquet-flower-list-item
+              [flower]="flower"
+              [selected]="selectedId() === flower.instanceId"
+              (selectionChange)="selectionChange.emit($event)"
+              (lengthChange)="lengthChange.emit($event)"
+              (flowerCopy)="flowerCopy.emit($event)"
+              (flowerRemove)="flowerRemove.emit($event)"
+            />
           } @empty {
             <div class="rounded-xl border border-dashed border-stone-300 px-3 py-5 text-center text-[10px] text-stone-400">
-              Noch keine Blumen im Strauß.
+              {{ 'bouquet.noFlowers' | transloco }}
             </div>
           }
         </div>
       </div>
 
-      <section class="mt-3 h-[104px] overflow-hidden rounded-xl border border-stone-200 bg-white/70 p-3 shadow-sm">
-        <div class="mb-2 flex h-4 min-w-0 items-center gap-2">
-          <span class="shrink-0 text-[9px] font-bold uppercase tracking-wider text-stone-500">
-            Ausgewählte Blume
-          </span>
-          @if (selectedFlower(); as flower) {
-            <span class="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-stone-700">
-              {{ flower.name }}
-            </span>
-          }
-        </div>
-        @if (selectedFlower(); as flower) {
-          <app-numeric-slider
-            label="Eigendrehung"
-            unit="°"
-            [value]="flower.rotationDegrees"
-            [minimum]="0"
-            [maximum]="359"
-            (valueChange)="flowerRotationChange.emit({instanceId: flower.instanceId, rotationDegrees: $event})"
-          />
-        } @else {
-          <div class="grid h-[53px] place-items-center rounded-lg border border-dashed border-stone-200 text-[10px] text-stone-400">
-            Blume auswählen, um ihre Drehung anzupassen
-          </div>
-        }
-      </section>
-
       <div class="mt-3 grid grid-cols-[auto_minmax(0,1fr)_42px] items-center gap-3 rounded-xl border border-stone-200 bg-white/70 px-3 py-2 shadow-sm">
         <label for="rotation" class="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-          Straußdrehung
+          {{ 'bouquet.rotation' | transloco }}
         </label>
-        <mat-slider class="min-w-0 w-full" min="0" max="360" step="1" discrete>
-          <input
-            id="rotation"
-            matSliderThumb
-            aria-label="Straußdrehung"
-            [value]="rotationDegrees()"
-            (input)="rotationChange.emit(+$any($event.target).value)"
-          >
-        </mat-slider>
+        <app-slider-track
+          inputId="rotation"
+          [ariaLabel]="'bouquet.rotation' | transloco"
+          [minimum]="0"
+          [maximum]="360"
+          [value]="rotationDegrees()"
+          (valueChange)="rotationChange.emit($event)"
+        />
         <output class="text-right text-xs font-semibold tabular-nums text-stone-600">
           {{ rotationDegrees() }}°
         </output>
@@ -216,13 +128,13 @@
 
       <div class="mt-3 space-y-2 pb-1">
         <app-editor-disclosure
-          title="Vase"
-          description="Form und Material"
+          [title]="'sections.vase' | transloco"
+          [description]="'sections.vaseDescription' | transloco"
           icon="local_drink"
           [expanded]="expandedDisclosure() === 'vase'"
           (expandedChange)="setDisclosureExpanded('vase', $event)"
         >
-          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Vasenform</div>
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.vaseShape' | transloco }}</div>
           <div class="grid grid-cols-3 gap-1.5">
             @for (vase of vaseOptions(); track vase.id) {
               <button
@@ -234,18 +146,18 @@
                 [class.bg-white]="activeVaseId() !== vase.id"
                 [class.text-stone-500]="activeVaseId() !== vase.id"
                 type="button"
-                [matTooltip]="vase.name"
-                [attr.aria-label]="'Vase ' + vase.name + ' auswählen'"
+                [matTooltip]="('options.vases.' + vase.id) | transloco"
+                [attr.aria-label]="('sections.vase' | transloco) + ': ' + (('options.vases.' + vase.id) | transloco)"
                 [attr.aria-pressed]="activeVaseId() === vase.id"
                 (click)="vaseChange.emit(vase.id)"
               >
                 <mat-icon class="text-[19px]!">{{ vase.symbol }}</mat-icon>
-                <span class="max-w-full truncate text-[8px] leading-none">{{ vase.name }}</span>
+                <span class="max-w-full truncate text-[8px] leading-none">{{ ('options.vases.' + vase.id) | transloco }}</span>
               </button>
             }
           </div>
 
-          <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">Material</div>
+          <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.material' | transloco }}</div>
           <div class="grid grid-cols-4 gap-1.5">
             @for (material of vaseMaterialOptions(); track material.id) {
               <button
@@ -257,8 +169,8 @@
                 [class.bg-white]="activeVaseMaterialId() !== material.id"
                 [class.text-stone-500]="activeVaseMaterialId() !== material.id"
                 type="button"
-                [matTooltip]="material.name"
-                [attr.aria-label]="'Vasenmaterial ' + material.name + ' auswählen'"
+                [matTooltip]="('options.materials.' + material.id) | transloco"
+                [attr.aria-label]="('sections.material' | transloco) + ': ' + (('options.materials.' + material.id) | transloco)"
                 [attr.aria-pressed]="activeVaseMaterialId() === material.id"
                 (click)="vaseMaterialChange.emit(material.id)"
               >
@@ -266,20 +178,20 @@
                   class="size-5 rounded-full border border-black/10 shadow-inner"
                   [style.background]="material.swatch"
                 ></span>
-                <span class="max-w-full truncate">{{ material.name }}</span>
+                <span class="max-w-full truncate">{{ ('options.materials.' + material.id) | transloco }}</span>
               </button>
             }
           </div>
         </app-editor-disclosure>
 
         <app-editor-disclosure
-          title="Szene & Licht"
-          description="Hintergrund und Atmosphäre"
+          [title]="'sections.scene' | transloco"
+          [description]="'sections.sceneDescription' | transloco"
           icon="light_mode"
           [expanded]="expandedDisclosure() === 'scene'"
           (expandedChange)="setDisclosureExpanded('scene', $event)"
         >
-          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Hintergrund</div>
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.background' | transloco }}</div>
           <div class="grid grid-cols-2 gap-1.5">
             @for (background of backgroundOptions; track background.id) {
               <button
@@ -295,13 +207,13 @@
                 (click)="backgroundModeChange.emit(background.id)"
               >
                 <mat-icon class="text-[17px]!">{{ background.symbol }}</mat-icon>
-                {{ background.name }}
+                {{ ('options.backgrounds.' + background.id) | transloco }}
               </button>
             }
           </div>
 
           <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">
-            Licht & Atmosphäre
+            {{ 'sections.atmosphere' | transloco }}
           </div>
           <div class="grid grid-cols-3 gap-1.5">
             @for (effect of sceneEffectOptions; track effect.id) {
@@ -318,20 +230,20 @@
                 (click)="sceneEffectChange.emit({effectId: effect.id, enabled: !sceneEffects()[effect.id]})"
               >
                 <mat-icon class="text-[18px]!">{{ effect.symbol }}</mat-icon>
-                <span class="max-w-full truncate">{{ effect.name }}</span>
+                <span class="max-w-full truncate">{{ ('options.effects.' + effect.id) | transloco }}</span>
               </button>
             }
           </div>
         </app-editor-disclosure>
 
         <app-editor-disclosure
-          title="Video & Dateien"
-          description="Aufnehmen, laden und speichern"
+          [title]="'sections.files' | transloco"
+          [description]="'sections.filesDescription' | transloco"
           icon="ios_share"
           [expanded]="expandedDisclosure() === 'files'"
           (expandedChange)="setDisclosureExpanded('files', $event)"
         >
-          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">Videoformat</div>
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.videoFormat' | transloco }}</div>
           <div class="grid grid-cols-3 gap-1.5">
             @for (format of videoFormatOptions; track format.id) {
               <button
@@ -343,7 +255,7 @@
                 [class.bg-white]="videoFormat().id !== format.id"
                 [class.text-stone-500]="videoFormat().id !== format.id"
                 type="button"
-                [attr.aria-label]="format.name + ' ' + format.width + ' mal ' + format.height"
+                [attr.aria-label]="(('options.formats.' + format.id) | transloco) + ' ' + format.width + ' × ' + format.height"
                 [attr.aria-pressed]="videoFormat().id === format.id"
                 (click)="videoFormatChange.emit(format.id)"
               >
@@ -365,11 +277,10 @@
             }
           </div>
 
-          <button
-            class="relative mt-2 flex h-10 w-full min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg border border-teal-800 bg-teal-700 px-3 text-xs font-bold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-200 disabled:text-stone-500"
-            type="button"
+          <button app-button variant="icon-text" tone="primary"
+            class="relative mt-2 w-full min-w-0 overflow-hidden"
             [disabled]="videoExporting() || !videoExportSupported() || flowers().length === 0"
-            [matTooltip]="!videoExportSupported() ? 'Dieser Browser unterstützt keine Canvas-Videoaufnahme' : flowers().length === 0 ? 'Füge zuerst Blumen hinzu' : 'Sechs Sekunden als nahtloses ' + videoFormat().width + '×' + videoFormat().height + '-Loop aufnehmen'"
+            [matTooltip]="!videoExportSupported() ? ('files.unsupported' | transloco) : flowers().length === 0 ? ('files.addFlowersFirst' | transloco) : ''"
             (click)="videoExport.emit()"
           >
             @if (videoExporting()) {
@@ -377,32 +288,39 @@
                 class="absolute inset-y-0 left-0 bg-teal-500/45 transition-[width] duration-100"
                 [style.width.%]="videoExportProgress()"
               ></span>
-              <mat-icon class="relative text-[19px]!">videocam</mat-icon>
-              <span class="relative truncate">Loop wird aufgenommen · {{ videoExportProgress() }}%</span>
+              <mat-icon class="relative">videocam</mat-icon>
+              <span class="relative truncate">{{ 'files.recording' | transloco: {progress: videoExportProgress()} }}</span>
             } @else {
-              <mat-icon class="text-[19px]!">video_file</mat-icon>
-              <span class="truncate">Loop-Video exportieren</span>
+              <mat-icon>video_file</mat-icon>
+              <span class="truncate">{{ 'files.exportVideo' | transloco }}</span>
             }
           </button>
 
           <div class="mb-2 mt-4 border-t border-stone-200 pt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">
-            Projektdatei
+            {{ 'sections.projectFile' | transloco }}
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <label
-              class="flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-[10px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
+            <input
+              #projectFile
+              class="sr-only"
+              type="file"
+              accept="application/json,.json"
+              (change)="projectImport.emit($event)"
             >
-              <mat-icon class="shrink-0 text-[18px]!">upload</mat-icon>
-              <span class="min-w-0 truncate">Projekt laden</span>
-              <input class="sr-only" type="file" accept="application/json,.json" (change)="projectImport.emit($event)">
-            </label>
             <button
-              class="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2 text-[10px] font-semibold text-stone-700 shadow-sm transition hover:border-stone-300 hover:bg-stone-50"
-              type="button"
+              app-button
+              variant="icon-text"
+              class="min-w-0"
+              (click)="projectFile.click()"
+            >
+              <mat-icon>upload</mat-icon>
+              <span class="min-w-0 truncate">{{ 'files.loadProject' | transloco }}</span>
+            </button>
+            <button app-button variant="icon-text" class="min-w-0"
               (click)="projectExport.emit()"
             >
-              <mat-icon class="shrink-0 text-[18px]!">download</mat-icon>
-              <span class="min-w-0 truncate">Projekt speichern</span>
+              <mat-icon>download</mat-icon>
+              <span class="min-w-0 truncate">{{ 'files.saveProject' | transloco }}</span>
             </button>
           </div>
         </app-editor-disclosure>
@@ -411,11 +329,9 @@
   </section>
 
   <nav class="pointer-events-auto relative z-10 flex h-full w-16 flex-col items-center border-r border-white/70 bg-white/82 px-2 py-3 shadow-2xl shadow-stone-900/10 backdrop-blur-xl">
-    <button
-      class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
-      type="button"
-      [matTooltip]="menuOpen() ? 'Menü schließen' : 'Menü öffnen'"
-      [attr.aria-label]="menuOpen() ? 'Menü schließen' : 'Menü öffnen'"
+    <button app-button variant="icon"
+      [matTooltip]="(menuOpen() ? 'bouquet.menuClose' : 'bouquet.menuOpen') | transloco"
+      [attr.aria-label]="(menuOpen() ? 'bouquet.menuClose' : 'bouquet.menuOpen') | transloco"
       [attr.aria-expanded]="menuOpen()"
       (click)="menuToggle.emit()"
     >
@@ -445,10 +361,8 @@
         </button>
       }
       @if (canAddBouquet()) {
-        <button
-          class="grid h-9 w-9 place-items-center rounded-lg border border-dashed border-stone-300 text-stone-500 transition hover:border-emerald-700 hover:bg-emerald-50 hover:text-emerald-900"
-          type="button"
-          aria-label="Neuen Strauß anlegen"
+        <button app-button variant="icon"
+          [attr.aria-label]="'bouquet.new' | transloco"
           (click)="bouquetAdd.emit()"
         >
           <mat-icon>add</mat-icon>

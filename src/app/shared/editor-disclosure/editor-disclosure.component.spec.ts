@@ -3,24 +3,24 @@ import {describe, expect, it} from 'vitest';
 import {EditorDisclosureComponent} from './editor-disclosure.component';
 
 describe('EditorDisclosureComponent', () => {
-  it('keeps its model and native disclosure state in sync', async () => {
+  it('toggles its model and accessible disclosure state', async () => {
     await TestBed.configureTestingModule({imports: [EditorDisclosureComponent]}).compileComponents();
     const fixture = TestBed.createComponent(EditorDisclosureComponent);
     fixture.componentRef.setInput('title', 'Szene & Licht');
     fixture.detectChanges();
 
-    const details = fixture.nativeElement.querySelector('details') as HTMLDetailsElement;
-    expect(details.open).toBe(false);
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.getAttribute('aria-expanded')).toBe('false');
 
-    details.open = true;
-    details.dispatchEvent(new Event('toggle'));
+    button.click();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.expanded()).toBe(true);
-    expect(details.textContent).toContain('Szene & Licht');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.nativeElement.textContent).toContain('Szene & Licht');
 
     fixture.componentInstance.expanded.set(false);
     fixture.detectChanges();
-    expect(details.open).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
   });
 });

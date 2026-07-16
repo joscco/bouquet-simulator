@@ -1,8 +1,10 @@
 import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
 import {clamp} from '../../core/utils/numbers';
+import {SliderTrackComponent} from '../slider-track/slider-track.component';
 
 @Component({
   selector: 'app-numeric-slider',
+  imports: [SliderTrackComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': '@container block w-full min-w-0'},
   templateUrl: './numeric-slider.component.html',

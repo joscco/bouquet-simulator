@@ -25,6 +25,8 @@ import {IntervalSliderComponent} from '../../../../shared/interval-slider/interv
 import {NumericFieldComponent} from '../../../../shared/numeric-field/numeric-field.component';
 import {NumericSliderComponent} from '../../../../shared/numeric-slider/numeric-slider.component';
 import {EditorDisclosureComponent} from '../../../../shared/editor-disclosure/editor-disclosure.component';
+import {TranslocoPipe} from '@jsverse/transloco';
+import {AppButtonComponent} from '../../../../shared/app-button/app-button.component';
 import {definitionOutputNodeIds} from '../../domain/flower-editor-definition';
 import {Point, createGraphLayout} from '../../graph/flower-editor-graph';
 import {loopOutputNodeIds, pruneDisconnectedLoopMembers} from '../../domain/flower-editor-loops';
@@ -66,6 +68,7 @@ import {
 @Component({
   selector: 'app-flower-editor-inspector',
   imports: [
+    AppButtonComponent,
     FormsModule,
     MatIconModule,
     MatTooltipModule,
@@ -73,6 +76,7 @@ import {
     NumericFieldComponent,
     NumericSliderComponent,
     EditorDisclosureComponent,
+    TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-inspector.component.html',

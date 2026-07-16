@@ -7,14 +7,15 @@ import {
   output,
   signal,
 } from '@angular/core';
-import {MatSliderModule} from '@angular/material/slider';
 import {NumberRange} from '../../core/models/flower.models';
 import {clamp, roundToStep} from '../../core/utils/numbers';
-import {expandedRange, sortedRange} from './number-range';
+import {boundedRange, expandedRange, sortedRange} from './number-range';
+import {SliderHandle, SliderTrackComponent} from '../slider-track/slider-track.component';
+import {TranslocoPipe} from '@jsverse/transloco';
 
 @Component({
   selector: 'app-interval-slider',
-  imports: [MatSliderModule],
+  imports: [SliderTrackComponent, TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': '@container block w-full min-w-0'},
   templateUrl: './interval-slider.component.html',
@@ -40,19 +41,24 @@ export class IntervalSliderComponent {
     effect(() => {
       const value = this.value();
       if (this.activeHandle) return;
-      this.firstHandle.set(value.min);
-      this.secondHandle.set(value.max);
+      const bounded = boundedRange(value, this.minimum(), this.maximum());
+      this.firstHandle.set(bounded.min);
+      this.secondHandle.set(bounded.max);
     });
   }
 
   setFirst(value: number): void {
-    this.firstHandle.set(value);
-    this.valueChange.emit(this.sortedValue());
+    if (!Number.isFinite(value)) return;
+    const minimum = clamp(value, this.minimum(), this.secondHandle());
+    this.firstHandle.set(minimum);
+    this.valueChange.emit({min: minimum, max: this.secondHandle()});
   }
 
   setSecond(value: number): void {
-    this.secondHandle.set(value);
-    this.valueChange.emit(this.sortedValue());
+    if (!Number.isFinite(value)) return;
+    const maximum = clamp(value, this.firstHandle(), this.maximum());
+    this.secondHandle.set(maximum);
+    this.valueChange.emit({min: this.firstHandle(), max: maximum});
   }
 
   setFixed(value: number): void {
@@ -97,7 +103,7 @@ export class IntervalSliderComponent {
     this.valueChange.emit(this.sortedValue());
   }
 
-  startDrag(handle: 'first' | 'second'): void {
+  startDrag(handle: SliderHandle): void {
     this.activeHandle = handle;
   }
 

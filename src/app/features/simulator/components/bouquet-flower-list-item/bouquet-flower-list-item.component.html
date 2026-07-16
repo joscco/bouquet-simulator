@@ -1,0 +1,55 @@
+<section
+  class="grid min-h-12 grid-cols-[minmax(68px,0.75fr)_minmax(72px,1fr)_34px_auto] items-center gap-1.5 rounded-lg border bg-white/80 px-2 py-1 shadow-sm transition"
+  [class.border-amber-400]="flower().overlapping"
+  [class.bg-amber-50]="flower().overlapping"
+  [class.border-emerald-400]="selected() && !flower().overlapping"
+  [class.bg-emerald-50]="selected() && !flower().overlapping"
+  [class.border-stone-200]="!selected() && !flower().overlapping"
+>
+  <div class="flex min-w-0 items-center gap-1.5">
+    <button
+      class="min-w-0 flex-1 truncate text-left text-[11px] font-bold text-stone-800"
+      type="button"
+      [matTooltip]="flower().name"
+      (click)="selectionChange.emit(flower().instanceId)"
+    >
+      {{ flower().name }}
+    </button>
+    @if (flower().overlapping) {
+      <mat-icon
+        class="shrink-0 text-[16px]! text-amber-700"
+        [matTooltip]="'flowerItem.overlap' | transloco"
+        [attr.aria-label]="'flowerItem.overlap' | transloco"
+      >warning</mat-icon>
+    }
+  </div>
+
+  <div class="min-w-0" [matTooltip]="'flowerItem.length' | transloco">
+    <app-slider-track
+      [minimum]="2"
+      [maximum]="100"
+      [value]="flower().lengthPercent"
+      [ariaLabel]="('flowerItem.length' | transloco) + ': ' + flower().name"
+      (valueChange)="lengthChange.emit({instanceId: flower().instanceId, lengthPercent: $event})"
+    />
+  </div>
+
+  <output class="text-right text-[10px] font-semibold tabular-nums text-stone-500">
+    {{ flower().lengthPercent }}%
+  </output>
+
+  <div class="flex items-center justify-end gap-0.5">
+    @for (action of actions; track action.action) {
+      <button
+        app-button
+        variant="icon"
+        [tone]="action.danger ? 'danger' : 'neutral'"
+        [matTooltip]="action.tooltipKey | transloco"
+        [attr.aria-label]="flower().name + ' ' + (action.ariaVerbKey | transloco)"
+        (click)="emitAction(action.action)"
+      >
+        <mat-icon>{{ action.icon }}</mat-icon>
+      </button>
+    }
+  </div>
+</section>

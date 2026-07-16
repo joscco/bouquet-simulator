@@ -8,11 +8,9 @@ import {
   signal,
 } from '@angular/core';
 import {MatIconModule} from '@angular/material/icon';
-import {MatSliderModule} from '@angular/material/slider';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {BouquetSummary} from '../../core/state/bouquet.store';
 import {VaseMaterialId, VaseMaterialOption, VaseOption} from '../../core/data/vases';
-import {NumericSliderComponent} from '../../shared/numeric-slider/numeric-slider.component';
 import {
   BouquetBackgroundMode,
   BouquetSceneEffectId,
@@ -28,28 +26,27 @@ import {
   BouquetVideoFormatId,
 } from './domain/bouquet-video-format';
 import {EditorDisclosureComponent} from '../../shared/editor-disclosure/editor-disclosure.component';
+import {SliderTrackComponent} from '../../shared/slider-track/slider-track.component';
+import {AppButtonComponent} from '../../shared/app-button/app-button.component';
+import {TranslocoPipe} from '@jsverse/transloco';
+import {
+  BouquetFlowerListItem,
+  BouquetFlowerListItemComponent,
+} from './components/bouquet-flower-list-item/bouquet-flower-list-item.component';
 
 type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
-type FlowerAction = 'copy' | 'remove';
 type DisclosureSection = 'vase' | 'scene' | 'files';
-
-export interface BouquetFlowerListItem {
-  instanceId: string;
-  name: string;
-  color: string;
-  lengthPercent: number;
-  rotationDegrees: number;
-  overlapping: boolean;
-}
 
 @Component({
   selector: 'app-bouquet-side-panel',
   imports: [
     MatIconModule,
-    MatSliderModule,
     MatTooltipModule,
-    NumericSliderComponent,
     EditorDisclosureComponent,
+    SliderTrackComponent,
+    AppButtonComponent,
+    BouquetFlowerListItemComponent,
+    TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-side-panel.component.html',
@@ -61,30 +58,19 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly quickActions: ReadonlyArray<{
     action: QuickAction;
     icon: string;
-    label: string;
-    tooltip: string;
+    labelKey: string;
+    tooltipKey: string;
     danger?: boolean;
   }> = [
-    {action: 'shuffle', icon: 'shuffle', label: 'Mischen', tooltip: 'Blumen neu anordnen'},
-    {action: 'viewReset', icon: 'center_focus_strong', label: 'Ansicht', tooltip: 'Kameraansicht zentrieren'},
+    {action: 'shuffle', icon: 'shuffle', labelKey: 'bouquet.shuffle', tooltipKey: 'bouquet.shuffleHint'},
+    {action: 'viewReset', icon: 'center_focus_strong', labelKey: 'bouquet.view', tooltipKey: 'bouquet.viewHint'},
     {
       action: 'bouquetReset',
       icon: 'delete_sweep',
-      label: 'Reset',
-      tooltip: 'Strauß, Vase und Szene auf Ausgangswerte zurücksetzen',
+      labelKey: 'bouquet.reset',
+      tooltipKey: 'bouquet.resetHint',
       danger: true,
     },
-  ];
-
-  readonly flowerActions: ReadonlyArray<{
-    action: FlowerAction;
-    icon: string;
-    tooltip: string;
-    ariaVerb: string;
-    danger?: boolean;
-  }> = [
-    {action: 'copy', icon: 'add_circle', tooltip: 'Blume kopieren', ariaVerb: 'kopieren'},
-    {action: 'remove', icon: 'delete', tooltip: 'Blume löschen', ariaVerb: 'löschen', danger: true},
   ];
 
   readonly menuOpen = input.required<boolean>();
@@ -107,10 +93,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly sceneEffects = input.required<BouquetSceneEffects>();
   readonly videoFormat = input.required<BouquetVideoFormat>();
 
-  readonly selectedFlower = computed(() => {
-    const selectedId = this.selectedId();
-    return this.flowers().find((flower) => flower.instanceId === selectedId) ?? null;
-  });
   readonly expandedDisclosure = signal<DisclosureSection | null>(null);
   private readonly resetConfirmationBouquetId = signal<string | null>(null);
   readonly resetConfirmationPending = computed(() =>
@@ -122,7 +104,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly bouquetReset = output<void>();
   readonly selectionChange = output<string>();
   readonly lengthChange = output<{instanceId: string; lengthPercent: number}>();
-  readonly flowerRotationChange = output<{instanceId: string; rotationDegrees: number}>();
   readonly overlapCorrection = output<void>();
   readonly flowerCopy = output<string>();
   readonly flowerRemove = output<string>();
@@ -183,17 +164,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
         this.resetConfirmationTimer = null;
         this.resetConfirmationBouquetId.set(null);
         this.bouquetReset.emit();
-        return;
-    }
-  }
-
-  emitFlowerAction(action: FlowerAction, instanceId: string): void {
-    switch (action) {
-      case 'copy':
-        this.flowerCopy.emit(instanceId);
-        return;
-      case 'remove':
-        this.flowerRemove.emit(instanceId);
         return;
     }
   }

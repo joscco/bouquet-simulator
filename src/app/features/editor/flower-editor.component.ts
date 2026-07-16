@@ -43,6 +43,8 @@ import {
   materializePositions,
 } from './graph/flower-editor-graph';
 import {ViewSwitcherComponent} from '../../shared/view-switcher.component';
+import {AppButtonComponent} from '../../shared/app-button/app-button.component';
+import {TranslocoPipe} from '@jsverse/transloco';
 import {createFlowerLoop} from './domain/flower-editor-loop-creation';
 import {
   FlowerEditorTreeComponent,
@@ -74,6 +76,8 @@ type FlowerEditorWorkspaceTab = 'graph' | 'preview' | 'inspector';
 @Component({
   selector: 'app-flower-editor',
   imports: [
+    AppButtonComponent,
+    TranslocoPipe,
     FormsModule,
     MatIconModule,
     MatSnackBarModule,
@@ -99,6 +103,8 @@ export class FlowerEditorComponent {
     migrateIncomingConnections(this.store.definitions()[0]),
   );
   readonly selectedCatalogKey = signal(`definition:${this.draft().id}`);
+  readonly catalogSearch = signal(this.draft().name);
+  readonly catalogSearchOpen = signal(false);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
   readonly componentSearch = signal('');
@@ -113,6 +119,13 @@ export class FlowerEditorComponent {
     this.catalogEntries().filter((entry) => entry.availableAsComponent));
   readonly selectedCatalogEntry = computed(() =>
     this.catalogEntries().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
+  readonly filteredCatalogEntries = computed(() => {
+    const query = normalizeSearch(this.catalogSearch());
+    if (!query) return this.catalogEntries().slice(0, 8);
+    return this.catalogEntries()
+      .filter((entry) => normalizeSearch(entry.tree.name).includes(query))
+      .slice(0, 8);
+  });
   readonly canDeleteSelectedCatalogEntry = computed(() => {
     const entry = this.selectedCatalogEntry();
     return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
@@ -396,6 +409,12 @@ export class FlowerEditorComponent {
     this.loadDefinition(this.definitionFromComponent(entry.tree, 'component'), key);
   }
 
+  chooseCatalogEntry(entry: FlowerComponentCatalogEntry): void {
+    this.selectCatalogEntry(entry.key);
+    this.catalogSearch.set(entry.tree.name);
+    this.catalogSearchOpen.set(false);
+  }
+
   downloadSavedTree(tree: FlowerSubtreeDefinition): void {
     downloadJson(tree, `${tree.id}.tree.json`);
   }
@@ -524,6 +543,7 @@ export class FlowerEditorComponent {
     const clone = normalizeFlowerDefinitionForEditor(definition);
     this.draft.set(clone);
     this.selectedCatalogKey.set(catalogKey);
+    this.catalogSearch.set(clone.name);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());

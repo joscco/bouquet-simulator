@@ -1,5 +1,8 @@
+import {TestBed} from '@angular/core/testing';
 import {describe, expect, it} from 'vitest';
-import {expandedRange, rangePercentage, sortedRange} from './number-range';
+import {IntervalSliderComponent} from './interval-slider.component';
+import {provideTestTransloco} from '../../testing/transloco-testing';
+import {boundedRange, expandedRange, rangePercentage, sortedRange} from './number-range';
 
 describe('interval slider value mapping', () => {
   it('uses the complete track for the complete configured interval', () => {
@@ -17,6 +20,10 @@ describe('interval slider value mapping', () => {
     expect(rangePercentage(-40, 0, 100)).toBe(0);
     expect(rangePercentage(140, 0, 100)).toBe(100);
   });
+
+  it('orders and bounds externally supplied handle values', () => {
+    expect(boundedRange({min: 140, max: -40}, 0, 100)).toEqual({min: 0, max: 100});
+  });
 });
 
 describe('interval slider modes', () => {
@@ -26,5 +33,31 @@ describe('interval slider modes', () => {
 
   it('keeps an expanded range inside its configured limits', () => {
     expect(expandedRange(0, 0, 10, 1)).toEqual({min: 0, max: 1});
+  });
+});
+
+describe('IntervalSliderComponent', () => {
+  it('keeps Material start and end thumbs ordered while dragging', () => {
+    TestBed.configureTestingModule({
+      imports: [IntervalSliderComponent],
+      providers: [provideTestTransloco()],
+    });
+    const fixture = TestBed.createComponent(IntervalSliderComponent);
+    fixture.componentRef.setInput('label', 'Länge');
+    fixture.componentRef.setInput('value', {min: 20, max: 60});
+    fixture.componentRef.setInput('minimum', 0);
+    fixture.componentRef.setInput('maximum', 100);
+    fixture.detectChanges();
+    const changes: Array<{min: number; max: number}> = [];
+    fixture.componentInstance.valueChange.subscribe((value) => changes.push(value));
+
+    fixture.componentInstance.setFirst(90);
+    fixture.componentInstance.setSecond(10);
+
+    expect(changes).toEqual([
+      {min: 60, max: 60},
+      {min: 60, max: 60},
+    ]);
+    fixture.destroy();
   });
 });

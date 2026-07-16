@@ -6,10 +6,12 @@ import {materializeDefinitionComponents} from '../../../../core/models/flower-co
 import {BouquetCanvasComponent} from '../../../../shared/bouquet-canvas/bouquet-canvas.component';
 import {Point} from '../../graph/flower-editor-graph';
 import {clamp} from '../../../../core/utils/numbers';
+import {AppButtonComponent} from '../../../../shared/app-button/app-button.component';
+import {TranslocoPipe} from '@jsverse/transloco';
 
 @Component({
   selector: 'app-flower-editor-preview',
-  imports: [BouquetCanvasComponent, MatIconModule, MatTooltipModule],
+  imports: [BouquetCanvasComponent, MatIconModule, MatTooltipModule, AppButtonComponent, TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-preview.component.html',
   host: {'class': 'contents'},

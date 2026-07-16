@@ -1,55 +1,7 @@
-<section class="relative flex h-dvh min-h-0 w-full max-w-full flex-col overflow-hidden bg-stone-100">
+<section class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text">
   <app-view-switcher activeView="components" />
 
-  <header class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-stone-200 bg-white px-4 pb-3 pt-16 sm:px-6 xl:py-3 xl:pl-6 xl:pr-48">
-    <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm w-full max-w-full flex-wrap min-[480px]:flex-nowrap sm:w-auto">
-      <select
-        class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 w-full flex-[1_0_100%] min-[480px]:w-0 min-[480px]:flex-[1_1_auto] sm:w-[280px] sm:flex-[0_1_280px] border-0! bg-stone-50!"
-        [ngModel]="selectedCatalogKey()"
-        aria-label="Komponente oder Blume"
-        (ngModelChange)="selectCatalogEntry($event)"
-      >
-        @for (entry of catalogEntries(); track entry.key) {
-          <option [value]="entry.key">
-            {{ entry.tree.name }} · {{ catalogEntryType(entry) }}
-          </option>
-        }
-      </select>
-      <span class="hidden min-[480px]:block mx-1 h-6 w-px bg-stone-200"></span>
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 ml-auto min-[480px]:ml-0" type="button" matTooltip="Neue Definition erstellen" aria-label="Neue Definition erstellen" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Aktuelle Definition duplizieren" aria-label="Aktuelle Definition duplizieren" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
-      @if (selectedCatalogEntry()) {
-        <button
-          class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-          type="button"
-          matTooltip="Ganzen Eintrag löschen"
-          aria-label="Ganzen Eintrag löschen"
-          [disabled]="!canDeleteSelectedCatalogEntry()"
-          (click)="deleteSelectedCatalogEntry()"
-        >
-          <mat-icon>delete_forever</mat-icon>
-        </button>
-      }
-    </div>
-
-    <div class="w-full sm:w-auto ml-auto flex min-w-0 items-center justify-end gap-2">
-      <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm">
-      <label class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" matTooltip="Definition laden" aria-label="Definition laden">
-        <mat-icon>upload_file</mat-icon>
-        <input class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
-      </label>
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Definition exportieren" aria-label="Definition exportieren" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
-      </div>
-      @if (isDevelopment) {
-        <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" matTooltip="Katalog in die Entwickler-Defaults übernehmen" (click)="saveToDefaults()">
-          <mat-icon>code</mat-icon><span class="hidden sm:inline">In Defaults</span>
-        </button>
-      }
-      <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40" type="button" matTooltip="Definitionen in diesem Browser speichern" aria-label="Definitionen in diesem Browser speichern" (click)="saveToCatalog()"><mat-icon>save</mat-icon><span class="max-[359px]:hidden">Speichern</span></button>
-    </div>
-  </header>
-
-  <nav class="shrink-0 border-b border-stone-200 bg-white p-2 lg:hidden" aria-label="Editorbereich wählen">
+  <nav class="shrink-0 border-b border-stone-200 bg-white px-2 pb-2 pt-16 lg:hidden" [attr.aria-label]="'editor.tabsLabel' | transloco">
     <div class="grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1">
       <button
         class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
@@ -61,7 +13,7 @@
         (click)="activeWorkspaceTab.set('graph')"
       >
         <mat-icon class="text-[18px]! max-[379px]:hidden!">account_tree</mat-icon>
-        Graph
+        {{ 'editor.graph' | transloco }}
       </button>
       <button
         class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
@@ -73,7 +25,7 @@
         (click)="activeWorkspaceTab.set('preview')"
       >
         <mat-icon class="text-[18px]! max-[379px]:hidden!">visibility</mat-icon>
-        Vorschau
+        {{ 'editor.preview' | transloco }}
       </button>
       <button
         class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
@@ -85,7 +37,7 @@
         (click)="activeWorkspaceTab.set('inspector')"
       >
         <mat-icon class="text-[18px]! max-[379px]:hidden!">tune</mat-icon>
-        Eigenschaften
+        {{ 'editor.properties' | transloco }}
       </button>
     </div>
   </nav>
@@ -96,25 +48,22 @@
       [class.hidden]="activeWorkspaceTab() !== 'graph'"
     >
       <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
-        <button
-          class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30"
-          type="button"
-          matTooltip="Auswahl als Komponente bearbeiten"
-          aria-label="Auswahl als Komponente bearbeiten"
+        <button app-button variant="icon"
+          [matTooltip]="'editor.editSelection' | transloco"
+          [attr.aria-label]="'editor.editSelection' | transloco"
           [disabled]="!subtreeSelection()"
           (click)="toggleSubtreeActions()"
         >
           <mat-icon>inventory_2</mat-icon>
         </button>
-        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten oder Komponente hinzufügen" aria-label="Knoten oder Komponente hinzufügen" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
-        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Wiederholung hinzufügen" aria-label="Wiederholung hinzufügen" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
+        <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
+        <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
-        <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Graph automatisch anordnen" aria-label="Graph automatisch anordnen" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
-        <span class="hidden whitespace-nowrap px-1 text-[9px] font-bold text-stone-500 sm:inline">Shift + Klick: Mehrfachauswahl</span>
+        <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
 
         @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
           <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
-            {{ subtreeNodeIds().size }} gewählt
+            {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
           </span>
         }
       </div>
@@ -126,11 +75,11 @@
               <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
               <div class="text-[9px] text-stone-400">Leer starten oder vorhandene Komponente einfügen.</div>
             </div>
-            <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Menü schließen" aria-label="Menü schließen" (click)="addMenuOpen.set(false)">
+            <button app-button variant="icon" matTooltip="Menü schließen" aria-label="Menü schließen" (click)="addMenuOpen.set(false)">
               <mat-icon>close</mat-icon>
             </button>
           </div>
-          <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40 mb-3 w-full" type="button" (click)="addNode()">
+          <button app-button variant="icon-text" tone="primary" class="mb-3 w-full" (click)="addNode()">
             <mat-icon>fiber_manual_record</mat-icon>
             Neuer Basisknoten
           </button>
@@ -192,15 +141,15 @@
               [ngModel]="subtreeName()"
               (ngModelChange)="subtreeName.set($event)"
             >
-            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-emerald-950 bg-emerald-950 px-3 text-[11px] font-semibold text-white hover:bg-emerald-800 disabled:cursor-default disabled:opacity-40" type="button"
+            <button app-button variant="icon-text" tone="primary"
                     [disabled]="!subtreeSelection()" (click)="extractSelectedSubtree()">
               <mat-icon>inventory_2</mat-icon>
               Extrahieren
             </button>
           </div>
           <div class="mt-2 flex justify-end gap-1">
-            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" (click)="clearSubtreeSelection()">Auswahl leeren</button>
-            <button class="inline-flex h-9 cursor-pointer items-center justify-center gap-[7px] rounded-lg border border-stone-300 bg-white px-3 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-default disabled:opacity-40" type="button" (click)="exportSelectedSubtree()">Nur exportieren</button>
+            <button app-button variant="text" (click)="clearSubtreeSelection()">Auswahl leeren</button>
+            <button app-button variant="text" (click)="exportSelectedSubtree()">Nur exportieren</button>
           </div>
         </section>
       }
@@ -238,18 +187,70 @@
       </div>
 
       <div
-        class="h-full min-h-0 overflow-hidden p-3 lg:contents"
+        class="h-full min-h-0 overflow-hidden bg-white lg:col-start-1 lg:row-start-1 lg:flex lg:flex-col"
         [class.hidden]="activeWorkspaceTab() !== 'inspector'"
       >
-        <app-flower-editor-inspector
-          [definition]="draft()"
-          [positions]="graphPositions()"
-          [selectedNodeId]="selectedNodeId()"
-          (definitionChange)="applyDefinitionChange($event)"
-          (positionsChange)="graphPositions.set($event)"
-          (nodeSelection)="selectNode($event)"
-          (message)="showInspectorMessage($event)"
-        />
+        <section class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3">
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>
+          <div class="relative">
+            <mat-icon class="pointer-events-none absolute left-2.5 top-1/2 z-10 -translate-y-1/2 text-[18px]! text-stone-400">search</mat-icon>
+            <input
+              class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-stone-50 pl-8 pr-2.5 text-xs font-medium text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+              type="search"
+              [attr.aria-label]="'editor.search' | transloco"
+              [placeholder]="'editor.search' | transloco"
+              [value]="catalogSearch()"
+              (input)="catalogSearch.set($any($event.target).value); catalogSearchOpen.set(true)"
+              (focus)="catalogSearchOpen.set(true)"
+              (keydown.escape)="catalogSearchOpen.set(false)"
+            >
+            @if (catalogSearchOpen()) {
+              <div class="absolute left-0 right-0 top-10 z-50 max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
+                @for (entry of filteredCatalogEntries(); track entry.key) {
+                  <button
+                    class="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-xs transition hover:bg-stone-100"
+                    type="button"
+                    (pointerdown)="$event.preventDefault(); chooseCatalogEntry(entry)"
+                  >
+                    <mat-icon class="text-[18px]! text-emerald-800">
+                      {{ entry.source === 'saved' ? 'account_tree' : entry.availableInBouquet ? 'local_florist' : 'extension' }}
+                    </mat-icon>
+                    <span class="min-w-0 flex-1 truncate font-semibold text-stone-700">{{ entry.tree.name }}</span>
+                  </button>
+                } @empty {
+                  <div class="px-3 py-4 text-center text-[11px] text-stone-400">{{ 'editor.noResult' | transloco }}</div>
+                }
+              </div>
+            }
+          </div>
+          <div class="mt-2 flex items-center gap-1">
+            <button app-button variant="icon" [matTooltip]="'editor.new' | transloco" [attr.aria-label]="'editor.new' | transloco" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.duplicate' | transloco" [attr.aria-label]="'editor.duplicate' | transloco" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
+            @if (selectedCatalogEntry()) {
+              <button app-button variant="icon" tone="danger" [matTooltip]="'editor.delete' | transloco" [attr.aria-label]="'editor.delete' | transloco" [disabled]="!canDeleteSelectedCatalogEntry()" (click)="deleteSelectedCatalogEntry()"><mat-icon>delete_forever</mat-icon></button>
+            }
+            <span class="mx-1 h-6 w-px bg-stone-200"></span>
+            <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
+            <button app-button variant="icon" [matTooltip]="'editor.load' | transloco" [attr.aria-label]="'editor.load' | transloco" (click)="definitionFile.click()"><mat-icon>upload_file</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.export' | transloco" [attr.aria-label]="'editor.export' | transloco" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
+            <span class="flex-1"></span>
+            @if (isDevelopment) {
+              <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
+            }
+            <button app-button variant="icon" tone="primary" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()"><mat-icon>save</mat-icon></button>
+          </div>
+        </section>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <app-flower-editor-inspector
+            [definition]="draft()"
+            [positions]="graphPositions()"
+            [selectedNodeId]="selectedNodeId()"
+            (definitionChange)="applyDefinitionChange($event)"
+            (positionsChange)="graphPositions.set($event)"
+            (nodeSelection)="selectNode($event)"
+            (message)="showInspectorMessage($event)"
+          />
+        </div>
       </div>
     </aside>
   </div>

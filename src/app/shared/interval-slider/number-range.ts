@@ -5,6 +5,14 @@ export function sortedRange(first: number, second: number): NumberRange {
   return {min: Math.min(first, second), max: Math.max(first, second)};
 }
 
+export function boundedRange(range: NumberRange, minimum: number, maximum: number): NumberRange {
+  const sorted = sortedRange(range.min, range.max);
+  return {
+    min: clamp(sorted.min, minimum, maximum),
+    max: clamp(sorted.max, minimum, maximum),
+  };
+}
+
 export function rangePercentage(value: number, minimum: number, maximum: number): number {
   const span = maximum - minimum;
   if (span <= 0) return 0;

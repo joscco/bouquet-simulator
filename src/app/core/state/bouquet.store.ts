@@ -180,15 +180,6 @@ export class BouquetStore {
     }));
   }
 
-  setFlowerRotation(instanceId: string, rotationY: number): void {
-    if (!Number.isFinite(rotationY)) return;
-    this.updateActiveBouquetState((state) => this.withResolvedFlowerOverlaps({
-      ...state,
-      flowers: state.flowers.map((flower) =>
-        flower.instanceId === instanceId ? {...flower, rotationY} : flower),
-    }));
-  }
-
   setRotation(rotation: number): void {
     this.updateActiveBouquetState((state) => ({...state, rotation}));
   }
@@ -495,6 +486,7 @@ export class BouquetStore {
           z: Math.sin(angle) * radius,
           leanX: Math.sin(angle) * lean,
           leanZ: -Math.cos(angle) * lean,
+          rotationY: angle + seedWave * Math.PI,
           scale: 0.96 + seedWave * 0.035,
         };
       }),

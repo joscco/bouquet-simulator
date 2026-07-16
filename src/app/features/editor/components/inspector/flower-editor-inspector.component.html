@@ -1,13 +1,13 @@
 <div class="min-w-0 space-y-3 px-3 py-3">
   <app-editor-disclosure
-    title="Definition"
+    [title]="'inspector.definition' | transloco"
     [description]="definition().name"
     icon="description"
-    [badge]="definition().nodes.length + ' Knoten'"
+    [badge]="definition().nodes.length + ' ' + ('inspector.nodes' | transloco)"
     [(expanded)]="definitionSectionExpanded"
   >
     <label>
-      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">Name</span>
+      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">{{ 'inspector.name' | transloco }}</span>
       <input class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" [ngModel]="definition().name" (ngModelChange)="updateRoot('name', $event)">
     </label>
     <div class="mt-3 grid grid-cols-2 gap-2">
@@ -17,7 +17,7 @@
           [checked]="definition().availableInBouquet ?? true"
           (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)"
         >
-        Im Strauß
+        {{ 'inspector.inBouquet' | transloco }}
       </label>
       <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-stone-50 px-2 text-[11px] font-semibold leading-tight text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
         <input
@@ -25,13 +25,13 @@
           [checked]="definition().availableAsComponent ?? true"
           (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)"
         >
-        Als Baustein
+        {{ 'inspector.asComponent' | transloco }}
       </label>
     </div>
 
     @if (definition().availableAsComponent ?? true) {
       <div class="mt-3 border-t border-stone-200 pt-3">
-        <div class="mb-2 text-[11px] font-bold text-stone-600">Anschlusspunkte der Komponente</div>
+        <div class="mb-2 text-[11px] font-bold text-stone-600">{{ 'inspector.outputs' | transloco }}</div>
         <div class="grid grid-cols-2 gap-1">
           @for (outputId of componentOutputOptions(); track outputId) {
             <label class="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-[11px] font-semibold text-stone-600 hover:bg-stone-50 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
@@ -44,7 +44,7 @@
             </label>
           } @empty {
             <div class="col-span-2 rounded-lg border border-dashed border-stone-300 px-2 py-3 text-center text-[11px] text-stone-400">
-              Keine offenen Endknoten
+              {{ 'inspector.noOutputs' | transloco }}
             </div>
           }
         </div>
@@ -55,31 +55,31 @@
   @if (selectedNode(); as node) {
   <section class="min-w-0 rounded-xl border border-stone-200 bg-stone-50/70 p-3">
     <div class="mb-2 flex items-center justify-between gap-2">
-      <div class="text-[11px] font-bold text-stone-700">Ausgewählter Knoten</div>
+      <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.selectedNode' | transloco }}</div>
       <span class="rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-stone-500">
         {{ node.loop ? 'Wiederholung' : node.component ? 'Komponente' : node.graphic ? 'Grafik' : 'Knoten' }}
       </span>
     </div>
     <div class="flex items-center gap-2">
-      <input class="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" [ngModel]="node.name" aria-label="Knotenname" (ngModelChange)="updateNodeName($event)">
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-30" type="button" matTooltip="Knoten kopieren" aria-label="Knoten kopieren" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-      <button class="grid size-[34px] shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button" matTooltip="Knoten löschen" aria-label="Knoten löschen" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
+      <input class="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" [ngModel]="node.name" [attr.aria-label]="'inspector.nodeName' | transloco" (ngModelChange)="updateNodeName($event)">
+      <button app-button variant="icon" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
+      <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
     </div>
   </section>
 
   @if (!node.loop) {
     @if (incomingSettings(); as incoming) {
       <app-editor-disclosure
-        title="Eingangsverbindung"
-        [description]="selectedIncoming() ? 'Verbindung vom Elternknoten' : 'Vorgaben für eine spätere Verbindung'"
+        [title]="'inspector.incoming' | transloco"
+        [description]="(selectedIncoming() ? 'inspector.incomingActiveDescription' : 'inspector.incomingDefaultDescription') | transloco"
         icon="route"
         [(expanded)]="connectionSectionExpanded"
       >
         @if (selectedIncoming()) {
           <div class="mb-3 flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-2.5 py-2 text-[11px] font-medium text-stone-500">
-            <span>Diese Verbindung ist aktiv.</span>
-            <button class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button"
-              matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
+            <span>{{ 'inspector.connectionActive' | transloco }}</span>
+            <button app-button variant="icon" tone="danger"
+              [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco"
               (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
           </div>
         }
@@ -87,50 +87,50 @@
         <div class="space-y-3">
           <section class="space-y-2">
             <div>
-              <div class="text-[11px] font-bold text-stone-700">Verteilung</div>
-              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">Wie oft und in welchem Abstand dieser Knoten entsteht.</p>
+              <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.distribution' | transloco }}</div>
+              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.distributionHelp' | transloco }}</p>
             </div>
-            <app-interval-slider label="Anzahl" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
-            <app-interval-slider label="Länge" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
-            <app-numeric-slider label="Zufälligkeit" unit="%" [value]="incomingRandomness(incoming)"
+            <app-interval-slider [label]="'inspector.count' | transloco" [modeSelectable]="true" [value]="incoming.repeat" [minimum]="0" [maximum]="30" (valueChange)="updateIncomingRange('repeat', $event)" />
+            <app-interval-slider [label]="'inspector.length' | transloco" unit=" px" [modeSelectable]="true" [value]="incoming.length" [minimum]="0" [maximum]="250" (valueChange)="updateIncomingRange('length', $event)" />
+            <app-numeric-slider [label]="'inspector.randomness' | transloco" unit="%" [value]="incomingRandomness(incoming)"
               [minimum]="0" [maximum]="100" (valueChange)="updateIncomingRandomness($event)" />
           </section>
 
           <section class="space-y-2 border-t border-stone-200 pt-3">
             <div>
-              <div class="text-[11px] font-bold text-stone-700">Ausrichtung</div>
-              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">Neigung, Richtung um den Elternstängel und Drehung um die eigene Achse.</p>
+              <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.alignment' | transloco }}</div>
+              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.alignmentHelp' | transloco }}</p>
             </div>
-            <app-interval-slider label="Neigung zum Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
-            <app-interval-slider label="Richtung um den Elternstängel" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
-            <app-interval-slider label="Drehung um die eigene Achse" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
+            <app-interval-slider [label]="'inspector.inclination' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.angle" [minimum]="0" [maximum]="180" (valueChange)="updateIncomingRange('angle', $event)" />
+            <app-interval-slider [label]="'inspector.azimuth' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.azimuth ?? {min: 0, max: 360}" [minimum]="0" [maximum]="360" (valueChange)="updateIncomingRange('azimuth', $event)" />
+            <app-interval-slider [label]="'inspector.roll' | transloco" unit="°" [modeSelectable]="true" [value]="incoming.roll ?? {min: 0, max: 0}" [minimum]="-180" [maximum]="180" (valueChange)="updateIncomingRange('roll', $event)" />
           </section>
 
           <section class="space-y-2 border-t border-stone-200 pt-3">
-            <div class="text-[11px] font-bold text-stone-700">Stängel</div>
+            <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.stem' | transloco }}</div>
             <div class="grid grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
               <label>
-                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Farbe</span>
+                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">{{ 'inspector.color' | transloco }}</span>
                 <span class="relative flex h-9 w-full cursor-pointer items-center justify-center rounded-lg border border-stone-300 bg-white px-2 focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
                   <span class="h-5 w-5 shrink-0 rounded-md border border-white shadow-sm" [style.background]="incomingStemColor(incoming)"></span>
                   <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0" type="color"
-                    aria-label="Stängelfarbe der Eingangsverbindung"
+                    [attr.aria-label]="'inspector.stemColor' | transloco"
                     [ngModel]="incomingStemColor(incoming)"
                     (ngModelChange)="updateIncomingStem('color', $event)">
                 </span>
               </label>
-              <app-numeric-field label="Dicke Anfang" unit="px" [value]="incomingStemStartWidth(incoming)"
+              <app-numeric-field [label]="'inspector.startWidth' | transloco" unit="px" [value]="incomingStemStartWidth(incoming)"
                 [minimum]="1" [maximum]="30" [step]="0.5"
                 (valueChange)="updateIncomingStem('startWidth', $event)" />
-              <app-numeric-field label="Dicke Ende" unit="px" [value]="incomingStemEndWidth(incoming)"
+              <app-numeric-field [label]="'inspector.endWidth' | transloco" unit="px" [value]="incomingStemEndWidth(incoming)"
                 [minimum]="1" [maximum]="30" [step]="0.5"
                 (valueChange)="updateIncomingStem('endWidth', $event)" />
             </div>
-            <app-numeric-slider label="Gezielte Krümmung" unit="%" [value]="incomingStemBend(incoming)"
+            <app-numeric-slider [label]="'inspector.bend' | transloco" unit="%" [value]="incomingStemBend(incoming)"
               [minimum]="-100" [maximum]="100" (valueChange)="updateIncomingStem('bend', $event)" />
-            <app-numeric-slider label="Eigenkrümmung" unit="%" [value]="incomingStemCurve(incoming)"
+            <app-numeric-slider [label]="'inspector.curve' | transloco" unit="%" [value]="incomingStemCurve(incoming)"
               [minimum]="0" [maximum]="100" (valueChange)="updateIncomingStem('curve', $event)" />
-            <app-interval-slider label="Richtung der Krümmung" unit="°" [modeSelectable]="true"
+            <app-interval-slider [label]="'inspector.bendDirection' | transloco" unit="°" [modeSelectable]="true"
               [value]="incomingStemBendRotation(incoming)" [minimum]="-180" [maximum]="180"
               (valueChange)="updateIncomingStemBendRotation($event)" />
           </section>
@@ -148,23 +148,23 @@
     </div>
   } @else if (node.loop) {
     <app-editor-disclosure
-      title="Wiederholung"
-      description="Anzahl und Fortsetzung des markierten Teilbaums"
+      [title]="'inspector.repetition' | transloco"
+      [description]="'inspector.repetitionDescription' | transloco"
       icon="repeat"
       [(expanded)]="loopSectionExpanded"
     >
       @if (selectedIncoming()) {
         <div class="mb-3 flex items-center justify-between rounded-lg bg-stone-50 px-2.5 py-2 text-[11px] text-stone-500">
-          <span>Mit dem vorherigen Knoten verbunden</span>
-          <button class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-[7px] border-0 bg-transparent text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button"
-            matTooltip="Eingangsverbindung lösen" aria-label="Eingangsverbindung lösen"
+          <span>{{ 'inspector.connectedPrevious' | transloco }}</span>
+          <button app-button variant="icon" tone="danger"
+            [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco"
             (click)="removeIncomingConnection()"><mat-icon>link_off</mat-icon></button>
         </div>
       }
-      <app-interval-slider label="Wiederholungen" [modeSelectable]="true" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
+      <app-interval-slider [label]="'inspector.repetitions' | transloco" [modeSelectable]="true" [value]="node.loop.repeat" [minimum]="1" [maximum]="30" (valueChange)="updateLoopRepeat($event)" />
       @if (node.loop.memberNodeIds?.length) {
         <div class="mt-3 border-t border-amber-100 pt-2">
-          <div class="mb-1 text-[11px] font-bold text-amber-900">Ansatzpunkte der nächsten Wiederholung</div>
+          <div class="mb-1 text-[11px] font-bold text-amber-900">{{ 'inspector.nextOutputs' | transloco }}</div>
           <div class="space-y-1">
             @for (outputId of loopOutputOptions(node); track outputId) {
               <label class="flex min-h-8 cursor-pointer items-center gap-2 text-[11px] font-semibold text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
@@ -187,8 +187,8 @@
   <div class="rounded-xl border border-stone-200 bg-white px-3 py-2">
     <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 text-[11px] font-semibold text-stone-700">
       <span>
-        <span class="block">Grafik anzeigen</span>
-        <span class="mt-0.5 block text-[10px] font-normal text-stone-400">Blatt, Blüte oder geometrische Form an diesem Knoten</span>
+        <span class="block">{{ 'inspector.showGraphic' | transloco }}</span>
+        <span class="mt-0.5 block text-[10px] font-normal text-stone-400">{{ 'inspector.showGraphicHelp' | transloco }}</span>
       </span>
       <input class="m-0 size-4 shrink-0 accent-emerald-800" type="checkbox" [ngModel]="!!node.graphic" (ngModelChange)="setHasGraphic($event)">
     </label>
@@ -196,13 +196,13 @@
 
   @if (node.graphic; as graphic) {
     <app-editor-disclosure
-      title="Form, Farbe & Maße"
-      description="Grundform und sichtbare Größe"
+      [title]="'inspector.basics' | transloco"
+      [description]="'inspector.basicsDescription' | transloco"
       icon="category"
       [(expanded)]="graphicBasicsExpanded"
     >
       <fieldset>
-      <legend class="text-[11px] font-bold text-stone-600">Grundform</legend>
+      <legend class="text-[11px] font-bold text-stone-600">{{ 'inspector.primitive' | transloco }}</legend>
       <div class="mt-1.5 grid grid-cols-4 gap-1.5">
         @for (primitive of graphicPrimitives; track primitive.value) {
           <button
@@ -239,28 +239,28 @@
       </div>
       </fieldset>
       <label class="mt-3 block">
-      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">Farbe</span>
+      <span class="mb-[5px] block text-[11px] font-semibold leading-tight text-stone-600">{{ 'inspector.color' | transloco }}</span>
       <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
         <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="graphic.color ?? '#5b8d53'"></span>
         <code class="min-w-0 flex-1 text-[10px] text-stone-500">{{ graphic.color ?? '#5b8d53' }}</code>
         <input class="absolute inset-0 m-0 h-full w-full cursor-pointer border-0 p-0 opacity-0"
           type="color"
-          aria-label="Grafikfarbe"
+          [attr.aria-label]="'inspector.graphicColor' | transloco"
           [ngModel]="graphic.color ?? '#5b8d53'"
           (ngModelChange)="updateGraphicColor($event)">
       </span>
     </label>
     <div class="mt-2 grid grid-cols-2 gap-2">
-      <app-numeric-field label="Breite" unit="px" [value]="graphic.width" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('width', $event)" />
-      <app-numeric-field label="Höhe" unit="px" [value]="graphic.height" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('height', $event)" />
-      <app-numeric-field label="Tiefe" unit="px" [value]="graphic.depth ?? 6" [minimum]="0.5" [maximum]="500" [step]="0.5" (valueChange)="updateGraphic('depth', $event)" />
-      <app-numeric-field label="Skalierung" [value]="graphic.scale ?? 1" [minimum]="0.01" [maximum]="20" [step]="0.05" (valueChange)="updateGraphic('scale', $event)" />
+      <app-numeric-field [label]="'inspector.width' | transloco" unit="px" [value]="graphic.width" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('width', $event)" />
+      <app-numeric-field [label]="'inspector.height' | transloco" unit="px" [value]="graphic.height" [minimum]="1" [maximum]="500" (valueChange)="updateGraphic('height', $event)" />
+      <app-numeric-field [label]="'inspector.depth' | transloco" unit="px" [value]="graphic.depth ?? 6" [minimum]="0.5" [maximum]="500" [step]="0.5" (valueChange)="updateGraphic('depth', $event)" />
+      <app-numeric-field [label]="'inspector.scale' | transloco" [value]="graphic.scale ?? 1" [minimum]="0.01" [maximum]="20" [step]="0.05" (valueChange)="updateGraphic('scale', $event)" />
     </div>
     </app-editor-disclosure>
 
     <app-editor-disclosure
-      title="Position"
-      description="Versatz relativ zum Knoten"
+      [title]="'inspector.position' | transloco"
+      [description]="'inspector.positionDescription' | transloco"
       icon="open_with"
       [(expanded)]="graphicPositionExpanded"
     >
@@ -272,8 +272,8 @@
     </app-editor-disclosure>
     @if (isPaintableGraphic(graphic)) {
       <app-editor-disclosure
-        title="Wölbung"
-        description="Form am Ansatz und an der Spitze"
+        [title]="'inspector.curvature' | transloco"
+        [description]="'inspector.curvatureDescription' | transloco"
         icon="waves"
         [(expanded)]="graphicBendExpanded"
       >
@@ -298,7 +298,7 @@
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('main', 'tip', $event)" />
           </div>
         } @else {
-          <app-numeric-slider label="Wölbung Hauptrichtung" unit="%" [value]="graphic.bendMain ?? 0"
+          <app-numeric-slider [label]="'inspector.mainBend' | transloco" unit="%" [value]="graphic.bendMain ?? 0"
             [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendMain', $event)" />
         }
         <label class="flex min-h-8 cursor-pointer items-center justify-between gap-3 border-t border-stone-100 pt-2 text-[11px] font-semibold text-stone-600">
@@ -318,7 +318,7 @@
               [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBendProfile('cross', 'tip', $event)" />
           </div>
         } @else {
-          <app-numeric-slider label="Wölbung Nebenrichtung" unit="%" [value]="graphic.bendCross ?? 0"
+          <app-numeric-slider [label]="'inspector.crossBend' | transloco" unit="%" [value]="graphic.bendCross ?? 0"
             [minimum]="-maximumGraphicBend" [maximum]="maximumGraphicBend" (valueChange)="updateGraphicBend('bendCross', $event)" />
         }
         </div>
@@ -326,8 +326,8 @@
     }
     @if (graphicPrimitive(graphic) !== 'png') {
       <app-editor-disclosure
-        title="Muster"
-        description="Verlauf, Adern, Flecken und Rand"
+        [title]="'inspector.patterns' | transloco"
+        [description]="'inspector.patternsDescription' | transloco"
         icon="texture"
         [badge]="(graphic.patterns ?? []).length ? (graphic.patterns ?? []).length + '' : ''"
         [(expanded)]="graphicPatternsExpanded"
@@ -364,36 +364,30 @@
               <div class="border-t border-stone-200 p-2.5">
                 <div class="mb-2 flex items-center justify-between gap-2">
                   <div class="flex gap-1" role="group" [attr.aria-label]="graphicPatternLabel(pattern.type) + ' Ebene verschieben'">
-                    <button
-                      class="grid size-7 place-items-center rounded-md border-0 bg-white text-stone-500 hover:bg-stone-100 disabled:cursor-default disabled:opacity-30"
-                      type="button"
+                    <button app-button variant="icon"
                       matTooltip="Ebene nach oben"
                       aria-label="Ebene nach oben verschieben"
                       [disabled]="patternIndex === 0"
                       (click)="moveGraphicPattern(pattern.id, -1)"
-                    ><mat-icon class="scale-75">arrow_upward</mat-icon></button>
-                    <button
-                      class="grid size-7 place-items-center rounded-md border-0 bg-white text-stone-500 hover:bg-stone-100 disabled:cursor-default disabled:opacity-30"
-                      type="button"
+                    ><mat-icon>arrow_upward</mat-icon></button>
+                    <button app-button variant="icon"
                       matTooltip="Ebene nach unten"
                       aria-label="Ebene nach unten verschieben"
                       [disabled]="patternIndex === (graphic.patterns ?? []).length - 1"
                       (click)="moveGraphicPattern(pattern.id, 1)"
-                    ><mat-icon class="scale-75">arrow_downward</mat-icon></button>
+                    ><mat-icon>arrow_downward</mat-icon></button>
                   </div>
-                  <button
-                    class="grid size-7 shrink-0 place-items-center rounded-md border-0 bg-transparent text-stone-400 hover:bg-red-50 hover:text-red-700"
-                    type="button"
+                  <button app-button variant="icon" tone="danger"
                     matTooltip="Musterebene entfernen"
                     [attr.aria-label]="graphicPatternLabel(pattern.type) + ' entfernen'"
                     (click)="removeGraphicPattern(pattern.id)"
                   >
-                    <mat-icon class="scale-75">delete</mat-icon>
+                    <mat-icon>delete</mat-icon>
                   </button>
                 </div>
 
               <label class="mb-2 block">
-                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Musterfarbe</span>
+                <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">{{ 'inspector.patternColor' | transloco }}</span>
                 <span class="relative flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-stone-300 bg-white px-[9px] focus-within:border-emerald-700 focus-within:ring-3 focus-within:ring-emerald-700/10">
                   <span class="h-6 w-6 rounded-md border border-white shadow-sm" [style.background]="pattern.color"></span>
                   <code class="min-w-0 flex-1 text-[9px] text-stone-500">{{ pattern.color }}</code>
@@ -407,7 +401,7 @@
                 </span>
               </label>
               <app-numeric-slider
-                label="Deckkraft"
+                [label]="'inspector.opacity' | transloco"
                 unit="%"
                 [value]="pattern.opacity * 100"
                 [minimum]="0"
@@ -418,24 +412,24 @@
               @switch (pattern.type) {
                 @case ('gradient') {
                   <label class="mt-2 block">
-                    <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Richtung</span>
+                    <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">{{ 'inspector.direction' | transloco }}</span>
                     <select
                       class="h-9 w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10"
                       [ngModel]="pattern.direction ?? 'base-to-tip'"
                       (ngModelChange)="updateGraphicPattern(pattern.id, {direction: $event})"
                     >
-                      <option value="base-to-tip">Ansatz → Spitze</option>
-                      <option value="tip-to-base">Spitze → Ansatz</option>
+                      <option value="base-to-tip">{{ 'inspector.baseToTip' | transloco }}</option>
+                      <option value="tip-to-base">{{ 'inspector.tipToBase' | transloco }}</option>
                     </select>
                   </label>
                 }
                 @case ('veins') {
                   <div class="mt-2 grid grid-cols-2 gap-2">
-                    <app-numeric-field label="Aderpaare" [value]="pattern.density ?? 7" [minimum]="1" [maximum]="24" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
-                    <app-numeric-field label="Linienbreite" unit="%" [value]="(pattern.size ?? 0.012) * 100" [minimum]="0.2" [maximum]="12" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
+                    <app-numeric-field [label]="'inspector.veinPairs' | transloco" [value]="pattern.density ?? 7" [minimum]="1" [maximum]="24" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
+                    <app-numeric-field [label]="'inspector.lineWidth' | transloco" unit="%" [value]="(pattern.size ?? 0.012) * 100" [minimum]="0.2" [maximum]="12" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
                   </div>
                   <div class="mt-2">
-                    <app-numeric-slider label="Aderrichtung" unit="°" [value]="pattern.angle ?? 22" [minimum]="-75" [maximum]="75" (valueChange)="updateGraphicPattern(pattern.id, {angle: $event})" />
+                    <app-numeric-slider [label]="'inspector.veinDirection' | transloco" unit="°" [value]="pattern.angle ?? 22" [minimum]="-75" [maximum]="75" (valueChange)="updateGraphicPattern(pattern.id, {angle: $event})" />
                     <div class="mt-1 flex justify-between text-[10px] font-medium text-stone-400">
                       <span>zum Ansatz</span>
                       <span>quer</span>
@@ -445,14 +439,14 @@
                 }
                 @case ('spots') {
                   <div class="mt-2 grid grid-cols-2 gap-2">
-                    <app-numeric-field label="Anzahl" [value]="pattern.density ?? 18" [minimum]="1" [maximum]="160" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
-                    <app-numeric-field label="Größe" unit="%" [value]="(pattern.size ?? 0.035) * 100" [minimum]="0.3" [maximum]="30" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
-                    <app-numeric-field label="Verteilung" [value]="pattern.seed ?? 0.42" [minimum]="0" [maximum]="1" [step]="0.01" (valueChange)="updateGraphicPattern(pattern.id, {seed: $event})" />
+                    <app-numeric-field [label]="'inspector.count' | transloco" [value]="pattern.density ?? 18" [minimum]="1" [maximum]="160" (valueChange)="updateGraphicPattern(pattern.id, {density: $event})" />
+                    <app-numeric-field [label]="'inspector.size' | transloco" unit="%" [value]="(pattern.size ?? 0.035) * 100" [minimum]="0.3" [maximum]="30" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {size: $event / 100})" />
+                    <app-numeric-field [label]="'inspector.distribution' | transloco" [value]="pattern.seed ?? 0.42" [minimum]="0" [maximum]="1" [step]="0.01" (valueChange)="updateGraphicPattern(pattern.id, {seed: $event})" />
                   </div>
                 }
                 @case ('edge') {
                   <div class="mt-2">
-                    <app-numeric-field label="Randbreite" unit="%" [value]="(pattern.width ?? 0.055) * 100" [minimum]="0.3" [maximum]="40" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {width: $event / 100})" />
+                    <app-numeric-field [label]="'inspector.edgeWidth' | transloco" unit="%" [value]="(pattern.width ?? 0.055) * 100" [minimum]="0.3" [maximum]="40" [step]="0.1" (valueChange)="updateGraphicPattern(pattern.id, {width: $event / 100})" />
                   </div>
                 }
               }
@@ -464,16 +458,16 @@
         @if (restorablePattern(); as removed) {
           <div class="mt-2 flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[10px] text-amber-900">
             <span>{{ graphicPatternLabel(removed.pattern.type) }} entfernt</span>
-            <button class="rounded-md border border-amber-300 bg-white px-2 py-1 font-bold hover:bg-amber-100" type="button" (click)="restoreRemovedPattern()">
-              Rückgängig
+            <button app-button variant="text" (click)="restoreRemovedPattern()">
+              {{ 'inspector.undo' | transloco }}
             </button>
           </div>
         }
       </app-editor-disclosure>
     }
     <app-editor-disclosure
-      title="Ausrichtung & Drehung"
-      description="Bezugsachse und Eigendrehung der Grafik"
+      [title]="'inspector.orientation' | transloco"
+      [description]="'inspector.orientationDescription' | transloco"
       icon="360"
       [(expanded)]="graphicOrientationExpanded"
     >
@@ -484,17 +478,17 @@
         </p>
       </div>
       <label class="block">
-        <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">Bezugsachse</span>
+        <span class="mb-[5px] block text-[10px] font-semibold leading-tight text-stone-600">{{ 'inspector.referenceAxis' | transloco }}</span>
         <select
           class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 w-full"
           [ngModel]="graphic.orientation ?? 'connection'"
           (ngModelChange)="updateGraphicOrientation($event)"
         >
-          <option value="connection">Nur entlang der Verbindung</option>
-          <option value="toward-parent">Zur Mitte / Elternachse</option>
+          <option value="connection">{{ 'inspector.connectionAxis' | transloco }}</option>
+          <option value="toward-parent">{{ 'inspector.parentAxis' | transloco }}</option>
         </select>
       </label>
-      <app-interval-slider label="Eigendrehung" unit="°" [modeSelectable]="true"
+      <app-interval-slider [label]="'inspector.selfRotation' | transloco" unit="°" [modeSelectable]="true"
         [value]="graphicRotationRange(graphic)" [minimum]="-360" [maximum]="360"
         (valueChange)="updateGraphicRotationRange($event)" />
     </div>

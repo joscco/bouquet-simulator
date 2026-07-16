@@ -1,5 +1,5 @@
 <section
-  class="relative h-dvh min-h-[480px] overflow-hidden"
+  class="relative h-dvh min-h-[480px] select-none overflow-hidden [&_input]:select-text [&_textarea]:select-text"
   [class.bg-[#f8f7f2]]="backgroundMode() === 'light'"
   [class.bg-[#111113]]="backgroundMode() === 'dark'"
 >
@@ -58,7 +58,6 @@
     (bouquetReset)="resetBouquet()"
     (selectionChange)="selectedId.set($event)"
     (lengthChange)="setFlowerLength($event.instanceId, $event.lengthPercent)"
-    (flowerRotationChange)="setFlowerRotation($event.instanceId, $event.rotationDegrees)"
     (overlapCorrection)="store.autoCorrectFlowerOverlaps()"
     (flowerCopy)="copyFlower($event)"
     (flowerRemove)="removeFlower($event)"

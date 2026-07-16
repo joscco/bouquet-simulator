@@ -1945,40 +1945,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   },
   {
     "schemaVersion": 2,
-    "id": "neue-blume-3",
-    "name": "Rosenblüte",
-    "catalogRole": "flower",
-    "availableInBouquet": true,
-    "availableAsComponent": true,
-    "rootNodeId": "base",
-    "stem": {
-      "color": "#426f50",
-      "highlightColor": "#82a878",
-      "width": 8,
-      "taper": 1,
-      "bend": 0,
-      "curve": 14
-    },
-    "nodes": [
-      {
-        "id": "base",
-        "name": "Basis",
-        "draggable": false,
-        "graphic": null,
-        "connections": []
-      }
-    ],
-    "editor": {
-      "nodePositions": {
-        "base": {
-          "x": 500,
-          "y": 840
-        }
-      }
-    }
-  },
-  {
-    "schemaVersion": 2,
     "id": "neue-blume-4",
     "name": "Lilie",
     "catalogRole": "flower",
@@ -2654,7 +2620,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "length": {
             "min": 50,
-            "max": 70
+            "max": 84
           },
           "angle": {
             "min": 0,
@@ -2773,41 +2739,68 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "node-3",
-        "name": "Knoten 3",
+        "name": "Innenstängel",
         "draggable": false,
-        "graphic": null,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#ffe5fa",
+          "width": 3,
+          "height": 3,
+          "depth": 3,
+          "scale": 1,
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
         "incoming": {
           "repeat": {
-            "min": 3,
-            "max": 3
+            "min": 4,
+            "max": 6
           },
           "length": {
-            "min": 14,
-            "max": 14
+            "min": 13,
+            "max": 13
           },
           "angle": {
-            "min": 9,
-            "max": 9
+            "min": 17,
+            "max": 17
           },
           "azimuth": {
             "min": 0,
             "max": 360
           },
           "roll": {
-            "min": -6,
-            "max": -6
+            "min": 1,
+            "max": 1
           },
-          "randomness": 0.25,
+          "randomness": 0,
           "stem": {
-            "color": "#426f50",
+            "color": "#ff8ae9",
             "width": 8,
             "startWidth": 2,
             "endWidth": 2,
-            "bend": 100,
+            "bend": -56,
             "curve": 0,
             "bendRotation": {
-              "min": 73,
-              "max": 73
+              "min": -1,
+              "max": -1
             }
           }
         },

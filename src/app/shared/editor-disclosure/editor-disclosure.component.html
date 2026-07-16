@@ -1,35 +1,42 @@
-<details
-  class="group overflow-clip rounded-xl border border-stone-300/90 bg-white/75"
-  [open]="expanded()"
-  (toggle)="syncExpandedState($event)"
->
-  <summary
-    class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600 group-open:bg-stone-50/80 group-open:text-stone-800 motion-reduce:transition-none [&::-webkit-details-marker]:hidden"
+<section class="overflow-clip rounded-xl border border-stone-300/90 bg-white/75">
+  <button
+    class="flex min-h-11 w-full cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-left text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600 motion-reduce:transition-none"
+    type="button"
+    [class.bg-stone-50/80]="expanded()"
+    [class.text-stone-800]="expanded()"
+    [attr.aria-expanded]="expanded()"
+    (click)="toggle()"
   >
     @if (icon()) {
-      <mat-icon class="size-[19px]! shrink-0 text-[19px]! leading-[19px]! text-stone-500">
-        {{ icon() }}
-      </mat-icon>
+      <mat-icon class="size-[19px]! shrink-0 text-[19px]! leading-[19px]! text-stone-500">{{ icon() }}</mat-icon>
     }
     <span class="min-w-0 flex-1">
       <span class="block text-[11px] font-bold leading-tight">{{ title() }}</span>
       @if (description()) {
-        <span class="mt-0.5 block truncate text-[10px] font-medium leading-tight text-stone-400">
-          {{ description() }}
-        </span>
+        <span class="mt-0.5 block truncate text-[10px] font-medium leading-tight text-stone-400">{{ description() }}</span>
       }
     </span>
     @if (badge()) {
-      <span class="shrink-0 rounded-full bg-stone-100 px-[7px] py-[3px] text-[9px] font-bold leading-none text-stone-500">
-        {{ badge() }}
-      </span>
+      <span class="shrink-0 rounded-full bg-stone-100 px-[7px] py-[3px] text-[9px] font-bold leading-none text-stone-500">{{ badge() }}</span>
     }
     <mat-icon
-      class="size-[19px]! shrink-0 text-[19px]! leading-[19px]! text-stone-400 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+      class="size-[19px]! shrink-0 text-[19px]! leading-[19px]! text-stone-400 transition-transform duration-200 motion-reduce:transition-none"
+      [class.rotate-90]="expanded()"
       aria-hidden="true"
     >chevron_right</mat-icon>
-  </summary>
-  <div class="border-t border-stone-200 px-2.5 py-3">
-    <ng-content />
+  </button>
+
+  <div
+    class="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+    [class.grid-rows-[1fr]]="expanded()"
+    [class.opacity-100]="expanded()"
+    [attr.aria-hidden]="!expanded()"
+    [attr.inert]="expanded() ? null : ''"
+  >
+    <div class="min-h-0 overflow-hidden">
+      <div class="border-t border-stone-200 px-2.5 py-3">
+        <ng-content />
+      </div>
+    </div>
   </div>
-</details>
+</section>

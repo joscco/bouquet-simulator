@@ -1,0 +1,79 @@
+{
+  "language": {"label": "Language", "de": "German", "en": "English"},
+  "views": {"label": "Switch editor", "bouquet": "Bouquet", "components": "Components"},
+  "common": {"close": "Close", "confirm": "Confirm", "search": "Search …", "emptySearch": "No matching flower found", "fixed": "Fixed", "interval": "Range", "inputMode": "input mode"},
+  "picker": {"title": "Choose flower", "search": "Search flowers …", "nodes": "nodes"},
+  "bouquet": {
+    "name": "Bouquet name",
+    "interactionHint": "Drag: rotate · Wheel/trackpad: zoom",
+    "delete": "Delete bouquet",
+    "shuffle": "Shuffle",
+    "shuffleHint": "Rearrange flowers",
+    "view": "View",
+    "viewHint": "Center camera view",
+    "reset": "Reset",
+    "resetHint": "Reset bouquet, vase and scene",
+    "resetConfirmHint": "Click again to reset everything",
+    "resetConfirmLabel": "Confirm: reset the entire bouquet",
+    "overlapOne": "flower overlaps",
+    "overlapMany": "flowers overlap",
+    "untangle": "Untangle",
+    "usedFlowers": "Used flowers",
+    "addFlower": "Add flower",
+    "noFlowers": "No flowers in this bouquet yet.",
+    "rotation": "Bouquet rotation",
+    "new": "Create new bouquet",
+    "select": "select",
+    "menuOpen": "Open menu",
+    "menuClose": "Close menu"
+  },
+  "flowerItem": {
+    "overlap": "Strong flower-head overlap",
+    "length": "Flower length",
+    "copy": "Copy flower",
+    "remove": "Remove flower",
+    "copyVerb": "copy",
+    "removeVerb": "remove"
+  },
+  "sections": {
+    "vase": "Vase", "vaseDescription": "Shape and material", "vaseShape": "Vase shape", "material": "Material",
+    "scene": "Scene & light", "sceneDescription": "Background and atmosphere", "background": "Background", "atmosphere": "Light & atmosphere",
+    "files": "Video & files", "filesDescription": "Record, load and save", "videoFormat": "Video format", "projectFile": "Project file"
+  },
+  "files": {
+    "recording": "Recording loop · {{progress}}%",
+    "exportVideo": "Export loop video",
+    "loadProject": "Load project",
+    "saveProject": "Save project",
+    "unsupported": "This browser does not support canvas video recording",
+    "addFlowersFirst": "Add flowers first"
+  },
+  "editor": {
+    "tabsLabel": "Choose editor area", "graph": "Graph", "preview": "Preview", "properties": "Properties",
+    "editSelection": "Edit selection as component", "addNode": "Add node or component", "addLoop": "Add repetition", "autoLayout": "Arrange graph automatically", "multiSelect": "Shift + click: multi-select", "selected": "selected",
+    "sidebarTitle": "Edit definition", "search": "Search flower or component …", "noResult": "No matching entry",
+    "new": "Create new definition", "duplicate": "Duplicate current definition", "delete": "Delete entire entry", "load": "Load definition", "export": "Export definition", "defaults": "Write catalog to developer defaults", "save": "Save definitions",
+    "centerView": "Center view", "regenerate": "Generate new preview"
+  },
+  "inspector": {
+    "definition": "Definition", "nodes": "nodes", "name": "Name", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",
+    "selectedNode": "Selected node", "nodeName": "Node name", "copyNode": "Copy node", "deleteNode": "Delete node",
+    "incoming": "Incoming connection", "incomingActiveDescription": "Connection from parent node", "incomingDefaultDescription": "Defaults for a future connection", "connectionActive": "This connection is active.", "disconnect": "Disconnect incoming connection",
+    "distribution": "Distribution", "distributionHelp": "How often and at what distance this node is created.", "count": "Count", "length": "Length", "randomness": "Randomness",
+    "alignment": "Alignment", "alignmentHelp": "Tilt, direction around the parent stem and rotation around its own axis.", "inclination": "Tilt from parent stem", "azimuth": "Direction around parent stem", "roll": "Rotation around own axis",
+    "stem": "Stem", "color": "Color", "stemColor": "Incoming connection stem color", "startWidth": "Start width", "endWidth": "End width", "bend": "Directed bend", "curve": "Natural curve", "bendDirection": "Bend direction",
+    "repetition": "Repetition", "repetitionDescription": "Count and continuation of the selected subtree", "connectedPrevious": "Connected to the previous node", "repetitions": "Repetitions", "nextOutputs": "Next repetition connection points",
+    "showGraphic": "Show graphic", "showGraphicHelp": "Leaf, blossom or geometric shape at this node",
+    "basics": "Shape, color & size", "basicsDescription": "Base shape and visible size", "primitive": "Base shape", "graphicColor": "Graphic color", "width": "Width", "height": "Height", "depth": "Depth", "scale": "Scale",
+    "position": "Position", "positionDescription": "Offset relative to the node", "curvature": "Curvature", "curvatureDescription": "Shape at the base and tip", "mainBend": "Main-axis curvature", "crossBend": "Cross-axis curvature",
+    "patterns": "Patterns", "patternsDescription": "Gradient, veins, spots and edge", "patternColor": "Pattern color", "opacity": "Opacity", "direction": "Direction", "baseToTip": "Base → tip", "tipToBase": "Tip → base", "veinPairs": "Vein pairs", "lineWidth": "Line width", "veinDirection": "Vein direction", "size": "Size", "edgeWidth": "Edge width", "undo": "Undo",
+    "orientation": "Alignment & rotation", "orientationDescription": "Reference axis and self-rotation of the graphic", "referenceAxis": "Reference axis", "connectionAxis": "Along connection only", "parentAxis": "Toward center / parent axis", "selfRotation": "Self-rotation"
+  },
+  "options": {
+    "vases": {"classic": "Classic", "tulip": "Tulip", "cylinder": "Cylinder", "bowl": "Bowl", "bud": "Bud vase"},
+    "materials": {"clay": "Clay", "stoneware": "Stoneware", "concrete": "Concrete", "glass": "Glass"},
+    "backgrounds": {"light": "Light", "dark": "Dark"},
+    "effects": {"sparkles": "Sparkles", "glowPoints": "Glow points", "uplight": "Uplight"},
+    "formats": {"square": "Square", "portrait": "Story", "landscape": "Landscape"}
+  }
+}
