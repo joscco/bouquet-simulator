@@ -1,7 +1,7 @@
 <section class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text">
-  <div class="relative grid min-h-0 flex-1 overflow-hidden min-[1380px]:grid-cols-[400px_minmax(520px,1fr)_420px]">
+  <div class="relative grid min-h-0 flex-1 overflow-hidden min-[1100px]:grid-cols-[360px_minmax(400px,1fr)_340px]">
     <div
-      class="pointer-events-none absolute bottom-6 left-1/2 z-40 flex max-w-[calc(100%-3rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-stone-200 bg-white/90 px-3 py-2 text-xs font-semibold text-stone-600 shadow-lg backdrop-blur min-[1380px]:hidden"
+      class="pointer-events-none absolute bottom-6 left-1/2 z-40 flex max-w-[calc(100%-3rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-stone-200 bg-white/90 px-3 py-2 text-xs font-semibold text-stone-600 shadow-lg backdrop-blur min-[1100px]:hidden"
       role="status"
     >
       <mat-icon class="shrink-0 text-[18px]! text-emerald-950">info</mat-icon>
@@ -9,7 +9,7 @@
     </div>
 
     <main
-      class="relative hidden h-full min-h-0 overflow-hidden bg-[#f7f6f2] min-[1380px]:col-start-2 min-[1380px]:row-start-1 min-[1380px]:block"
+      class="relative hidden h-full min-h-0 overflow-hidden bg-[#f7f6f2] min-[1100px]:col-start-2 min-[1100px]:row-start-1 min-[1100px]:block"
     >
       <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
         <button app-button variant="icon"
@@ -136,7 +136,7 @@
 
     <aside class="contents">
       <div
-        class="h-full min-h-0 p-3 min-[1380px]:col-start-3 min-[1380px]:row-start-1"
+        class="h-full min-h-0 p-3 min-[1100px]:col-start-3 min-[1100px]:row-start-1"
       >
         <app-flower-editor-preview
           [definition]="draft()"
@@ -147,7 +147,7 @@
       </div>
 
       <div
-        class="hidden h-full min-h-0 overflow-hidden bg-white min-[1380px]:col-start-1 min-[1380px]:row-start-1 min-[1380px]:flex min-[1380px]:flex-col"
+        class="hidden h-full min-h-0 overflow-hidden bg-white min-[1100px]:col-start-1 min-[1100px]:row-start-1 min-[1100px]:flex min-[1100px]:flex-col"
       >
         <section class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3">
           <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>
