@@ -1,7 +1,17 @@
+export type VaseId =
+  | 'classic'
+  | 'tulip'
+  | 'cylinder'
+  | 'bowl'
+  | 'bud'
+  | 'bottle'
+  | 'amphora'
+  | 'ribbed'
+  | 'faceted';
+
 export interface VaseOption {
-  id: string;
+  id: VaseId;
   name: string;
-  symbol: string;
 }
 
 export type VaseMaterialId = 'clay' | 'stoneware' | 'concrete' | 'glass';
@@ -13,15 +23,19 @@ export interface VaseMaterialOption {
   swatch: string;
 }
 
-export const DEFAULT_VASE_ID = 'classic';
+export const DEFAULT_VASE_ID: VaseId = 'classic';
 export const DEFAULT_VASE_MATERIAL_ID: VaseMaterialId = 'stoneware';
 
 export const VASE_OPTIONS: readonly VaseOption[] = [
-  {id: DEFAULT_VASE_ID, name: 'Klassisch', symbol: 'local_drink'},
-  {id: 'tulip', name: 'Tulpe', symbol: 'wine_bar'},
-  {id: 'cylinder', name: 'Zylinder', symbol: 'view_agenda'},
-  {id: 'bowl', name: 'Schale', symbol: 'emoji_food_beverage'},
-  {id: 'bud', name: 'Soliflore', symbol: 'science'},
+  {id: DEFAULT_VASE_ID, name: 'Klassisch'},
+  {id: 'tulip', name: 'Tulpe'},
+  {id: 'cylinder', name: 'Zylinder'},
+  {id: 'bowl', name: 'Schale'},
+  {id: 'bud', name: 'Soliflore'},
+  {id: 'bottle', name: 'Flasche'},
+  {id: 'amphora', name: 'Amphore'},
+  {id: 'ribbed', name: 'Gerippt'},
+  {id: 'faceted', name: 'Facettiert'},
 ];
 
 export const VASE_MATERIAL_OPTIONS: readonly VaseMaterialOption[] = [
@@ -31,7 +45,7 @@ export const VASE_MATERIAL_OPTIONS: readonly VaseMaterialOption[] = [
   {id: 'glass', name: 'Glas', symbol: 'opacity', swatch: '#d8eef2'},
 ];
 
-export function isVaseId(value: unknown): value is string {
+export function isVaseId(value: unknown): value is VaseId {
   return typeof value === 'string' && VASE_OPTIONS.some((option) => option.id === value);
 }
 
@@ -44,14 +58,18 @@ export function normalizedVaseMaterialId(value: unknown): VaseMaterialId {
   return isVaseMaterialId(value) ? value : DEFAULT_VASE_MATERIAL_ID;
 }
 
-const VASE_INSERTION_RADII: Record<string, number> = {
-  [DEFAULT_VASE_ID]: 30,
-  tulip: 32,
-  cylinder: 25,
-  bowl: 31,
-  bud: 14,
+const VASE_INSERTION_RADII: Record<VaseId, number> = {
+  [DEFAULT_VASE_ID]: 32,
+  tulip: 48,
+  cylinder: 26,
+  bowl: 34,
+  bud: 7,
+  bottle: 5,
+  amphora: 13,
+  ribbed: 26,
+  faceted: 23,
 };
 
 export function vaseInsertionRadius(vaseId: string | undefined): number {
-  return VASE_INSERTION_RADII[vaseId ?? DEFAULT_VASE_ID] ?? VASE_INSERTION_RADII[DEFAULT_VASE_ID]!;
+  return isVaseId(vaseId) ? VASE_INSERTION_RADII[vaseId] : VASE_INSERTION_RADII[DEFAULT_VASE_ID];
 }

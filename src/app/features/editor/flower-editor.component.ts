@@ -73,8 +73,6 @@ import {
   normalizeFlowerDefinitionForEditor,
 } from './domain/flower-editor-catalog';
 
-type FlowerEditorWorkspaceTab = 'graph' | 'preview' | 'inspector';
-
 @Component({
   selector: 'app-flower-editor',
   imports: [
@@ -112,7 +110,6 @@ export class FlowerEditorComponent {
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
-  readonly activeWorkspaceTab = signal<FlowerEditorWorkspaceTab>('graph');
   readonly savedTrees = this.subtreeLibrary.trees;
   readonly catalogEntries = computed<FlowerComponentCatalogEntry[]>(() =>
     createFlowerEditorCatalog(this.store.definitions(), this.savedTrees()));

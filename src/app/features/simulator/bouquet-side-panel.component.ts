@@ -33,6 +33,7 @@ import {
   BouquetFlowerListItem,
   BouquetFlowerListItemComponent,
 } from './components/bouquet-flower-list-item/bouquet-flower-list-item.component';
+import {VaseIconComponent} from './components/vase-icon/vase-icon.component';
 
 type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
 type DisclosureSection = 'vase' | 'scene' | 'files';
@@ -46,6 +47,7 @@ type DisclosureSection = 'vase' | 'scene' | 'files';
     SliderTrackComponent,
     AppButtonComponent,
     BouquetFlowerListItemComponent,
+    VaseIconComponent,
     TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

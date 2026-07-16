@@ -10,7 +10,6 @@
     <button
       class="min-w-0 flex-1 truncate text-left text-[11px] font-bold text-stone-800"
       type="button"
-      [matTooltip]="flower().name"
       (click)="selectionChange.emit(flower().instanceId)"
     >
       {{ flower().name }}
@@ -24,7 +23,7 @@
     }
   </div>
 
-  <div class="min-w-0" [matTooltip]="'flowerItem.length' | transloco">
+  <div class="min-w-0">
     <app-slider-track
       [minimum]="2"
       [maximum]="100"

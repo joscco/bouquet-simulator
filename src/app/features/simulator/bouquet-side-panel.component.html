@@ -45,7 +45,6 @@
             [class.text-rose-700]="action.danger"
             [class.bg-rose-100]="action.action === 'bouquetReset' && resetConfirmationPending()"
             [class.border-rose-400]="action.action === 'bouquetReset' && resetConfirmationPending()"
-            [matTooltip]="action.action === 'bouquetReset' && resetConfirmationPending() ? ('bouquet.resetConfirmHint' | transloco) : (action.tooltipKey | transloco)"
             [attr.aria-label]="action.action === 'bouquetReset' && resetConfirmationPending()
               ? ('bouquet.resetConfirmLabel' | transloco)
               : (action.labelKey | transloco) + ': ' + (action.tooltipKey | transloco)"
@@ -146,12 +145,11 @@
                 [class.bg-white]="activeVaseId() !== vase.id"
                 [class.text-stone-500]="activeVaseId() !== vase.id"
                 type="button"
-                [matTooltip]="('options.vases.' + vase.id) | transloco"
                 [attr.aria-label]="('sections.vase' | transloco) + ': ' + (('options.vases.' + vase.id) | transloco)"
                 [attr.aria-pressed]="activeVaseId() === vase.id"
                 (click)="vaseChange.emit(vase.id)"
               >
-                <mat-icon class="text-[19px]!">{{ vase.symbol }}</mat-icon>
+                <app-vase-icon class="size-6 shrink-0" [vaseId]="vase.id" />
                 <span class="max-w-full truncate text-[8px] leading-none">{{ ('options.vases.' + vase.id) | transloco }}</span>
               </button>
             }
@@ -169,7 +167,6 @@
                 [class.bg-white]="activeVaseMaterialId() !== material.id"
                 [class.text-stone-500]="activeVaseMaterialId() !== material.id"
                 type="button"
-                [matTooltip]="('options.materials.' + material.id) | transloco"
                 [attr.aria-label]="('sections.material' | transloco) + ': ' + (('options.materials.' + material.id) | transloco)"
                 [attr.aria-pressed]="activeVaseMaterialId() === material.id"
                 (click)="vaseMaterialChange.emit(material.id)"

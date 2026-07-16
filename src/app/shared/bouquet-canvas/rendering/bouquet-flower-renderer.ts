@@ -2,10 +2,12 @@ import {
   Box3,
   Box3Helper,
   Color,
+  Euler,
   Group,
   LineBasicMaterial,
   Mesh,
   MeshStandardMaterial,
+  Quaternion,
   Vector3,
 } from 'three';
 import {
@@ -28,6 +30,7 @@ import {
 } from './bouquet-flower-tree';
 import {createFlowerGraphicMesh} from './bouquet-graphic-renderer';
 import {createStemMesh} from './bouquet-stem-geometry';
+import {clipVaseStemEnd} from './bouquet-vase-renderer';
 
 const EMPTY_OFFSETS: Record<string, {x: number; y: number}> = {};
 const VASE_BRANCH_CLEARANCE = 34;
@@ -41,6 +44,7 @@ export interface BouquetPickData {
 
 export interface FlowerRenderOptions {
   vaseEnabled: boolean;
+  vaseId: string | null;
   selected: boolean;
   overlapping: boolean;
   highlightedNodeIds: ReadonlySet<string>;
@@ -79,6 +83,13 @@ export function createBouquetFlower(
   const stemEdges = collectStemEdges(definition, tree.nodes, tree.edges, options.highlightedConnection);
   const jointTangents = createStemJointTangents(stemEdges);
   const jointWidths = collectJointWidths(stemEdges);
+  const vaseStemExtended = addVaseStemExtension(
+    group,
+    nodes.get(tree.rootId),
+    stemEdges,
+    flower,
+    options.vaseId,
+  );
 
   for (const stemEdge of stemEdges) {
     const stem = createStemMesh({
@@ -95,7 +106,7 @@ export function createBouquetFlower(
       curveRotation: stemEdge.curveRotation,
       startTangent: jointTangents.get(stemEdge.from.id),
       endTangent: jointTangents.get(stemEdge.to.id),
-      capStart: stemEdge.capStart,
+      capStart: stemEdge.capStart && !vaseStemExtended,
       capEnd: stemEdge.capEnd,
     });
     if (stemEdge.highlighted
@@ -144,6 +155,72 @@ export function createBouquetFlower(
   group.position.set(flower.x, -flower.y, flower.z);
   group.scale.setScalar(flower.scale);
   return group;
+}
+
+function addVaseStemExtension(
+  group: Group,
+  root: FlowerTreeNode | undefined,
+  stemEdges: readonly StemRenderEdge[],
+  flower: BouquetFlower,
+  vaseId: string | null,
+): boolean {
+  if (!root || vaseId === null) return false;
+  const rootEdge = stemEdges.find((edge) => edge.from.id === root.id);
+  if (!rootEdge) return false;
+
+  const flowerRotation = new Quaternion().setFromEuler(new Euler(
+    flower.leanX ?? 0,
+    flower.rotationY ?? 0,
+    flower.leanZ ?? 0,
+  ));
+  const groupPosition = new Vector3(flower.x, -flower.y, flower.z);
+  const rootLocal = flowerTreePosition(root);
+  const rootWorld = rootLocal.clone()
+    .applyQuaternion(flowerRotation)
+    .multiplyScalar(flower.scale)
+    .add(groupPosition);
+  const rootDirection = flowerTreePosition(rootEdge.to)
+    .sub(rootLocal)
+    .normalize()
+    .applyQuaternion(flowerRotation);
+  const stemEnd = clipVaseStemEnd(
+    vaseId,
+    rootWorld,
+    rootDirection.negate(),
+    rootEdge.startWidth * flower.scale / 2,
+  );
+  if (stemEnd.distanceToSquared(rootWorld) < 1) return false;
+  const localBottom = stemEnd
+    .sub(groupPosition)
+    .applyQuaternion(flowerRotation.invert())
+    .divideScalar(Math.max(0.01, flower.scale));
+  const bottomNode: FlowerTreeNode = {
+    ...root,
+    id: `${root.id}:vase-bottom`,
+    parentId: null,
+    x: localBottom.x,
+    y: -localBottom.y,
+    z: localBottom.z,
+  };
+  const bottomWidth = rootEdge.startWidth * 0.9;
+  const stem = createStemMesh({
+    from: bottomNode,
+    to: root,
+    startWidth: bottomWidth,
+    endWidth: rootEdge.startWidth,
+    startJointWidth: bottomWidth,
+    endJointWidth: rootEdge.startWidth,
+    color: rootEdge.color,
+    opacity: 1,
+    bend: 0,
+    curve: 0,
+    curveRotation: rootEdge.curveRotation,
+    capStart: true,
+    capEnd: false,
+  });
+  stem.userData['pick'] = {instanceId: flower.instanceId, scale: flower.scale} satisfies BouquetPickData;
+  group.add(stem);
+  return true;
 }
 
 function collectStemEdges(

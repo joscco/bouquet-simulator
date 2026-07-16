@@ -1,7 +1,11 @@
 import {describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
 import {detectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-overlaps';
-import {DEFAULT_VASE_MATERIAL_ID} from '../data/vases';
+import {
+  DEFAULT_VASE_ID,
+  DEFAULT_VASE_MATERIAL_ID,
+  vaseInsertionRadius,
+} from '../data/vases';
 import {DEFAULT_BOUQUET_BACKGROUND, DEFAULT_BOUQUET_SCENE_EFFECTS} from '../data/bouquet-scene';
 
 describe('bouquet flower placement', () => {
@@ -12,7 +16,8 @@ describe('bouquet flower placement', () => {
     store.moveFlower(before.instanceId, 300, -200, 180);
 
     const after = store.state().flowers[0]!;
-    expect(Math.hypot(after.x, after.z)).toBeLessThanOrEqual(30.001);
+    expect(Math.hypot(after.x, after.z))
+      .toBeLessThanOrEqual(vaseInsertionRadius(DEFAULT_VASE_ID) + 0.001);
     expect(after.y).toBeGreaterThanOrEqual(-18);
     expect(after.y).toBeLessThanOrEqual(-14);
     expect(Math.hypot(after.leanX ?? 0, after.leanZ ?? 0)).toBeLessThanOrEqual(0.421);
@@ -26,7 +31,8 @@ describe('bouquet flower placement', () => {
     store.shuffleBouquet();
 
     for (const flower of store.state().flowers) {
-      expect(Math.hypot(flower.x, flower.z)).toBeLessThanOrEqual(28.001);
+      expect(Math.hypot(flower.x, flower.z))
+        .toBeLessThanOrEqual(vaseInsertionRadius(DEFAULT_VASE_ID) - 2 + 0.001);
       expect(flower.y).toBeGreaterThanOrEqual(-18);
       expect(flower.y).toBeLessThanOrEqual(-14);
     }
@@ -42,7 +48,8 @@ describe('bouquet flower placement', () => {
     store.moveFlower(store.state().flowers[0]!.instanceId, 300, 0, 180);
 
     for (const flower of store.state().flowers) {
-      expect(Math.hypot(flower.x, flower.z)).toBeLessThanOrEqual(14.001);
+      expect(Math.hypot(flower.x, flower.z))
+        .toBeLessThanOrEqual(vaseInsertionRadius('bud') + 0.001);
     }
   });
 

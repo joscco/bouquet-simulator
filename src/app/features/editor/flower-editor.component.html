@@ -1,50 +1,15 @@
 <section class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text">
-
-  <nav class="shrink-0 border-b border-stone-200 bg-white px-2 pb-2 pt-16 lg:hidden" [attr.aria-label]="'editor.tabsLabel' | transloco">
-    <div class="grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1">
-      <button
-        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
-        type="button"
-        [attr.aria-pressed]="activeWorkspaceTab() === 'graph'"
-        [class.bg-white]="activeWorkspaceTab() === 'graph'"
-        [class.text-stone-900]="activeWorkspaceTab() === 'graph'"
-        [class.shadow-sm]="activeWorkspaceTab() === 'graph'"
-        (click)="activeWorkspaceTab.set('graph')"
-      >
-        <mat-icon class="text-[18px]! max-[379px]:hidden!">account_tree</mat-icon>
-        {{ 'editor.graph' | transloco }}
-      </button>
-      <button
-        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
-        type="button"
-        [attr.aria-pressed]="activeWorkspaceTab() === 'preview'"
-        [class.bg-white]="activeWorkspaceTab() === 'preview'"
-        [class.text-stone-900]="activeWorkspaceTab() === 'preview'"
-        [class.shadow-sm]="activeWorkspaceTab() === 'preview'"
-        (click)="activeWorkspaceTab.set('preview')"
-      >
-        <mat-icon class="text-[18px]! max-[379px]:hidden!">visibility</mat-icon>
-        {{ 'editor.preview' | transloco }}
-      </button>
-      <button
-        class="inline-flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-1 text-[11px] font-semibold text-stone-500 transition-[background-color,color,box-shadow] sm:px-2"
-        type="button"
-        [attr.aria-pressed]="activeWorkspaceTab() === 'inspector'"
-        [class.bg-white]="activeWorkspaceTab() === 'inspector'"
-        [class.text-stone-900]="activeWorkspaceTab() === 'inspector'"
-        [class.shadow-sm]="activeWorkspaceTab() === 'inspector'"
-        (click)="activeWorkspaceTab.set('inspector')"
-      >
-        <mat-icon class="text-[18px]! max-[379px]:hidden!">tune</mat-icon>
-        {{ 'editor.properties' | transloco }}
-      </button>
+  <div class="relative grid min-h-0 flex-1 overflow-hidden min-[1380px]:grid-cols-[400px_minmax(520px,1fr)_420px]">
+    <div
+      class="pointer-events-none absolute bottom-6 left-1/2 z-40 flex max-w-[calc(100%-3rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-stone-200 bg-white/90 px-3 py-2 text-xs font-semibold text-stone-600 shadow-lg backdrop-blur min-[1380px]:hidden"
+      role="status"
+    >
+      <mat-icon class="shrink-0 text-[18px]! text-emerald-950">info</mat-icon>
+      <span>{{ 'editor.wideScreenRequired' | transloco }}</span>
     </div>
-  </nav>
 
-  <div class="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_340px] xl:grid-cols-[320px_minmax(0,1fr)_400px]">
     <main
-      class="relative h-full min-h-0 overflow-hidden bg-[#f7f6f2] lg:col-start-2 lg:row-start-1 lg:block"
-      [class.hidden]="activeWorkspaceTab() !== 'graph'"
+      class="relative hidden h-full min-h-0 overflow-hidden bg-[#f7f6f2] min-[1380px]:col-start-2 min-[1380px]:row-start-1 min-[1380px]:block"
     >
       <div class="flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white p-1 shadow-sm absolute left-4 top-4 z-20 max-w-[calc(100%-2rem)] bg-white/90! shadow-lg backdrop-blur">
         <button app-button variant="icon"
@@ -169,13 +134,9 @@
       />
     </main>
 
-    <aside
-      class="h-full min-h-0 bg-white lg:contents"
-      [class.hidden]="activeWorkspaceTab() === 'graph'"
-    >
+    <aside class="contents">
       <div
-        class="h-full min-h-0 p-3 lg:contents"
-        [class.hidden]="activeWorkspaceTab() !== 'preview'"
+        class="h-full min-h-0 p-3 min-[1380px]:col-start-3 min-[1380px]:row-start-1"
       >
         <app-flower-editor-preview
           [definition]="draft()"
@@ -186,8 +147,7 @@
       </div>
 
       <div
-        class="h-full min-h-0 overflow-hidden bg-white lg:col-start-1 lg:row-start-1 lg:flex lg:flex-col"
-        [class.hidden]="activeWorkspaceTab() !== 'inspector'"
+        class="hidden h-full min-h-0 overflow-hidden bg-white min-[1380px]:col-start-1 min-[1380px]:row-start-1 min-[1380px]:flex min-[1380px]:flex-col"
       >
         <section class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3">
           <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>

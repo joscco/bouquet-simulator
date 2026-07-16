@@ -53,7 +53,7 @@
     "editSelection": "Edit selection as component", "addNode": "Add node or component", "addLoop": "Add repetition", "autoLayout": "Arrange graph automatically", "multiSelect": "Shift + click: multi-select", "selected": "selected",
     "sidebarTitle": "Edit definition", "search": "Search flower or component …", "noResult": "No matching entry",
     "new": "Create new definition", "duplicate": "Duplicate current definition", "delete": "Delete entire entry", "load": "Load definition", "export": "Export definition", "defaults": "Write catalog to developer defaults", "save": "Save definitions",
-    "centerView": "Center view", "regenerate": "Generate new preview"
+    "centerView": "Center view", "regenerate": "Generate new preview", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
   },
   "inspector": {
     "definition": "Definition", "nodes": "nodes", "name": "Name", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",
@@ -71,7 +71,7 @@
     "orientation": "Alignment & rotation", "orientationDescription": "Reference axis and self-rotation of the graphic", "referenceAxis": "Reference axis", "connectionAxis": "Along connection only", "parentAxis": "Toward center / parent axis", "selfRotation": "Self-rotation"
   },
   "options": {
-    "vases": {"classic": "Classic", "tulip": "Tulip", "cylinder": "Cylinder", "bowl": "Bowl", "bud": "Bud vase"},
+    "vases": {"classic": "Classic", "tulip": "Tulip", "cylinder": "Cylinder", "bowl": "Bowl", "bud": "Bud vase", "bottle": "Bottle", "amphora": "Amphora", "ribbed": "Ribbed", "faceted": "Faceted"},
     "materials": {"clay": "Clay", "stoneware": "Stoneware", "concrete": "Concrete", "glass": "Glass"},
     "backgrounds": {"light": "Light", "dark": "Dark"},
     "effects": {"sparkles": "Sparkles", "glowPoints": "Glow points", "uplight": "Uplight"},

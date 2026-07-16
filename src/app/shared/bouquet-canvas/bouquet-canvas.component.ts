@@ -359,9 +359,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.bouquet.rotation.set(0, 0, 0);
     const definitions = new Map(this.definitions().map((definition) => [definition.id, definition]));
 
+    const vaseId = this.state().vaseId ?? DEFAULT_VASE_ID;
     if (this.vaseEnabled()) {
       this.bouquetContent.add(createBouquetVase(
-        this.state().vaseId ?? DEFAULT_VASE_ID,
+        vaseId,
         normalizedVaseMaterialId(this.state().vaseMaterialId),
       ));
     }
@@ -371,6 +372,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       if (!definition) continue;
       this.bouquetContent.add(createBouquetFlower(definition, flower, {
         vaseEnabled: this.vaseEnabled(),
+        vaseId: this.vaseEnabled() ? vaseId : null,
         selected: this.selectedId() === flower.instanceId,
         overlapping: this.overlappingIds().has(flower.instanceId),
         highlightedNodeIds: this.highlightedNodeIds(),
