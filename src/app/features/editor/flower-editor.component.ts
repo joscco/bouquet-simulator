@@ -109,6 +109,29 @@ interface EditorHistorySnapshot {
   signature: string;
 }
 
+interface GraphWindowRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface GraphWindowGesture {
+  mode: 'move' | 'resize';
+  pointerId: number;
+  startX: number;
+  startY: number;
+  rect: GraphWindowRect;
+}
+
+interface GraphLauncherGesture {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  position: Point;
+  moved: boolean;
+}
+
 const MAX_UNDO_STEPS = 30;
 const HISTORY_GROUP_WINDOW_MS = 350;
 
@@ -118,6 +141,64 @@ function previewLayoutFrame(insets: {left: number; right: number; top: number; b
 
 function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right: number; top: number; bottom: number} {
   return {left: frame.left, right: frame.right, top: frame.top, bottom: frame.bottom};
+}
+
+function defaultGraphWindowRect(viewport: {width: number; height: number}): GraphWindowRect {
+  const portrait = viewport.height >= viewport.width;
+  const width = portrait
+    ? Math.max(240, viewport.width - 24)
+    : Math.min(720, Math.max(360, viewport.width * 0.58));
+  const height = portrait
+    ? Math.min(460, Math.max(300, viewport.height * 0.38))
+    : Math.min(560, Math.max(360, viewport.height * 0.68));
+  return constrainGraphWindowRect({
+    x: portrait ? 12 : viewport.width - width - 20,
+    y: 76,
+    width,
+    height,
+  }, viewport);
+}
+
+function constrainGraphWindowRect(
+  rect: GraphWindowRect,
+  viewport: {width: number; height: number},
+): GraphWindowRect {
+  const margin = 8;
+  const maximumWidth = Math.max(180, viewport.width - margin * 2);
+  const maximumHeight = Math.max(160, viewport.height - margin * 2);
+  const minimumWidth = Math.min(220, maximumWidth);
+  const minimumHeight = Math.min(190, maximumHeight);
+  const width = bounded(rect.width, minimumWidth, maximumWidth);
+  const height = bounded(rect.height, minimumHeight, maximumHeight);
+  return {
+    x: bounded(rect.x, margin, Math.max(margin, viewport.width - width - margin)),
+    y: bounded(rect.y, margin, Math.max(margin, viewport.height - height - margin)),
+    width,
+    height,
+  };
+}
+
+function defaultGraphLauncherPosition(
+  viewport: {width: number; height: number},
+  windowRect: GraphWindowRect,
+): Point {
+  return constrainGraphLauncherPosition({x: windowRect.x, y: windowRect.y}, viewport);
+}
+
+function constrainGraphLauncherPosition(
+  position: Point,
+  viewport: {width: number; height: number},
+): Point {
+  const margin = 8;
+  const size = 52;
+  return {
+    x: bounded(position.x, margin, Math.max(margin, viewport.width - size - margin)),
+    y: bounded(position.y, margin, Math.max(margin, viewport.height - size - margin)),
+  };
+}
+
+function bounded(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }
 
 @Component({
@@ -165,6 +246,11 @@ export class FlowerEditorComponent implements OnDestroy {
     width: typeof window === 'undefined' ? 1280 : window.innerWidth,
     height: typeof window === 'undefined' ? 720 : window.innerHeight,
   });
+  readonly graphWindowRect = signal(defaultGraphWindowRect(this.viewportSize()));
+  readonly graphLauncherPosition = signal(defaultGraphLauncherPosition(
+    this.viewportSize(),
+    this.graphWindowRect(),
+  ));
   readonly portraitLayout = computed(() => {
     const viewport = this.viewportSize();
     return viewport.height >= viewport.width;
@@ -183,6 +269,9 @@ export class FlowerEditorComponent implements OnDestroy {
   });
   readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
   private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
+  private graphWindowGesture: GraphWindowGesture | null = null;
+  private graphLauncherGesture: GraphLauncherGesture | null = null;
+  private suppressGraphLauncherClick = false;
   readonly catalogSearchOpen = signal(false);
   readonly generalSectionExpanded = signal(false);
   readonly nodeSectionExpanded = signal(true);
@@ -290,6 +379,11 @@ export class FlowerEditorComponent implements OnDestroy {
 
   @HostListener('document:keydown.escape', ['$event'])
   closePortraitOverlayOnEscape(event: Event): void {
+    if (this.graphSectionExpanded()) {
+      event.preventDefault();
+      this.closeGraphWindow();
+      return;
+    }
     if (!this.editorPanelOpen()) return;
     event.preventDefault();
     this.closePortraitOverlays();
@@ -297,7 +391,51 @@ export class FlowerEditorComponent implements OnDestroy {
 
   @HostListener('window:resize')
   updateViewportSize(): void {
-    this.viewportSize.set({width: window.innerWidth, height: window.innerHeight});
+    const viewport = {width: window.innerWidth, height: window.innerHeight};
+    this.viewportSize.set(viewport);
+    this.graphWindowRect.update((rect) => constrainGraphWindowRect(rect, viewport));
+    this.graphLauncherPosition.update((position) =>
+      constrainGraphLauncherPosition(position, viewport));
+  }
+
+  @HostListener('document:pointermove', ['$event'])
+  moveGraphWindow(event: PointerEvent): void {
+    const launcherGesture = this.graphLauncherGesture;
+    if (launcherGesture && event.pointerId === launcherGesture.pointerId) {
+      event.preventDefault();
+      const deltaX = event.clientX - launcherGesture.startX;
+      const deltaY = event.clientY - launcherGesture.startY;
+      if (Math.hypot(deltaX, deltaY) > 4) launcherGesture.moved = true;
+      this.graphLauncherPosition.set(constrainGraphLauncherPosition({
+        x: launcherGesture.position.x + deltaX,
+        y: launcherGesture.position.y + deltaY,
+      }, this.viewportSize()));
+      return;
+    }
+    const gesture = this.graphWindowGesture;
+    if (!gesture || event.pointerId !== gesture.pointerId) return;
+    event.preventDefault();
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    const next = gesture.mode === 'move'
+      ? {...gesture.rect, x: gesture.rect.x + deltaX, y: gesture.rect.y + deltaY}
+      : {...gesture.rect, width: gesture.rect.width + deltaX, height: gesture.rect.height + deltaY};
+    this.graphWindowRect.set(constrainGraphWindowRect(next, this.viewportSize()));
+  }
+
+  @HostListener('document:pointerup', ['$event'])
+  @HostListener('document:pointercancel', ['$event'])
+  finishGraphWindowGesture(event: PointerEvent): void {
+    if (event.pointerId === this.graphLauncherGesture?.pointerId) {
+      const suppressClick = event.type === 'pointerup' && this.graphLauncherGesture.moved;
+      this.suppressGraphLauncherClick = suppressClick;
+      if (suppressClick) {
+        setTimeout(() => this.suppressGraphLauncherClick = false);
+      }
+      this.graphLauncherGesture = null;
+      return;
+    }
+    if (event.pointerId === this.graphWindowGesture?.pointerId) this.graphWindowGesture = null;
   }
 
   createNewDefinition(): void {
@@ -475,7 +613,7 @@ export class FlowerEditorComponent implements OnDestroy {
     const positions = createCompactGraphPositions(this.draft());
     this.recordUndo('positions', true);
     this.graphPositions.set(positions);
-    this.graphTree?.resetView(positions);
+    this.graphTree?.centerAfterLayout(positions);
     this.notify('Graph automatisch angeordnet.');
   }
 
@@ -622,13 +760,61 @@ export class FlowerEditorComponent implements OnDestroy {
     this.editorPanelOpen.update((open) => !open);
   }
 
-  toggleGraphSection(): void {
-    this.graphSectionExpanded.update((expanded) => !expanded);
+  openGraphWindowFromLauncher(): void {
+    if (this.suppressGraphLauncherClick) {
+      this.suppressGraphLauncherClick = false;
+      return;
+    }
+    const position = this.graphLauncherPosition();
+    this.graphWindowRect.update((rect) => constrainGraphWindowRect({
+      ...rect,
+      x: position.x,
+      y: position.y,
+    }, this.viewportSize()));
+    this.graphSectionExpanded.set(true);
+  }
+
+  closeGraphWindow(): void {
+    this.graphWindowGesture = null;
+    const rect = this.graphWindowRect();
+    this.graphLauncherPosition.set(constrainGraphLauncherPosition(
+      {x: rect.x, y: rect.y},
+      this.viewportSize(),
+    ));
+    this.graphSectionExpanded.set(false);
+    this.addMenuOpen.set(false);
+    this.subtreeActionsOpen.set(false);
+  }
+
+  startGraphWindowGesture(event: PointerEvent, mode: 'move' | 'resize'): void {
+    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.graphWindowGesture = {
+      mode,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      rect: this.graphWindowRect(),
+    };
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+  }
+
+  startGraphLauncherGesture(event: PointerEvent): void {
+    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    this.suppressGraphLauncherClick = false;
+    this.graphLauncherGesture = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      position: this.graphLauncherPosition(),
+      moved: false,
+    };
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
 
   setNodeSectionExpanded(expanded: boolean): void {
     this.nodeSectionExpanded.set(expanded);
-    if (!expanded) this.graphSectionExpanded.set(false);
   }
 
   closePortraitOverlays(): void {

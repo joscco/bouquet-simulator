@@ -1,3 +1,16 @@
 @import "tailwindcss";
 @import "@angular/material/prebuilt-themes/azure-blue.css";
-@import "@fontsource/material-icons";
+@import "@fontsource/material-symbols-outlined/400.css";
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined", sans-serif !important;
+  font-style: normal;
+  font-weight: 400;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-feature-settings: "liga";
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+}

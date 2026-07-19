@@ -105,6 +105,11 @@ export class FlowerEditorTreeComponent {
     this.graphZoom.set(this.initialGraphZoom());
   }
 
+  centerAfterLayout(positions: Record<string, Point>): void {
+    this.graphCenter.set(centerOfGraphPositions(positions));
+    this.graphZoom.update((zoom) => Math.max(zoom, this.comfortableGraphZoom()));
+  }
+
   isSubtreeNodeSelected(id: string): boolean {
     return this.subtreeNodeIds().has(id);
   }
@@ -381,6 +386,13 @@ export class FlowerEditorTreeComponent {
       return window.innerWidth >= 700 ? 0.75 : 0.9;
     }
     return 1;
+  }
+
+  private comfortableGraphZoom(): number {
+    const nodeCount = this.graphLayout().nodes.length;
+    if (nodeCount <= 8) return 1.15;
+    if (nodeCount <= 16) return 1.05;
+    return 0.95;
   }
 
 }

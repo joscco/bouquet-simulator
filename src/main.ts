@@ -22,7 +22,7 @@ bootstrapApplication(AppComponent, {
     }),
     provideAppInitializer(() => {
       inject(MatIconRegistry).setDefaultFontSetClass(
-        "font-['Material_Icons']!",
+        'material-symbols-outlined',
         'mat-ligature-font',
       );
     }),
