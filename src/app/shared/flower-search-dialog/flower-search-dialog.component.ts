@@ -24,8 +24,11 @@ export class FlowerSearchDialogComponent {
   readonly entries = input.required<readonly FlowerSearchEntry[]>();
   readonly title = input.required<string>();
   readonly placeholder = input.required<string>();
+  readonly definitionActions = input(false);
   readonly query = signal('');
   readonly entrySelect = output<string>();
+  readonly createDefinition = output<void>();
+  readonly loadDefinition = output<void>();
   readonly close = output<void>();
 
   readonly queryTokens = computed(() => this.query()

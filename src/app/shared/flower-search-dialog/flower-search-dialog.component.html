@@ -8,6 +8,30 @@
   >
     <header class="flex shrink-0 items-center gap-3 border-b border-stone-200 p-4">
       <h2 id="flower-search-title" class="m-0 min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-stone-900">{{ title() }}</h2>
+      @if (definitionActions()) {
+        <div class="flex shrink-0 items-center gap-1 border-r border-stone-200 pr-2">
+          <button
+            data-definition-action="create"
+            class="grid size-9 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-stone-500 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+            type="button"
+            [attr.aria-label]="'editor.new' | transloco"
+            [title]="'editor.new' | transloco"
+            (click)="createDefinition.emit()"
+          >
+            <svg class="size-[19px] fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button
+            data-definition-action="load"
+            class="grid size-9 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-stone-500 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600"
+            type="button"
+            [attr.aria-label]="'editor.load' | transloco"
+            [title]="'editor.load' | transloco"
+            (click)="loadDefinition.emit()"
+          >
+            <svg class="size-[19px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+          </button>
+        </div>
+      }
       <button class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button" [attr.aria-label]="'common.close' | transloco" (click)="close.emit()">
         <svg class="size-5 fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>

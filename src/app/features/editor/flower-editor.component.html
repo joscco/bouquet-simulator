@@ -2,13 +2,11 @@
   class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text"
   [style.--editor-panel-extent]="editorPanelExtent() + 'px'"
 >
-  <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden [--editor-graph-height:min(38vh,400px)] portrait:[--editor-graph-height:min(22dvh,360px)]">
-    <main
-      class="pointer-events-none absolute left-0 top-[120px] z-50 h-[var(--editor-graph-height)] w-[var(--editor-panel-extent)] max-w-[100vw] origin-top -translate-y-3 scale-[0.985] overflow-hidden border-b border-r border-stone-200/90 bg-[#f7f6f2] opacity-0 shadow-[0_14px_32px_rgb(28_25_23/10%)] transition-[transform,opacity] duration-[280ms] ease-[ease] will-change-transform data-[open=true]:pointer-events-auto data-[open=true]:translate-y-0 data-[open=true]:scale-100 data-[open=true]:opacity-100 motion-reduce:transition-none portrait:inset-x-0 portrait:bottom-[calc(var(--editor-panel-extent)-56px-var(--editor-graph-height))] portrait:top-auto portrait:w-full portrait:max-w-full portrait:border-r-0"
-      [attr.data-open]="editorPanelOpen() && graphSectionExpanded()"
+  <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden">
+    <ng-template #graphContent>
+    <div
+      class="relative mb-3 h-[clamp(320px,48dvh,540px)] min-h-0 w-full overflow-hidden rounded-xl border border-stone-200 bg-[#f7f6f2] shadow-inner"
       id="flower-editor-graph-drawer"
-      [attr.aria-hidden]="!editorPanelOpen() || !graphSectionExpanded()"
-      [attr.inert]="!editorPanelOpen() || !graphSectionExpanded() ? '' : null"
     >
       <header class="absolute inset-x-0 top-0 z-[35] flex h-12 items-center gap-3 border-b border-stone-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-xl">
         <div class="min-w-0 flex-1">
@@ -141,7 +139,8 @@
         (positionEditStart)="beginPositionEdit()"
         (message)="showTreeMessage($event)"
       />
-    </main>
+    </div>
+    </ng-template>
 
     <aside class="contents">
       <div class="absolute inset-0 z-0 h-full min-w-0 w-full bg-stone-100">
@@ -181,12 +180,15 @@
           <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
         </header>
         <div class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-          <section
-            class="relative z-40 space-y-3 border-b border-stone-200 bg-white p-3 transition-[margin] duration-[320ms] ease-[ease] motion-reduce:transition-none"
-            [class]="graphSectionExpanded() ? 'mt-[var(--editor-graph-height)]' : 'mt-0'"
-          >
+          <section class="space-y-3 border-b border-stone-200 bg-white p-3">
+            <app-editor-disclosure
+              [title]="'inspector.general' | transloco"
+              [description]="draft().id"
+              icon="info"
+              [expanded]="generalSectionExpanded()"
+              (expandedChange)="generalSectionExpanded.set($event)"
+            >
             <div class="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-              <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'inspector.general' | transloco }}</div>
               <label class="block min-w-0">
                 <span class="mb-[5px] block text-[10px] font-semibold text-stone-500">{{ 'inspector.flowerId' | transloco }}</span>
                 <input
@@ -231,14 +233,11 @@
             <div>
               <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'inspector.actions' | transloco }}</div>
               <div class="flex flex-wrap items-center gap-1">
-                <button app-button variant="icon" [matTooltip]="'editor.new' | transloco" [attr.aria-label]="'editor.new' | transloco" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
                 <button app-button variant="icon" [matTooltip]="'editor.duplicate' | transloco" [attr.aria-label]="'editor.duplicate' | transloco" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
                 @if (selectedCatalogEntry()) {
                   <button app-button variant="icon" tone="danger" [matTooltip]="'editor.delete' | transloco" [attr.aria-label]="'editor.delete' | transloco" [disabled]="!canDeleteSelectedCatalogEntry()" (click)="deleteSelectedCatalogEntry()"><mat-icon>delete_forever</mat-icon></button>
                 }
                 <span class="mx-1 h-6 w-px bg-stone-200"></span>
-                <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
-                <button app-button variant="icon" [matTooltip]="'editor.load' | transloco" [attr.aria-label]="'editor.load' | transloco" (click)="definitionFile.click()"><mat-icon>upload_file</mat-icon></button>
                 <button app-button variant="icon" [matTooltip]="'editor.export' | transloco" [attr.aria-label]="'editor.export' | transloco" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
                 <button app-button variant="icon" [matTooltip]="'editor.exportModel' | transloco" [attr.aria-label]="'editor.exportModel' | transloco" [disabled]="modelExporting()" (click)="exportCurrentFlowerModel()"><mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon></button>
                 <span class="flex-1"></span>
@@ -253,6 +252,7 @@
                 </button>
               </div>
             </div>
+            </app-editor-disclosure>
           </section>
 
           <div class="p-3">
@@ -268,6 +268,9 @@
                 <mat-icon>account_tree</mat-icon>
                 {{ 'editor.graph' | transloco }}
               </button>
+              @if (graphSectionExpanded()) {
+                <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
+              }
               <app-flower-editor-inspector
                 class="-mx-2.5 -mb-3"
                 [definition]="draft()"
@@ -287,12 +290,17 @@
     </aside>
   </div>
 
+  <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
+
   @if (catalogSearchOpen()) {
     <app-flower-search-dialog
       [entries]="catalogSearchEntries()"
       [title]="'editor.sidebarTitle' | transloco"
       [placeholder]="'editor.search' | transloco"
+      [definitionActions]="true"
       (entrySelect)="chooseCatalogEntry($event)"
+      (createDefinition)="createNewDefinition()"
+      (loadDefinition)="definitionFile.click()"
       (close)="catalogSearchOpen.set(false)"
     />
   }

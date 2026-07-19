@@ -1,5 +1,5 @@
 import {TestBed} from '@angular/core/testing';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {FlowerDefinition} from '../../core/models/flower.models';
 import {provideTestTransloco} from '../../testing/transloco-testing';
 import {FlowerSearchDialogComponent, FlowerSearchEntry} from './flower-search-dialog.component';
@@ -20,6 +20,24 @@ describe('FlowerSearchDialogComponent', () => {
 
     expect(segments.map((segment) => segment.text).join('')).toBe('Lilienblüte');
     expect(segments.some((segment) => segment.match && segment.text === 'Lil')).toBe(true);
+  });
+
+  it('only exposes definition actions when requested', () => {
+    const fixture = createFixture();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-definition-action]')).toBeNull();
+
+    const create = vi.fn();
+    const load = vi.fn();
+    fixture.componentInstance.createDefinition.subscribe(create);
+    fixture.componentInstance.loadDefinition.subscribe(load);
+    fixture.componentRef.setInput('definitionActions', true);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-definition-action="create"]').click();
+    fixture.nativeElement.querySelector('[data-definition-action="load"]').click();
+    expect(create).toHaveBeenCalledOnce();
+    expect(load).toHaveBeenCalledOnce();
   });
 });
 

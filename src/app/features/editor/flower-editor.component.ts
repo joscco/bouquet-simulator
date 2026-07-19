@@ -11,6 +11,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import {NgTemplateOutlet} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {MatIconModule} from '@angular/material/icon';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
@@ -128,6 +129,7 @@ function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
+    NgTemplateOutlet,
     FlowerEditorTreeComponent,
     FlowerEditorPreviewComponent,
     FlowerEditorInspectorComponent,
@@ -182,6 +184,7 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
   private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
   readonly catalogSearchOpen = signal(false);
+  readonly generalSectionExpanded = signal(false);
   readonly nodeSectionExpanded = signal(true);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
