@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {FlowerDefinition} from '../../../core/models/flower.models';
-import {FlowerThumbnailCache} from './flower-thumbnail-cache.service';
+import {FlowerThumbnailCache} from '../../../shared/flower-thumbnail/flower-thumbnail-cache.service';
 
 describe('flower thumbnail cache', () => {
   it('reuses snapshots until the definition changes', () => {

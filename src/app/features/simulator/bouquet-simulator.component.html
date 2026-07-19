@@ -36,10 +36,7 @@
 
   <app-bouquet-side-panel
     [menuOpen]="menuOpen()"
-    [bouquets]="store.bouquetSummaries()"
-    [activeBouquetId]="store.activeBouquetId()"
     [activeBouquetName]="store.activeBouquetName()"
-    [canAddBouquet]="store.canAddBouquet()"
     [flowers]="usedFlowers()"
     [overlapCount]="overlappingFlowerIds().size"
     [selectedId]="selectedId()"
@@ -68,9 +65,6 @@
     (projectImport)="importProject($event)"
     (projectExport)="exportProject()"
     (menuToggle)="toggleMenu()"
-    (bouquetAdd)="addBouquet()"
-    (bouquetSelect)="selectBouquet($event)"
-    (bouquetDelete)="deleteBouquet($event)"
     (bouquetNameChange)="store.renameActiveBouquet($event)"
     (videoExport)="exportTurntableVideo()"
     (modelExport)="exportBouquetModel()"
@@ -81,9 +75,11 @@
 </section>
 
 @if (pickerOpen()) {
-  <app-bouquet-flower-picker
-    [flowers]="bouquetDefinitions()"
-    (flowerSelect)="addFlower($event)"
+  <app-flower-search-dialog
+    [entries]="bouquetSearchEntries()"
+    [title]="'picker.title' | transloco"
+    [placeholder]="'picker.search' | transloco"
+    (entrySelect)="addFlower($event)"
     (close)="pickerOpen.set(false)"
   />
 }

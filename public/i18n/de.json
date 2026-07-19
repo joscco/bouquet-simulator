@@ -1,6 +1,6 @@
 {
   "language": {"label": "Sprache", "de": "Deutsch", "en": "Englisch", "switchToGerman": "Zu Deutsch wechseln", "switchToEnglish": "Zu Englisch wechseln"},
-  "views": {"label": "Editor wechseln", "bouquet": "Strauß", "components": "Komponenten"},
+  "views": {"label": "Editor wechseln", "bouquet": "Strauß", "components": "Komponente"},
   "common": {"close": "Schließen", "confirm": "Bestätigen", "search": "Suchen …", "emptySearch": "Keine passende Blume gefunden", "fixed": "Festwert", "interval": "Intervall", "inputMode": "Eingabemodus"},
   "picker": {"title": "Blume wählen", "search": "Blume suchen …", "nodes": "Knoten"},
   "bouquet": {
@@ -60,7 +60,7 @@
     "centerView": "Ansicht zentrieren", "regenerate": "Neue Vorschau generieren", "exportModel": "Blume als GLB exportieren", "undo": "Letzte Änderung rückgängig", "expandWorkspace": "Mehr bearbeiten", "focusPreview": "Preview vergrößern", "unsavedTitle": "Ungespeicherte Änderungen", "unsavedMessage": "Möchtest du deine Änderungen an „{{name}}“ vor dem Wechsel speichern?", "cancelSwitch": "Abbrechen", "discardChanges": "Verwerfen", "saveAndContinue": "Speichern und wechseln", "baseDirection": "Grundrichtung", "mainDirection": "Hauptrichtung", "wideScreenRequired": "Der Komponenten-Editor benötigt ein breiteres Fenster. Aktuell wird nur die Blumenvorschau angezeigt."
   },
   "inspector": {
-    "definition": "Definition", "nodes": "Knoten", "name": "Name", "flowerId": "Blumen-ID", "inBouquet": "Im Strauß", "asComponent": "Als Baustein", "outputs": "Anschlusspunkte der Komponente", "noOutputs": "Keine offenen Endknoten",
+    "definition": "Definition", "general": "Allgemeine Informationen", "definitionScope": "Definitionsbereich", "actions": "Aktionen", "nodes": "Knoten", "name": "Name", "flowerId": "Blumen-ID", "inBouquet": "Im Strauß", "asComponent": "Als Baustein", "outputs": "Anschlusspunkte der Komponente", "noOutputs": "Keine offenen Endknoten",
     "selectedNode": "Ausgewählter Knoten", "nodeName": "Knotenname", "copyNode": "Knoten kopieren", "deleteNode": "Knoten löschen",
     "incoming": "Eingangsverbindung", "incomingActiveDescription": "Verbindung vom Elternknoten", "incomingDefaultDescription": "Vorgaben für eine spätere Verbindung", "connectionActive": "Diese Verbindung ist aktiv.", "disconnect": "Eingangsverbindung lösen",
     "outgrowths": "Auswüchse", "outgrowthsHelp": "Wie viele Instanzen über diese eingehende Verbindung entstehen und wie weit ihr Ansatz entfernt liegt.", "growthCount": "Anzahl", "count": "Anzahl", "length": "Länge",

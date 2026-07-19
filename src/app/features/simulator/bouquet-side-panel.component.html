@@ -20,13 +20,12 @@
           >
           <div class="text-[10px] text-stone-400">{{ 'bouquet.interactionHint' | transloco }}</div>
         </div>
-        <button app-button variant="icon" tone="danger"
-          [matTooltip]="'bouquet.delete' | transloco"
-          [attr.aria-label]="'bouquet.delete' | transloco"
-          [disabled]="bouquets().length <= 1"
-          (click)="deleteActiveBouquet()"
+        <button app-button variant="icon" [tone]="resetConfirmationPending() ? 'danger' : 'neutral'"
+          [matTooltip]="(resetConfirmationPending() ? 'bouquet.resetConfirmHint' : 'bouquet.resetHint') | transloco"
+          [attr.aria-label]="(resetConfirmationPending() ? 'bouquet.resetConfirmLabel' : 'bouquet.reset') | transloco"
+          (click)="requestReset()"
         >
-          <mat-icon>delete</mat-icon>
+          <mat-icon>{{ resetConfirmationPending() ? 'warning' : 'restart_alt' }}</mat-icon>
         </button>
         <button app-button variant="icon"
           [matTooltip]="'common.close' | transloco"
@@ -36,55 +35,6 @@
           <mat-icon>close</mat-icon>
         </button>
       </div>
-      <div class="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
-        @for (bouquet of bouquets(); track bouquet.id) {
-          <button
-            class="grid size-9 shrink-0 place-items-center rounded-lg border text-xs font-bold transition duration-[180ms]"
-            type="button"
-            [class.border-emerald-950]="activeBouquetId() === bouquet.id"
-            [class.bg-emerald-950]="activeBouquetId() === bouquet.id"
-            [class.text-white]="activeBouquetId() === bouquet.id"
-            [class.border-stone-200]="activeBouquetId() !== bouquet.id"
-            [class.bg-white]="activeBouquetId() !== bouquet.id"
-            [class.text-stone-600]="activeBouquetId() !== bouquet.id"
-            [class.scale-75]="deletingBouquetId() === bouquet.id"
-            [class.opacity-0]="deletingBouquetId() === bouquet.id"
-            [class.pointer-events-none]="deletingBouquetId() === bouquet.id"
-            [attr.aria-label]="bouquet.name + ' auswählen'"
-            [attr.aria-current]="activeBouquetId() === bouquet.id ? 'page' : null"
-            (click)="bouquetSelect.emit(bouquet.id)"
-          >
-            {{ bouquet.index }}
-          </button>
-        }
-        @if (canAddBouquet()) {
-          <button app-button variant="icon" [attr.aria-label]="'bouquet.new' | transloco" (click)="bouquetAdd.emit()">
-            <mat-icon>add</mat-icon>
-          </button>
-        }
-      </div>
-      <div class="mb-4 grid grid-cols-1 gap-2">
-        @for (action of quickActions; track action.action) {
-          <button app-button variant="icon-text" class="min-w-0 px-1!"
-            [tone]="action.danger ? 'danger' : 'neutral'"
-            [class.bg-white]="action.action !== 'bouquetReset' || !resetConfirmationPending()"
-            [class.border-rose-200]="action.danger"
-            [class.text-rose-700]="action.danger"
-            [class.bg-rose-100]="action.action === 'bouquetReset' && resetConfirmationPending()"
-            [class.border-rose-400]="action.action === 'bouquetReset' && resetConfirmationPending()"
-            [attr.aria-label]="action.action === 'bouquetReset' && resetConfirmationPending()
-              ? ('bouquet.resetConfirmLabel' | transloco)
-              : (action.labelKey | transloco) + ': ' + (action.tooltipKey | transloco)"
-            (click)="emitQuickAction(action.action)"
-          >
-            <mat-icon>{{ action.icon }}</mat-icon>
-            <span class="min-w-0 truncate">
-              {{ action.action === 'bouquetReset' && resetConfirmationPending() ? ('common.confirm' | transloco) : (action.labelKey | transloco) }}
-            </span>
-          </button>
-        }
-      </div>
-
       @if (overlapCount() > 0) {
         <div
           class="mb-3 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[10px] text-amber-950"

@@ -2937,7 +2937,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "startWidth": 3,
             "endWidth": 3,
             "bend": 0,
-            "curve": 14,
+            "curve": 0,
             "bendRotation": {
               "min": 0,
               "max": 0
@@ -3210,9 +3210,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#477348",
-            "width": 10,
-            "startWidth": 10,
-            "endWidth": 7.199999999999999,
+            "width": 3,
+            "startWidth": 3,
+            "endWidth": 3,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -3251,8 +3251,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "y": 163.24210875920306
         },
         "node-6": {
-          "x": 675.4339677082166,
-          "y": 211.86749363583766
+          "x": 676.8524622057521,
+          "y": 146.5339728372523
         },
         "node-7-copy": {
           "x": 389.06188379529726,
@@ -5382,161 +5382,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "node-7": {
           "x": 1067.5767847610168,
           "y": 692.340552528798
-        }
-      }
-    }
-  },
-  {
-    "schemaVersion": 2,
-    "id": "neue-blume-6",
-    "name": "Neue Blume",
-    "catalogRole": "flower",
-    "availableInBouquet": true,
-    "availableAsComponent": true,
-    "rootNodeId": "base",
-    "stem": {
-      "color": "#426f50",
-      "highlightColor": "#82a878",
-      "width": 8,
-      "taper": 1,
-      "bend": 0,
-      "curve": 14
-    },
-    "nodes": [
-      {
-        "id": "base",
-        "name": "Basis",
-        "draggable": false,
-        "graphic": null,
-        "connections": []
-      }
-    ],
-    "editor": {
-      "nodePositions": {
-        "base": {
-          "x": 500,
-          "y": 840
-        }
-      }
-    }
-  },
-  {
-    "schemaVersion": 2,
-    "id": "neue-blume-7",
-    "name": "Neue Blume",
-    "catalogRole": "flower",
-    "availableInBouquet": true,
-    "availableAsComponent": true,
-    "rootNodeId": "base",
-    "stem": {
-      "color": "#426f50",
-      "highlightColor": "#82a878",
-      "width": 8,
-      "taper": 1,
-      "bend": 0,
-      "curve": 14
-    },
-    "nodes": [
-      {
-        "id": "base",
-        "name": "Basis",
-        "draggable": false,
-        "graphic": null,
-        "connections": [
-          {
-            "childId": "node-2"
-          }
-        ]
-      },
-      {
-        "id": "node-2",
-        "name": "Knoten 2",
-        "draggable": false,
-        "graphic": {
-          "primitive": "leaf-pointed",
-          "color": "#ffffff",
-          "width": 21,
-          "height": 21,
-          "depth": 2,
-          "scale": 1,
-          "offset": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "orientation": "toward-parent",
-          "rotationBase": 93,
-          "rotationSpread": 0,
-          "rotation": {
-            "min": 93,
-            "max": 93
-          },
-          "start": {
-            "x": 0.5,
-            "y": 0.9
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0.1
-          },
-          "bendMain": -30,
-          "bendCross": 13
-        },
-        "incoming": {
-          "repeat": {
-            "min": 14,
-            "max": 14
-          },
-          "length": {
-            "min": 0,
-            "max": 11
-          },
-          "direction": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "spread": {
-            "deviation": {
-              "min": 5,
-              "max": 48
-            },
-            "revolution": {
-              "min": -180,
-              "max": 180
-            },
-            "roll": {
-              "min": 0,
-              "max": 0
-            },
-            "randomness": 0,
-            "orientation": "spread"
-          },
-          "stem": {
-            "color": "#426f50",
-            "width": 1,
-            "startWidth": 1,
-            "endWidth": 1,
-            "bend": 10,
-            "curve": 14,
-            "bendRotation": {
-              "min": 0,
-              "max": 0
-            }
-          }
-        },
-        "connections": []
-      }
-    ],
-    "editor": {
-      "nodePositions": {
-        "base": {
-          "x": 500,
-          "y": 840
-        },
-        "node-2": {
-          "x": 503.39833597808706,
-          "y": 686.5588799903265
         }
       }
     }

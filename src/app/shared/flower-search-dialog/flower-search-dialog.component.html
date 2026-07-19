@@ -1,0 +1,65 @@
+<div class="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-stone-950/35 p-3 pb-3 pt-[4.75rem] backdrop-blur-sm" role="presentation" (click)="close.emit()">
+  <section
+    class="flex h-[min(42rem,calc(100dvh-5.5rem))] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="flower-search-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="flex shrink-0 items-center gap-3 border-b border-stone-200 p-4">
+      <h2 id="flower-search-title" class="m-0 min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-stone-900">{{ title() }}</h2>
+      <button class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button" [attr.aria-label]="'common.close' | transloco" (click)="close.emit()">
+        <svg class="size-5 fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <label class="relative mx-4 mt-4 block shrink-0">
+      <svg class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 fill-none stroke-stone-400 stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.4 15.4 4.1 4.1"/>
+      </svg>
+      <input
+        class="h-11 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-3 text-sm text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+        type="search"
+        autofocus
+        [attr.aria-label]="placeholder()"
+        [placeholder]="placeholder()"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+        (keydown.escape)="close.emit(); $event.stopPropagation()"
+      >
+    </label>
+
+    <div class="min-h-0 flex-1 overflow-hidden py-3 pr-1">
+    <div
+      class="grid h-full auto-rows-max grid-cols-2 content-start items-start gap-3 overflow-y-auto px-4 pb-1 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-400 [&::-webkit-scrollbar-track]:my-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 sm:grid-cols-3 md:grid-cols-4"
+      role="listbox"
+    >
+      @for (entry of filteredEntries(); track entry.id) {
+        <button
+          class="group relative block aspect-square w-full min-w-0 overflow-hidden rounded-2xl border border-stone-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          type="button"
+          role="option"
+          (click)="entrySelect.emit(entry.id)"
+        >
+          <span class="absolute inset-x-0 bottom-9 top-0 overflow-hidden bg-[radial-gradient(circle_at_50%_55%,rgba(255,255,255,1),rgba(245,245,244,.55)_65%,rgba(231,229,228,.7))] p-2">
+            <app-flower-thumbnail class="transition duration-200 group-hover:scale-[1.04]" [definition]="entry.definition" />
+          </span>
+          <span class="absolute inset-x-0 bottom-0 flex h-9 min-w-0 items-center justify-center border-t border-stone-200/80 bg-white px-2">
+          <strong class="flex min-w-0 overflow-hidden whitespace-nowrap text-center text-xs font-semibold text-stone-800 sm:text-sm">
+            @for (segment of highlighted(entry.name); track $index) {
+              @if (segment.match) {
+                <mark class="shrink-0 rounded-sm bg-amber-200 text-inherit">{{ segment.text }}</mark>
+              } @else {
+                <span class="shrink-0">{{ segment.text }}</span>
+              }
+            }
+          </strong>
+          </span>
+        </button>
+      } @empty {
+        <div class="col-span-full px-4 py-10 text-center text-sm text-stone-400">{{ 'common.emptySearch' | transloco }}</div>
+      }
+    </div>
+    </div>
+  </section>
+</div>

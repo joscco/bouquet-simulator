@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   HostListener,
   OnDestroy,
   ViewChild,
@@ -63,6 +62,7 @@ import {
   FlowerComponentCatalogEntry,
   catalogEntryType,
   definitionFromComponent,
+  definitionOutputNodeIds,
   definitionWithEditorState,
   normalizeSearch,
 } from './domain/flower-editor-definition';
@@ -87,6 +87,11 @@ import {
   PreviewLayoutFrame,
 } from '../../shared/bouquet-canvas/preview-layout-animator';
 import {SettingsDrawerComponent} from '../../shared/settings-drawer/settings-drawer.component';
+import {
+  FlowerSearchDialogComponent,
+  FlowerSearchEntry,
+} from '../../shared/flower-search-dialog/flower-search-dialog.component';
+import {EditorDisclosureComponent} from '../../shared/editor-disclosure/editor-disclosure.component';
 
 type EditorTransition =
   | {type: 'catalog'; key: string}
@@ -125,6 +130,8 @@ function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right
     FlowerEditorPreviewComponent,
     FlowerEditorInspectorComponent,
     SettingsDrawerComponent,
+    FlowerSearchDialogComponent,
+    EditorDisclosureComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
@@ -170,8 +177,8 @@ export class FlowerEditorComponent implements OnDestroy {
   });
   readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
   private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
-  readonly catalogSearch = signal(this.draft().name);
   readonly catalogSearchOpen = signal(false);
+  readonly nodeSectionExpanded = signal(true);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
   readonly componentSearch = signal('');
@@ -186,13 +193,21 @@ export class FlowerEditorComponent implements OnDestroy {
     this.catalogEntries().filter((entry) => entry.availableAsComponent));
   readonly selectedCatalogEntry = computed(() =>
     this.catalogEntries().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
-  readonly filteredCatalogEntries = computed(() => {
-    const query = normalizeSearch(this.catalogSearch());
-    if (!query) return this.catalogEntries().slice(0, 8);
-    return this.catalogEntries()
-      .filter((entry) => normalizeSearch(entry.tree.name).includes(query))
-      .slice(0, 8);
-  });
+  readonly catalogSearchEntries = computed<FlowerSearchEntry[]>(() =>
+    this.catalogEntries().flatMap((entry) => {
+      const rawDefinition = entry.source === 'definition'
+        ? this.store.materializedDefinitions().find((candidate) => candidate.id === entry.tree.id)
+        : definitionFromComponent(entry.tree, 'component', this.draft().stem);
+      if (!rawDefinition) return [];
+      const definition = entry.source === 'saved'
+        ? materializeDefinitionComponents([rawDefinition, ...this.store.definitions()])[0]
+        : rawDefinition;
+      return [{
+        id: entry.key,
+        name: entry.tree.name,
+        definition,
+      }];
+    }));
   readonly canDeleteSelectedCatalogEntry = computed(() => {
     const entry = this.selectedCatalogEntry();
     return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
@@ -225,6 +240,8 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly selectedNodeName = computed(() =>
     this.draft().nodes.find((node) => node.id === this.selectedNodeId())?.name
       ?? this.transloco.translate('editor.properties'));
+  readonly definitionOutputOptions = computed(() =>
+    definitionOutputNodeIds(this.draft().nodes));
   readonly materializedDraft = computed(() => materializeDefinitionComponents([
     this.draft(),
     ...this.store.definitions().filter((definition) => definition.id !== this.draft().id),
@@ -235,7 +252,6 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly graphLayout = computed(() => createGraphLayout(this.materializedDraft(), this.graphPositions()));
 
   @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
-  @ViewChild('catalogSearchContainer') private catalogSearchContainer?: ElementRef<HTMLElement>;
   @ViewChild(FlowerEditorPreviewComponent) private flowerPreview?: FlowerEditorPreviewComponent;
   constructor() {
     effect(() => {
@@ -275,16 +291,6 @@ export class FlowerEditorComponent implements OnDestroy {
   @HostListener('window:resize')
   updateViewportSize(): void {
     this.viewportSize.set({width: window.innerWidth, height: window.innerHeight});
-  }
-
-  @HostListener('document:pointerdown', ['$event'])
-  closeCatalogSearchOnOutsidePointer(event: PointerEvent): void {
-    if (!this.catalogSearchOpen()) return;
-    const container = this.catalogSearchContainer?.nativeElement;
-    const target = event.target as Node | null;
-    if (container && target && !container.contains(target)) {
-      this.catalogSearchOpen.set(false);
-    }
   }
 
   createNewDefinition(): void {
@@ -337,6 +343,39 @@ export class FlowerEditorComponent implements OnDestroy {
       this.selectedNodeId.set(normalized.rootNodeId || normalized.nodes[0]?.id || '');
       this.subtreeAnchorIds.set(new Set());
     }
+  }
+
+  updateDefinitionField(key: 'id' | 'name', value: string): void {
+    this.applyDefinitionChange({...this.draft(), [key]: value});
+  }
+
+  updateCatalogCapability(
+    key: 'availableInBouquet' | 'availableAsComponent',
+    enabled: boolean,
+  ): void {
+    this.applyDefinitionChange({...this.draft(), [key]: enabled});
+  }
+
+  definitionOutputEnabled(outputId: string): boolean {
+    const outputNodeIds = this.draft().outputNodeIds;
+    return outputNodeIds !== undefined
+      ? outputNodeIds.includes(outputId)
+      : this.definitionOutputOptions().includes(outputId);
+  }
+
+  definitionNodeName(nodeId: string): string {
+    return this.draft().nodes.find((node) => node.id === nodeId)?.name ?? nodeId;
+  }
+
+  toggleDefinitionOutput(outputId: string, enabled: boolean): void {
+    const options = this.definitionOutputOptions();
+    const current = new Set(this.draft().outputNodeIds ?? options);
+    if (enabled) current.add(outputId);
+    else current.delete(outputId);
+    this.applyDefinitionChange({
+      ...this.draft(),
+      outputNodeIds: [...current].filter((id) => options.includes(id)),
+    });
   }
 
   clearSubtreeSelection(): void {
@@ -559,7 +598,9 @@ export class FlowerEditorComponent implements OnDestroy {
     this.loadDefinition(this.definitionFromComponent(entry.tree, 'component'), key);
   }
 
-  chooseCatalogEntry(entry: FlowerComponentCatalogEntry): void {
+  chooseCatalogEntry(key: string): void {
+    const entry = this.catalogEntries().find((candidate) => candidate.key === key);
+    if (!entry) return;
     this.selectCatalogEntry(entry.key);
     this.catalogSearchOpen.set(false);
   }
@@ -574,6 +615,11 @@ export class FlowerEditorComponent implements OnDestroy {
 
   toggleGraphSection(): void {
     this.graphSectionExpanded.update((expanded) => !expanded);
+  }
+
+  setNodeSectionExpanded(expanded: boolean): void {
+    this.nodeSectionExpanded.set(expanded);
+    if (!expanded) this.graphSectionExpanded.set(false);
   }
 
   closePortraitOverlays(): void {
@@ -787,7 +833,6 @@ export class FlowerEditorComponent implements OnDestroy {
     this.persistedDefinitionId.set(clone.id);
     this.selectedCatalogKey.set(catalogKey);
     this.urlState.writeCatalogKey(catalogKey);
-    this.catalogSearch.set(clone.name);
     this.catalogSearchOpen.set(false);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
@@ -804,7 +849,6 @@ export class FlowerEditorComponent implements OnDestroy {
     const catalogKey = `definition:${definition.id}`;
     this.selectedCatalogKey.set(catalogKey);
     this.urlState.writeCatalogKey(catalogKey);
-    this.catalogSearch.set(definition.name);
     this.markCurrentStateSaved();
   }
 

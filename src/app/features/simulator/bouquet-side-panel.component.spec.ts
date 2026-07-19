@@ -12,11 +12,11 @@ describe('BouquetSidePanelComponent', () => {
     const reset = vi.fn();
     component.bouquetReset.subscribe(reset);
 
-    component.emitQuickAction('bouquetReset');
+    component.requestReset();
     expect(component.resetConfirmationPending()).toBe(true);
     expect(reset).not.toHaveBeenCalled();
 
-    component.emitQuickAction('bouquetReset');
+    component.requestReset();
     expect(component.resetConfirmationPending()).toBe(false);
     expect(reset).toHaveBeenCalledOnce();
     fixture.destroy();
@@ -27,27 +27,13 @@ describe('BouquetSidePanelComponent', () => {
     const fixture = createFixture();
     const component = fixture.componentInstance;
 
-    component.emitQuickAction('bouquetReset');
+    component.requestReset();
     vi.advanceTimersByTime(3000);
 
     expect(component.resetConfirmationPending()).toBe(false);
     fixture.destroy();
   });
 
-  it('does not carry a pending confirmation to another bouquet', () => {
-    const fixture = createFixture();
-    const component = fixture.componentInstance;
-    const reset = vi.fn();
-    component.bouquetReset.subscribe(reset);
-
-    component.emitQuickAction('bouquetReset');
-    fixture.componentRef.setInput('activeBouquetId', 'bouquet-b');
-    component.emitQuickAction('bouquetReset');
-
-    expect(reset).not.toHaveBeenCalled();
-    expect(component.resetConfirmationPending()).toBe(true);
-    fixture.destroy();
-  });
 });
 
 function createFixture() {
@@ -58,10 +44,7 @@ function createFixture() {
   const fixture = TestBed.createComponent(BouquetSidePanelComponent);
   const inputs = {
     menuOpen: true,
-    bouquets: [{id: 'bouquet-a', name: 'Strauß A', index: 1, flowerCount: 0}],
-    activeBouquetId: 'bouquet-a',
     activeBouquetName: 'Strauß A',
-    canAddBouquet: true,
     flowers: [],
     overlapCount: 0,
     selectedId: null,

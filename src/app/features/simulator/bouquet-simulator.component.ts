@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
-import {TranslocoService} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadBlob, downloadJson, readJsonFile} from '../../shared/download-json';
@@ -31,7 +31,6 @@ import {
   BouquetSidePanelComponent,
 } from './bouquet-side-panel.component';
 import {BouquetFlowerListItem} from './components/bouquet-flower-list-item/bouquet-flower-list-item.component';
-import {BouquetFlowerPickerComponent} from './bouquet-flower-picker.component';
 import {BouquetProjectStorage} from './bouquet-project-storage.service';
 import {FlowerDefinitionStorage} from '../../core/state/flower-definition-storage.service';
 import {detectBouquetFlowerOverlaps} from '../../core/rendering/bouquet-flower-overlaps';
@@ -54,6 +53,10 @@ import {
 } from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
 import {PreviewLayoutAnimator} from '../../shared/bouquet-canvas/preview-layout-animator';
 import {PreviewToolbarComponent} from '../../shared/preview-toolbar/preview-toolbar.component';
+import {
+  FlowerSearchDialogComponent,
+  FlowerSearchEntry,
+} from '../../shared/flower-search-dialog/flower-search-dialog.component';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -61,8 +64,9 @@ import {PreviewToolbarComponent} from '../../shared/preview-toolbar/preview-tool
     MatSnackBarModule,
     BouquetCanvasComponent,
     BouquetSidePanelComponent,
-    BouquetFlowerPickerComponent,
     PreviewToolbarComponent,
+    FlowerSearchDialogComponent,
+    TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-simulator.component.html',
@@ -112,6 +116,12 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
   readonly bouquetDefinitions = computed(() =>
     this.store.materializedDefinitions().filter(isAvailableInBouquet));
+  readonly bouquetSearchEntries = computed<FlowerSearchEntry[]>(() =>
+    this.bouquetDefinitions().map((definition) => ({
+      id: definition.id,
+      name: definition.name,
+      definition,
+    })));
   readonly flowerOverlaps = computed(() => detectBouquetFlowerOverlaps(
     this.store.state(),
     this.store.materializedDefinitions(),

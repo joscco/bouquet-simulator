@@ -15,18 +15,21 @@ export interface BouquetSceneLighting {
   fill: DirectionalLight;
 }
 
-export function createBouquetRenderer(preserveDrawingBuffer: boolean): WebGLRenderer {
+export function createBouquetRenderer(
+  preserveDrawingBuffer: boolean,
+  lightweight = false,
+): WebGLRenderer {
   const renderer = new WebGLRenderer({
     alpha: true,
-    antialias: true,
-    powerPreference: 'high-performance',
+    antialias: !lightweight,
+    powerPreference: lightweight ? 'low-power' : 'high-performance',
     preserveDrawingBuffer,
   });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setPixelRatio(lightweight ? 1 : Math.min(devicePixelRatio, 1.5));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !lightweight;
   renderer.shadowMap.type = PCFSoftShadowMap;
   renderer.setClearColor(0x000000, 0);
   renderer.domElement.className = 'block h-full w-full touch-none';

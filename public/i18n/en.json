@@ -1,6 +1,6 @@
 {
   "language": {"label": "Language", "de": "German", "en": "English", "switchToGerman": "Switch to German", "switchToEnglish": "Switch to English"},
-  "views": {"label": "Switch editor", "bouquet": "Bouquet", "components": "Components"},
+  "views": {"label": "Switch editor", "bouquet": "Bouquet", "components": "Component"},
   "common": {"close": "Close", "confirm": "Confirm", "search": "Search …", "emptySearch": "No matching flower found", "fixed": "Fixed", "interval": "Range", "inputMode": "input mode"},
   "picker": {"title": "Choose flower", "search": "Search flowers …", "nodes": "nodes"},
   "bouquet": {
@@ -60,7 +60,7 @@
     "centerView": "Center view", "regenerate": "Generate new preview", "exportModel": "Export flower as GLB", "undo": "Undo last change", "expandWorkspace": "More editing space", "focusPreview": "Enlarge preview", "unsavedTitle": "Unsaved changes", "unsavedMessage": "Do you want to save your changes to “{{name}}” before switching?", "cancelSwitch": "Cancel", "discardChanges": "Discard", "saveAndContinue": "Save and switch", "baseDirection": "Base direction", "mainDirection": "Main direction", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
   },
   "inspector": {
-    "definition": "Definition", "nodes": "nodes", "name": "Name", "flowerId": "Flower ID", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",
+    "definition": "Definition", "general": "General information", "definitionScope": "Definition scope", "actions": "Actions", "nodes": "nodes", "name": "Name", "flowerId": "Flower ID", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",
     "selectedNode": "Selected node", "nodeName": "Node name", "copyNode": "Copy node", "deleteNode": "Delete node",
     "incoming": "Incoming connection", "incomingActiveDescription": "Connection from parent node", "incomingDefaultDescription": "Defaults for a future connection", "connectionActive": "This connection is active.", "disconnect": "Disconnect incoming connection",
     "outgrowths": "Outgrowths", "outgrowthsHelp": "How many instances this incoming connection creates and how far their attachment points are from the parent.", "growthCount": "Count", "count": "Count", "length": "Length",

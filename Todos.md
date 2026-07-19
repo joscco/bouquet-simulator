@@ -46,6 +46,7 @@
 - [x] Rippenparameter und Musterauswahl mit lesbaren, formspezifischen Miniaturen darstellen.
 - [x] Zahlenfelder durch Dezimalschritte, Ziehen im Feld, Auswahl bei Fokus und Tastatursteuerung nutzerfreundlicher machen.
 - [x] Katalogsuche als eigenen Suchdialog mit Auswahl-Button umsetzen.
+- [x] Blumen- und Komponentenauswahl in einem gemeinsamen, viewportbegrenzten Suchdialog mit 3D-Previews, Filterung und hervorgehobenen Treffern zusammenführen.
 - [x] Zuletzt bearbeitete Blume als Query-Parameter in der URL merken und beim Öffnen wiederherstellen.
 - [x] Blumenname unabhängig vom eingeklappten Definitions-/Ausgänge-Menü anzeigen.
 - [x] Mehrfachselektion auf alle markierten Knoten anwenden und nur gemeinsam verfügbare Parametergruppen anzeigen.

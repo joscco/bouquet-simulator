@@ -32,7 +32,6 @@ import {NumericSliderComponent} from '../../../../shared/numeric-slider/numeric-
 import {EditorDisclosureComponent} from '../../../../shared/editor-disclosure/editor-disclosure.component';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {AppButtonComponent} from '../../../../shared/app-button/app-button.component';
-import {definitionOutputNodeIds} from '../../domain/flower-editor-definition';
 import {Point, createGraphLayout} from '../../graph/flower-editor-graph';
 import {loopOutputNodeIds, pruneDisconnectedLoopMembers} from '../../domain/flower-editor-loops';
 import {
@@ -88,7 +87,7 @@ import {GraphicLeafEdgeEditorComponent} from './graphic-leaf-edge-editor.compone
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-inspector.component.html',
   host: {
-    'class': 'block h-auto min-h-0 min-w-0 overflow-x-hidden overflow-y-visible bg-white min-[1100px]:h-full min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:border-stone-200 [scrollbar-gutter:stable]',
+    'class': 'block h-auto min-h-0 min-w-0 overflow-x-hidden overflow-y-visible bg-white',
   },
 })
 export class FlowerEditorInspectorComponent {
@@ -103,7 +102,6 @@ export class FlowerEditorInspectorComponent {
   readonly nodeSelection = output<string>();
   readonly message = output<string>();
 
-  readonly definitionSectionExpanded = signal(false);
   readonly connectionSectionExpanded = signal(true);
   readonly loopSectionExpanded = signal(true);
   readonly graphicBasicsExpanded = signal(true);
@@ -163,14 +161,6 @@ export class FlowerEditorInspectorComponent {
     const node = this.selectedNode();
     return node ? nodeIncomingOrDefault(node) : structuredClone(DEFAULT_INCOMING_CONNECTION);
   });
-
-  updateRoot(key: 'id' | 'name', value: string): void {
-    this.updateDefinition((definition) => ({...definition, [key]: value}));
-  }
-
-  updateCatalogCapability(key: 'availableInBouquet' | 'availableAsComponent', enabled: boolean): void {
-    this.updateDefinition((definition) => ({...definition, [key]: enabled}));
-  }
 
   duplicateSelectedNode(): void {
     const update = duplicateFlowerEditorNode(this.definition(), this.positions(), this.selectedNodeId());
@@ -367,27 +357,6 @@ export class FlowerEditorInspectorComponent {
         ...node.loop,
         continuationOutputNodeIds: [...current].filter((id) => options.includes(id)),
       }};
-    });
-  }
-
-  componentOutputOptions(): string[] {
-    return definitionOutputNodeIds(this.definition().nodes);
-  }
-
-  componentOutputEnabled(outputId: string): boolean {
-    const outputNodeIds = this.definition().outputNodeIds;
-    return outputNodeIds !== undefined
-      ? outputNodeIds.includes(outputId)
-      : this.componentOutputOptions().includes(outputId);
-  }
-
-  toggleComponentOutput(outputId: string, enabled: boolean): void {
-    const options = this.componentOutputOptions();
-    this.updateDefinition((definition) => {
-      const current = new Set(definition.outputNodeIds !== undefined ? definition.outputNodeIds : options);
-      if (enabled) current.add(outputId);
-      else current.delete(outputId);
-      return {...definition, outputNodeIds: [...current].filter((id) => options.includes(id))};
     });
   }
 

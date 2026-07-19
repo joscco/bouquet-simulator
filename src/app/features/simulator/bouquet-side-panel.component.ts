@@ -2,14 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnDestroy,
-  computed,
   input,
   output,
   signal,
 } from '@angular/core';
 import {MatIconModule} from '@angular/material/icon';
 import {MatTooltipModule} from '@angular/material/tooltip';
-import {BouquetSummary} from '../../core/state/bouquet.store';
 import {VaseMaterialId, VaseMaterialOption, VaseOption} from '../../core/data/vases';
 import {
   BouquetBackgroundMode,
@@ -36,7 +34,6 @@ import {
 import {VaseIconComponent} from './components/vase-icon/vase-icon.component';
 import {SettingsDrawerComponent} from '../../shared/settings-drawer/settings-drawer.component';
 
-type QuickAction = 'bouquetReset';
 type DisclosureSection = 'vase' | 'scene' | 'files';
 
 @Component({
@@ -59,27 +56,8 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly backgroundOptions = BOUQUET_BACKGROUND_OPTIONS;
   readonly sceneEffectOptions = BOUQUET_SCENE_EFFECT_OPTIONS;
   readonly videoFormatOptions = BOUQUET_VIDEO_FORMAT_OPTIONS;
-  readonly quickActions: ReadonlyArray<{
-    action: QuickAction;
-    icon: string;
-    labelKey: string;
-    tooltipKey: string;
-    danger?: boolean;
-  }> = [
-    {
-      action: 'bouquetReset',
-      icon: 'delete_sweep',
-      labelKey: 'bouquet.reset',
-      tooltipKey: 'bouquet.resetHint',
-      danger: true,
-    },
-  ];
-
   readonly menuOpen = input.required<boolean>();
-  readonly bouquets = input.required<BouquetSummary[]>();
-  readonly activeBouquetId = input.required<string>();
   readonly activeBouquetName = input.required<string>();
-  readonly canAddBouquet = input.required<boolean>();
   readonly flowers = input.required<BouquetFlowerListItem[]>();
   readonly overlapCount = input.required<number>();
   readonly selectedId = input.required<string | null>();
@@ -97,9 +75,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly videoFormat = input.required<BouquetVideoFormat>();
 
   readonly expandedDisclosure = signal<DisclosureSection | null>(null);
-  private readonly resetConfirmationBouquetId = signal<string | null>(null);
-  readonly resetConfirmationPending = computed(() =>
-    this.resetConfirmationBouquetId() === this.activeBouquetId());
+  readonly resetConfirmationPending = signal(false);
 
   readonly pickerOpen = output<void>();
   readonly bouquetReset = output<void>();
@@ -114,9 +90,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly projectImport = output<Event>();
   readonly projectExport = output<void>();
   readonly menuToggle = output<void>();
-  readonly bouquetAdd = output<void>();
-  readonly bouquetSelect = output<string>();
-  readonly bouquetDelete = output<string>();
   readonly bouquetNameChange = output<string>();
   readonly videoExport = output<void>();
   readonly modelExport = output<void>();
@@ -124,44 +97,26 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly sceneEffectChange = output<{effectId: BouquetSceneEffectId; enabled: boolean}>();
   readonly videoFormatChange = output<BouquetVideoFormatId>();
 
-  readonly deletingBouquetId = signal<string | null>(null);
-  private bouquetDeletionTimer: ReturnType<typeof setTimeout> | null = null;
   private resetConfirmationTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnDestroy(): void {
-    if (this.bouquetDeletionTimer !== null) clearTimeout(this.bouquetDeletionTimer);
     if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
   }
 
-  deleteActiveBouquet(): void {
-    if (this.bouquets().length <= 1 || this.deletingBouquetId()) return;
-    const bouquetId = this.activeBouquetId();
-    this.deletingBouquetId.set(bouquetId);
-    this.bouquetDeletionTimer = setTimeout(() => {
-      this.bouquetDelete.emit(bouquetId);
-      this.deletingBouquetId.set(null);
-      this.bouquetDeletionTimer = null;
-    }, 180);
-  }
-
-  emitQuickAction(action: QuickAction): void {
-    switch (action) {
-      case 'bouquetReset':
-        if (this.resetConfirmationBouquetId() !== this.activeBouquetId()) {
-          if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
-          this.resetConfirmationBouquetId.set(this.activeBouquetId());
-          this.resetConfirmationTimer = setTimeout(() => {
-            this.resetConfirmationBouquetId.set(null);
-            this.resetConfirmationTimer = null;
-          }, 3000);
-          return;
-        }
-        if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+  requestReset(): void {
+    if (!this.resetConfirmationPending()) {
+      if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+      this.resetConfirmationPending.set(true);
+      this.resetConfirmationTimer = setTimeout(() => {
+        this.resetConfirmationPending.set(false);
         this.resetConfirmationTimer = null;
-        this.resetConfirmationBouquetId.set(null);
-        this.bouquetReset.emit();
-        return;
+      }, 3000);
+      return;
     }
+    if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);
+    this.resetConfirmationTimer = null;
+    this.resetConfirmationPending.set(false);
+    this.bouquetReset.emit();
   }
 
   setDisclosureExpanded(section: DisclosureSection, expanded: boolean): void {

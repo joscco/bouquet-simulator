@@ -83,6 +83,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly selectedId = input<string | null>(null);
   readonly overlappingIds = input<ReadonlySet<string>>(new Set<string>());
   readonly snapshotKey = input<string | null>(null);
+  readonly thumbnailMode = input(false);
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
   readonly fitToContent = input(false);
@@ -242,7 +243,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    const renderer = createBouquetRenderer(this.snapshotKey() !== null);
+    const renderer = createBouquetRenderer(this.snapshotKey() !== null, this.thumbnailMode());
     renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
     renderer.domElement.addEventListener('pointermove', this.onPointerMove);
     renderer.domElement.addEventListener('pointerup', this.onPointerUp);
@@ -280,6 +281,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     disposeGroupChildren(this.bouquetContent);
     this.sceneEffects.dispose();
     renderer?.dispose();
+    renderer?.forceContextLoss();
     renderer?.domElement.remove();
     this.renderer = null;
   }
@@ -444,7 +446,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderFrame = null;
       this.renderer?.render(this.scene, this.camera);
       const snapshotKey = this.snapshotKey();
-      if (snapshotKey && snapshotKey !== this.emittedSnapshotKey && this.renderer) {
+      const host = this.canvasHost.nativeElement;
+      const hasRenderableSize = host.clientWidth >= 16 && host.clientHeight >= 16;
+      if (snapshotKey && snapshotKey !== this.emittedSnapshotKey && this.renderer && hasRenderableSize) {
         this.emittedSnapshotKey = snapshotKey;
         this.snapshotReady.emit({
           key: snapshotKey,
