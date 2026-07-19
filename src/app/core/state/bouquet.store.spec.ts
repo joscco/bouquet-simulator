@@ -201,6 +201,35 @@ describe('bouquet flower placement', () => {
     expect(store.state().flowers.some((flower) => flower.definitionId === targetId)).toBe(false);
   });
 
+  it('keeps bouquet instances and embedded references intact when a definition id changes', () => {
+    const store = new BouquetStore();
+    const previousId = store.state().flowers[0]!.definitionId;
+    const source = store.definitions().find((definition) => definition.id === previousId)!;
+    const consumer = structuredClone(store.definitions().find((definition) =>
+      definition.id !== previousId)!);
+    consumer.nodes[0]!.component = {
+      schemaVersion: 1,
+      id: previousId,
+      sourceDefinitionId: previousId,
+      name: source.name,
+      nodes: [],
+    };
+    store.definitions.set([source, consumer]);
+
+    store.replaceDefinition({...source, id: 'renamed-flower'}, previousId);
+
+    expect(store.definitions().some((definition) => definition.id === previousId)).toBe(false);
+    expect(store.state().flowers.some((flower) =>
+      flower.definitionId === 'renamed-flower')).toBe(true);
+    expect(store.state().flowers.every((flower) =>
+      flower.definitionId !== previousId)).toBe(true);
+    expect(store.definitions().find((definition) => definition.id === consumer.id)
+      ?.nodes[0]?.component).toMatchObject({
+      id: 'renamed-flower',
+      sourceDefinitionId: 'renamed-flower',
+    });
+  });
+
   it('restores a valid persisted bouquet', () => {
     const store = new BouquetStore();
     const persisted = structuredClone(store.state());

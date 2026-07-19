@@ -139,7 +139,7 @@ function createTaperedStemGeometry(
       startJointRadius * startBlend,
       endJointRadius * endBlend,
     );
-    const radius = Math.max(0.05, jointRadius);
+    const radius = Math.max(0, jointRadius);
 
     for (let segment = 0; segment < radialSegments; segment++) {
       const angle = segment / radialSegments * Math.PI * 2;

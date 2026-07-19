@@ -2,7 +2,7 @@ import {TestBed} from '@angular/core/testing';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {BouquetStore} from './bouquet.store';
 import {FlowerDefinitionStorage} from './flower-definition-storage.service';
-import {ADDITIONAL_DEFAULT_FLOWERS} from '../data/additional-default-flowers';
+import {DEFAULT_FLOWERS} from '../data/default-flowers';
 
 describe('FlowerDefinitionStorage', () => {
   beforeEach(() => {
@@ -59,16 +59,24 @@ describe('FlowerDefinitionStorage', () => {
       ['sunflower', 'tulip', 'lavender'].includes(definition.id))).toHaveLength(3);
   });
 
-  it('adds new placement settings without overwriting the rest of a local flower', () => {
+  it('normalizes legacy spread settings without overwriting the rest of a local flower', () => {
     const store = TestBed.inject(BouquetStore);
     const oldCatalog = structuredClone(store.definitions())
-      .filter((definition) => definition.id !== 'sunflower');
-    const sunflower = structuredClone(
-      ADDITIONAL_DEFAULT_FLOWERS.find((definition) => definition.id === 'sunflower')!,
+      .filter((definition) => definition.id !== 'tulip');
+    const tulip = structuredClone(
+      DEFAULT_FLOWERS.find((definition) => definition.id === 'tulip')!,
     );
-    sunflower.name = 'Meine Sonnenblume';
-    delete sunflower.nodes.find((node) => node.id === 'seed-crown')!.incoming!.placement;
-    oldCatalog.push(sunflower);
+    tulip.name = 'Meine Tulpe';
+    const petal = tulip.nodes.find((node) => node.id === 'outer-petal')!;
+    petal.incoming = {
+      ...petal.incoming!,
+      spread: undefined,
+      angle: {min: 17, max: 30},
+      azimuth: {min: 0, max: 360},
+      randomness: 0.05,
+      placement: {mode: 'ring', orientation: 'radial'},
+    };
+    oldCatalog.push(tulip);
     globalThis.localStorage.setItem(
       FlowerDefinitionStorage.STORAGE_KEY,
       JSON.stringify(oldCatalog),
@@ -76,10 +84,14 @@ describe('FlowerDefinitionStorage', () => {
 
     TestBed.inject(FlowerDefinitionStorage);
 
-    const restored = store.definitions().find((definition) => definition.id === 'sunflower')!;
-    expect(restored.name).toBe('Meine Sonnenblume');
-    expect(restored.nodes.find((node) => node.id === 'seed-crown')!.incoming!.placement)
-      .toEqual({mode: 'disc', orientation: 'parent'});
+    const restored = store.definitions().find((definition) => definition.id === 'tulip')!;
+    expect(restored.name).toBe('Meine Tulpe');
+    expect(restored.nodes.find((node) => node.id === 'outer-petal')!.incoming!.spread)
+      .toMatchObject({
+        deviation: {min: 90, max: 90},
+        revolution: {min: -180, max: 180},
+        orientation: 'spread',
+      });
   });
 
   it('removes an invalid stored catalog and keeps built-in defaults', () => {

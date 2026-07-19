@@ -49,6 +49,9 @@ export function createFlowerGraphicMesh(
     graphic.bendMainProfile,
     graphic.bendCrossProfile,
     graphic.leafEdge,
+    graphic.twist,
+    graphic.ribCount,
+    graphic.ribDepth,
   );
   const material = new MeshStandardMaterial({
     color: graphic.color ?? '#5b8d53',

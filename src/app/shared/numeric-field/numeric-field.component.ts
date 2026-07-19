@@ -1,8 +1,10 @@
 import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
 import {clamp} from '../../core/utils/numbers';
+import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.directive';
 
 @Component({
   selector: 'app-numeric-field',
+  imports: [DragNumberInputDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block min-w-0'},
   templateUrl: './numeric-field.component.html',
@@ -12,7 +14,7 @@ export class NumericFieldComponent {
   readonly value = input.required<number>();
   readonly minimum = input<number | undefined>(undefined);
   readonly maximum = input<number | undefined>(undefined);
-  readonly step = input(1);
+  readonly step = input(0.1);
   readonly unit = input('');
   readonly valueChange = output<number>();
 

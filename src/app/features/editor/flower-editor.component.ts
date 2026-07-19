@@ -29,6 +29,8 @@ import {downloadBlob, downloadJson, readJsonFile} from '../../shared/download-js
 import {FlowerSubtreeLibrary} from '../../core/state/flower-subtree-library';
 import {EditorNotifications} from './services/editor-notifications.service';
 import {FlowerEditorPersistence} from './services/flower-editor-persistence.service';
+import {FlowerEditorUrlState} from './services/flower-editor-url-state.service';
+import {FLOWER_CREATION_DEFAULTS} from '../../core/models/flower-creation-defaults';
 import {
   FlowerSubtreeDefinition,
   createFlowerSubtree,
@@ -101,6 +103,7 @@ export class FlowerEditorComponent {
   readonly store = inject(BouquetStore);
   private readonly notifications = inject(EditorNotifications);
   private readonly persistence = inject(FlowerEditorPersistence);
+  private readonly urlState = inject(FlowerEditorUrlState);
   private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
   private readonly transloco = inject(TranslocoService);
   readonly isDevelopment = isDevMode();
@@ -108,6 +111,7 @@ export class FlowerEditorComponent {
     migrateIncomingConnections(this.store.definitions()[0]),
   );
   readonly selectedCatalogKey = signal(`definition:${this.draft().id}`);
+  private readonly persistedDefinitionId = signal(this.draft().id);
   readonly catalogSearch = signal(this.draft().name);
   readonly catalogSearchOpen = signal(false);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
@@ -165,7 +169,13 @@ export class FlowerEditorComponent {
   @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
   @ViewChild('catalogSearchContainer') private catalogSearchContainer?: ElementRef<HTMLElement>;
   constructor() {
-    this.graphPositions.set(materializePositions(this.draft()));
+    const requestedCatalogKey = this.urlState.readCatalogKey();
+    if (requestedCatalogKey && this.catalogEntries().some((entry) => entry.key === requestedCatalogKey)) {
+      this.selectCatalogEntry(requestedCatalogKey);
+    } else {
+      this.graphPositions.set(materializePositions(this.draft()));
+      this.urlState.writeCatalogKey(this.selectedCatalogKey());
+    }
   }
 
   @HostListener('document:pointerdown', ['$event'])
@@ -259,8 +269,8 @@ export class FlowerEditorComponent {
     while (existing.has(`node-${index}`)) index++;
     const node: FlowerNodeDefinition = {
       id: `node-${index}`,
-      name: `Knoten ${index}`,
-      draggable: false,
+      name: `${FLOWER_CREATION_DEFAULTS.node.namePrefix} ${index}`,
+      draggable: FLOWER_CREATION_DEFAULTS.node.draggable,
       graphic: null,
       incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
@@ -466,13 +476,17 @@ export class FlowerEditorComponent {
 
   saveToCatalog(): void {
     const definition = this.definitionWithEditorState();
-    if (this.persistence.saveToBrowser(definition)) this.draft.set(definition);
+    if (this.persistence.saveToBrowser(definition, this.persistedDefinitionId())) {
+      this.finishDefinitionSave(definition);
+    }
   }
 
   async saveToDefaults(): Promise<void> {
     if (!this.isDevelopment) return;
     const definition = this.definitionWithEditorState();
-    if (await this.persistence.saveToDefaults(definition)) this.draft.set(definition);
+    if (await this.persistence.saveToDefaults(definition, this.persistedDefinitionId())) {
+      this.finishDefinitionSave(definition);
+    }
   }
 
   async deleteSelectedCatalogEntry(): Promise<void> {
@@ -576,13 +590,24 @@ export class FlowerEditorComponent {
   private loadDefinition(definition: FlowerDefinition, catalogKey = `definition:${definition.id}`): void {
     const clone = normalizeFlowerDefinitionForEditor(definition);
     this.draft.set(clone);
+    this.persistedDefinitionId.set(clone.id);
     this.selectedCatalogKey.set(catalogKey);
+    this.urlState.writeCatalogKey(catalogKey);
     this.catalogSearch.set(clone.name);
     this.catalogSearchOpen.set(false);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());
     this.selectNode(clone.rootNodeId || clone.nodes[0]?.id || '');
+  }
+
+  private finishDefinitionSave(definition: FlowerDefinition): void {
+    this.draft.set(definition);
+    this.persistedDefinitionId.set(definition.id);
+    const catalogKey = `definition:${definition.id}`;
+    this.selectedCatalogKey.set(catalogKey);
+    this.urlState.writeCatalogKey(catalogKey);
+    this.catalogSearch.set(definition.name);
   }
 
   private definitionWithEditorState(): FlowerDefinition {

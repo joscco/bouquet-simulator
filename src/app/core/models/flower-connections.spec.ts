@@ -1,15 +1,32 @@
 import {describe, expect, it} from 'vitest';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {
+  DEFAULT_INCOMING_CONNECTION,
   effectiveConnection,
   incomingConnectionReference,
   migrateIncomingConnections,
+  normalizeIncomingConnection,
   normalizeConnectionReferences,
   resolvedStemWidths,
 } from './flower-connections';
+import {FlowerNodeMainDirection} from './flower.models';
 import {validateFlowerDefinition} from './flower-validation';
 
 describe('node-owned incoming connections', () => {
+  it('uses an even full revolution as the default spread', () => {
+    expect(DEFAULT_INCOMING_CONNECTION.spread?.randomness).toBe(0);
+    expect(DEFAULT_INCOMING_CONNECTION.spread?.revolution).toEqual({min: -180, max: 180});
+    expect(DEFAULT_INCOMING_CONNECTION.stem).toMatchObject({
+      color: expect.any(String),
+      width: expect.any(Number),
+      startWidth: expect.any(Number),
+      endWidth: expect.any(Number),
+      bend: expect.any(Number),
+      curve: expect.any(Number),
+      bendRotation: {min: expect.any(Number), max: expect.any(Number)},
+    });
+  });
+
   it('migrates legacy edge settings onto their target node', () => {
     const legacy = structuredClone(daisyComponentDefinition());
     const source = legacy.nodes.find((node) =>
@@ -26,7 +43,10 @@ describe('node-owned incoming connections', () => {
     const petal = migrated.nodes.find((node) => node.id === 'petal')!;
 
     expect(petal.incoming?.repeat).toEqual(legacyConnection.repeat);
-    expect(petal.incoming?.angle).toEqual(legacyConnection.angle);
+    expect(petal.incoming?.spread?.deviation).toEqual(
+      legacyConnection.spread?.deviation ?? legacyConnection.angle,
+    );
+    expect(petal.incoming?.placement).toBeUndefined();
     expect(incomingConnectionReference(migrated, petal.id)?.sourceId).toBe(source.id);
   });
 
@@ -39,6 +59,32 @@ describe('node-owned incoming connections', () => {
     const legacy = source.connections.find((connection) => connection.childId === target.id)!;
 
     expect(effectiveConnection(definition, legacy).length).toEqual({min: 33, max: 44});
+  });
+
+  it('materializes inherited stem values on every incoming connection', () => {
+    const legacy = structuredClone(daisyComponentDefinition());
+    legacy.stem = {
+      ...legacy.stem,
+      color: '#123456',
+      width: 10,
+      taper: 0.5,
+      bend: 12,
+      curve: 34,
+    };
+    const petal = legacy.nodes.find((node) => node.id === 'petal')!;
+    petal.incoming = {...petal.incoming!, stem: undefined};
+
+    const migrated = migrateIncomingConnections(legacy);
+
+    expect(migrated.nodes.find((node) => node.id === 'petal')?.incoming?.stem).toEqual({
+      color: '#123456',
+      width: 10,
+      startWidth: 10,
+      endWidth: 5,
+      bend: 12,
+      curve: 34,
+      bendRotation: {min: 0, max: 0},
+    });
   });
 
   it('resolves a bare child reference through the target incoming settings', () => {
@@ -57,6 +103,52 @@ describe('node-owned incoming connections', () => {
 
     expect(connection).toEqual({childId: 'petal'});
     expect(normalized.nodes.find((node) => node.id === 'petal')?.incoming).toBeDefined();
+  });
+
+  it.each([
+    ['directional', {min: 12, max: 34}, 'spread'],
+    ['ring', {min: 90, max: 90}, 'spread'],
+    ['disc', {min: 90, max: 90}, 'main'],
+    ['sphere', {min: 0, max: 180}, 'spread'],
+  ] as const)('migrates the legacy %s mode into a general spread', (
+    mode,
+    deviation,
+    orientation,
+  ) => {
+    const normalized = normalizeIncomingConnection({
+      repeat: {min: 8, max: 8},
+      length: {min: 0, max: 30},
+      angle: {min: 12, max: 34},
+      azimuth: {min: 10, max: 280},
+      roll: {min: -20, max: 20},
+      randomness: 0.4,
+      placement: {mode, orientation: orientation === 'main' ? 'parent' : 'radial'},
+    });
+
+    expect(normalized.placement).toBeUndefined();
+    expect(normalized.spread).toEqual({
+      deviation,
+      revolution: {min: 10, max: 280},
+      roll: {min: -20, max: 20},
+      randomness: 0.4,
+      orientation,
+    });
+  });
+
+  it('migrates the previous polar main direction into equivalent X/Y/Z rotations', () => {
+    const normalized = normalizeIncomingConnection({
+      ...structuredClone(DEFAULT_INCOMING_CONNECTION),
+      direction: {
+        inclination: 90,
+        azimuth: 0,
+        roll: 25,
+      } as FlowerNodeMainDirection,
+    });
+
+    expect(normalized.direction?.x).toBeCloseTo(0);
+    expect(normalized.direction?.y).toBe(25);
+    expect(normalized.direction?.z).toBeCloseTo(-90);
+    expect(normalized.direction?.inclination).toBeUndefined();
   });
 
   it('rejects a second incoming link to the same node', () => {

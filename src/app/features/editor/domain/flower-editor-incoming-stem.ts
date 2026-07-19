@@ -3,6 +3,7 @@ import {
   FlowerNodeIncomingConnection,
   NumberRange,
 } from '../../../core/models/flower.models';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
 
 export type IncomingStemProperty = 'color' | 'startWidth' | 'endWidth' | 'bend' | 'curve';
 
@@ -41,7 +42,10 @@ export function incomingStemCurve(
   definition: FlowerDefinition,
   incoming: FlowerNodeIncomingConnection,
 ): number {
-  return incoming.stem?.curve ?? definition.stem.curve ?? 14;
+  return incoming.stem?.curve
+    ?? definition.stem.curve
+    ?? FLOWER_CREATION_DEFAULTS.definition.stem.curve
+    ?? 0;
 }
 
 export function incomingStemBendRotation(incoming: FlowerNodeIncomingConnection): NumberRange {

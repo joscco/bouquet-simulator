@@ -1,5 +1,5 @@
 <section class="relative h-full min-h-0 overflow-hidden rounded-2xl border border-stone-200 bg-[#f8f7f2]">
-  <span class="pointer-events-none absolute left-3 top-14 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">{{ 'editor.preview' | transloco }}</span>
+  <span class="pointer-events-none absolute left-3 top-16 z-10 text-[9px] font-bold uppercase tracking-widest text-stone-400">{{ 'editor.preview' | transloco }}</span>
   <div class="absolute left-3 top-3 z-20 flex min-w-0 items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90 p-1 shadow-sm">
     <button app-button variant="icon" [matTooltip]="'editor.centerView' | transloco" [attr.aria-label]="'editor.centerView' | transloco" (click)="resetView()">
       <mat-icon>center_focus_strong</mat-icon>
@@ -12,6 +12,22 @@
       <mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon>
     </button>
   </div>
+  @if (highlightedConnection()) {
+    <div class="pointer-events-none absolute bottom-3 left-3 z-20 space-y-1 rounded-lg border border-stone-200 bg-white/90 px-2.5 py-2 text-[9px] font-semibold text-stone-600 shadow-sm">
+      <div class="flex items-center gap-1.5">
+        <svg class="h-3 w-5 shrink-0" viewBox="0 0 20 12" aria-hidden="true">
+          <path d="M1 6h14M11 2l4 4-4 4" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </svg>
+        <span>{{ 'editor.baseDirection' | transloco }}</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <svg class="h-3 w-5 shrink-0" viewBox="0 0 20 12" aria-hidden="true">
+          <path d="M1 6h14M11 2l4 4-4 4" fill="none" stroke="#10b981" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </svg>
+        <span>{{ 'editor.mainDirection' | transloco }}</span>
+      </div>
+    </div>
+  }
   <app-bouquet-canvas
     class="block h-full"
     [state]="state()"

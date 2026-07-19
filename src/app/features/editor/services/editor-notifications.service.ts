@@ -26,7 +26,7 @@ export class EditorNotifications {
           ? EditorNotifications.ERROR_DURATION_MS
           : EditorNotifications.INFO_DURATION_MS,
         horizontalPosition: 'center',
-        verticalPosition: 'top',
+        verticalPosition: 'bottom',
         politeness: kind === 'error' ? 'assertive' : 'polite',
         panelClass: kind === 'error' ? [
           '[--mat-snack-bar-container-color:#7f1d1d]',

@@ -6,15 +6,10 @@ import {
 } from './graphic-geometries';
 
 describe('built-in graphic geometries', () => {
-  it('offers organic and geometric 3D elements without the legacy round leaf option', () => {
+  it('offers one flexible leaf and one flexible volume', () => {
     expect(BUILT_IN_GRAPHICS.map((graphic) => graphic.value)).toEqual([
       'leaf-pointed',
-      'leaf-serrated',
-      'petal-rounded',
       'sphere',
-      'rod',
-      'cone',
-      'disc',
     ]);
   });
 
@@ -33,16 +28,44 @@ describe('built-in graphic geometries', () => {
     detailed.dispose();
   });
 
-  it('creates the additional rounded petal, cone and disc geometries', () => {
+  it('keeps legacy primitives renderable through the two canonical forms', () => {
     for (const primitive of ['petal-rounded', 'cone', 'disc'] as const) {
       const geometry = createBuiltInGeometry(primitive, 30, 50, 8);
       expect(geometry.getAttribute('position').count).toBeGreaterThan(20);
       geometry.dispose();
     }
+    expect(canonicalGraphicPrimitive('petal-rounded')).toBe('leaf-pointed');
+    expect(canonicalGraphicPrimitive('cone')).toBe('sphere');
   });
 
   it('maps legacy round leaves to pointed leaves', () => {
     expect(canonicalGraphicPrimitive('leaf-round')).toBe('leaf-pointed');
+  });
+
+  it('supports twisted leaves and ribbed cactus bodies', () => {
+    const flatLeaf = createBuiltInGeometry('leaf-pointed', 30, 70, 3);
+    const twistedLeaf = createBuiltInGeometry(
+      'leaf-pointed', 30, 70, 3, 0, 0, undefined, undefined, undefined, 180,
+    );
+    const sphere = createBuiltInGeometry('sphere', 30, 70, 30);
+    const ribbed = createBuiltInGeometry(
+      'sphere', 30, 70, 30, 0, 0, undefined, undefined, undefined, 0, 8, 55,
+    );
+
+    const flatPositions = flatLeaf.getAttribute('position');
+    const twistedPositions = twistedLeaf.getAttribute('position');
+    const spherePositions = sphere.getAttribute('position');
+    const ribbedPositions = ribbed.getAttribute('position');
+    expect(twistedPositions.getZ(twistedPositions.count - 20))
+      .not.toBeCloseTo(flatPositions.getZ(flatPositions.count - 20));
+    expect(Array.from({length: spherePositions.count}, (_, index) => index)
+      .some((index) => Math.abs(ribbedPositions.getX(index) - spherePositions.getX(index)) > 0.01))
+      .toBe(true);
+
+    flatLeaf.dispose();
+    twistedLeaf.dispose();
+    sphere.dispose();
+    ribbed.dispose();
   });
 
   it('creates UV mapped, curved leaf geometry', () => {
@@ -136,9 +159,11 @@ describe('built-in graphic geometries', () => {
     second.dispose();
   });
 
-  it('allows the main bend to curl through a complete turn', () => {
-    const geometry = createBuiltInGeometry('leaf-pointed', 50, 100, 2, 240, 0);
-    const positions = geometry.getAttribute('position');
+  it('turns strong positive and negative bends into coils instead of overlapping circles', () => {
+    const positive = createBuiltInGeometry('leaf-pointed', 50, 100, 2, 240, 0);
+    const negative = createBuiltInGeometry('leaf-pointed', 50, 100, 2, -240, 0);
+    const positions = positive.getAttribute('position');
+    const negativePositions = negative.getAttribute('position');
     const columns = 16;
     const rowSize = columns + 1;
     const layerSize = positions.count / 2;
@@ -147,9 +172,14 @@ describe('built-in graphic geometries', () => {
     const tipFront = tipBack + layerSize;
     const tipY = (positions.getY(tipBack) + positions.getY(tipFront)) / 2;
     const tipZ = (positions.getZ(tipBack) + positions.getZ(tipFront)) / 2;
+    const negativeTipY = (negativePositions.getY(tipBack) + negativePositions.getY(tipFront)) / 2;
+    const negativeTipZ = (negativePositions.getZ(tipBack) + negativePositions.getZ(tipFront)) / 2;
 
-    expect(Math.hypot(tipY, tipZ)).toBeLessThan(15);
-    geometry.dispose();
+    expect(Math.hypot(tipY, tipZ)).toBeGreaterThan(15);
+    expect(negativeTipY).toBeCloseTo(tipY, 4);
+    expect(negativeTipZ).toBeCloseTo(-tipZ, 4);
+    positive.dispose();
+    negative.dispose();
   });
 
   it('applies an absolute cross-bend profile from base to tip', () => {

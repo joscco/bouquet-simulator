@@ -23,6 +23,10 @@ export function validateFlowerDefinition(
   const issues: FlowerValidationIssue[] = [];
   const ids = new Set<string>();
 
+  if (!definition.id.trim()) {
+    issues.push({severity: 'error', message: 'Die Blume benötigt eine ID.'});
+  }
+
   for (const node of definition.nodes) {
     if (!node.id.trim()) issues.push({severity: 'error', message: 'Ein Knoten hat keine ID.'});
     if (ids.has(node.id)) {
@@ -114,13 +118,17 @@ export function validateFlowerDefinition(
       ) {
         issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Grafikdrehung.`});
       }
-      if ((node.graphic.scale ?? 1) <= 0) {
-        issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Grafikskalierung.`});
+      if (Math.abs(node.graphic.twist ?? 0) > 720) {
+        issues.push({severity: 'error', message: `„${node.name}“ hat eine ungültige Blattdrehung.`});
+      }
+      if ((node.graphic.ribCount ?? 0) < 0 || (node.graphic.ribCount ?? 0) > 64
+        || (node.graphic.ribDepth ?? 0) < 0 || (node.graphic.ribDepth ?? 0) > 100) {
+        issues.push({severity: 'error', message: `„${node.name}“ hat ungültige Rippen.`});
       }
       const leafEdge = node.graphic.leafEdge;
       if (leafEdge && (
         leafEdge.serrationCount < 1
-        || leafEdge.serrationCount > 18
+        || leafEdge.serrationCount > 80
         || leafEdge.serrationDepth < 0
         || leafEdge.serrationDepth > 80
         || leafEdge.serrationSharpness < 0
@@ -166,15 +174,26 @@ export function validateFlowerDefinition(
     }
     for (const legacyConnection of node.connections) {
       const connection = effectiveConnection(definition, legacyConnection);
-      if ((connection.randomness ?? 0.35) < 0 || (connection.randomness ?? 0.35) > 1) {
+      const spread = connection.spread!;
+      const direction = connection.direction!;
+      if (spread.randomness < 0 || spread.randomness > 1) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Zufallsverteilung.`});
       }
-      if (connection.placement && (
-        !['directional', 'ring', 'disc', 'sphere'].includes(connection.placement.mode)
-        || (connection.placement.orientation !== undefined
-          && !['radial', 'parent'].includes(connection.placement.orientation))
-      )) {
-        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige räumliche Anordnung.`});
+      if (
+        !Number.isFinite(direction.x)
+        || !Number.isFinite(direction.y)
+        || !Number.isFinite(direction.z)
+        || Math.abs(direction.x) > 180
+        || Math.abs(direction.y) > 180
+        || Math.abs(direction.z) > 180
+        || invalidDegreeRange(spread.deviation)
+        || spread.deviation.min < 0
+        || spread.deviation.max > 180
+        || invalidDegreeRange(spread.revolution)
+        || invalidDegreeRange(spread.roll)
+        || !['spread', 'main'].includes(spread.orientation)
+      ) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Streuung.`});
       }
       if (!ids.has(connection.childId)) {
         issues.push({
@@ -186,9 +205,9 @@ export function validateFlowerDefinition(
         issues.push({severity: 'error', message: `„${node.id}“ hat eine negative Wiederholungszahl.`});
       }
       if (connection.stem && (
-        connection.stem.width <= 0
-        || (connection.stem.startWidth ?? 1) <= 0
-        || (connection.stem.endWidth ?? 1) <= 0
+        connection.stem.width < 0
+        || (connection.stem.startWidth ?? 1) < 0
+        || (connection.stem.endWidth ?? 1) < 0
       )) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängeldicke.`});
       }
@@ -198,7 +217,7 @@ export function validateFlowerDefinition(
       if ((connection.stem?.curve ?? 0) < 0 || (connection.stem?.curve ?? 0) > 100) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Stängelkrümmung.`});
       }
-      if (invalidDegreeRange(connection.roll) || invalidDegreeRange(connection.stem?.bendRotation)) {
+      if (invalidDegreeRange(connection.stem?.bendRotation)) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige lokale Drehung.`});
       }
     }

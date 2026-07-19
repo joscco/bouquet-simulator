@@ -1,7 +1,9 @@
 import {
   FlowerDefinition,
+  FlowerNodeMainDirection,
   FlowerNodeDefinition,
   NodeOffset,
+  NumberRange,
   ResolvedFlowerNodeConnection,
 } from '../models/flower.models';
 import {
@@ -11,7 +13,7 @@ import {
   graphOutgoing,
 } from '../models/flower-graph';
 import {clamp, lerp} from '../utils/numbers';
-import {mulberry32, randomInteger, randomRange, rangeValue} from '../utils/random';
+import {mulberry32, randomInteger, rangeValue} from '../utils/random';
 import {
   componentOutputNodeIds,
   componentTemplateKey,
@@ -54,7 +56,7 @@ export interface FlowerTree {
   edges: FlowerTreeEdge[];
 }
 
-const MAX_GENERATED_NODES = 600;
+const MAX_GENERATED_NODES = 2000;
 const MAX_EXPANSION_DEPTH = 24;
 
 /**
@@ -100,14 +102,18 @@ export function generateFlowerTree(
       childId: rootTemplate.id,
       repeat: {min: 1, max: 1},
       length: {min: 0, max: 0},
-      angle: {min: 0, max: 0},
-      azimuth: {min: 0, max: 0},
-      roll: {min: 0, max: 0},
-      randomness: 0,
+      direction: {x: 0, y: 0, z: 0},
+      spread: {
+        deviation: {min: 0, max: 0},
+        revolution: {min: 0, max: 0},
+        roll: {min: 0, max: 0},
+        randomness: 0,
+        orientation: 'spread',
+      },
     },
   };
   if (rootTemplate.component) {
-    expandComponent(nodes[0], rootTemplate, rootEntryEdge, new Set([rootTemplate.id]), 0);
+    expandComponent(nodes[0], rootTemplate, rootEntryEdge, new Set([rootTemplate.id]), 0, 0, 1);
   } else if (rootTemplate.loop) {
     expandLoop(nodes[0], rootTemplate, rootEntryEdge, new Set([rootTemplate.id]), 0);
   } else {
@@ -140,6 +146,8 @@ export function generateFlowerTree(
             edge,
             new Set([...ancestors, childTemplate.id]),
             expansionDepth + 1,
+            index,
+            count,
           );
         }
         continue;
@@ -180,6 +188,8 @@ export function generateFlowerTree(
     entryEdge: FlowerGraphEdge,
     ancestors: Set<string>,
     expansionDepth: number,
+    repeatIndex: number,
+    repeatCount: number,
   ): void {
     const component = componentTemplate.component;
     if (!component?.rootNodeId || !component.nodes || expansionDepth >= MAX_EXPANSION_DEPTH || nodes.length >= MAX_GENERATED_NODES) return;
@@ -194,8 +204,8 @@ export function generateFlowerTree(
         targetId: rootKey,
         connection: {...entryEdge.connection, childId: rootKey},
       },
-      0,
-      1,
+      repeatIndex,
+      repeatCount,
     );
     expandChildren(root, rootKey, new Set([...ancestors, rootKey]), expansionDepth + 1);
     const outputIds = componentOutputNodeIds(componentTemplate);
@@ -235,6 +245,8 @@ export function generateFlowerTree(
               edge,
               new Set([...ancestors, childTemplate.id]),
               expansionDepth + 1,
+              index,
+              count,
             );
             continue;
           }
@@ -290,7 +302,6 @@ export function generateFlowerTree(
         startEdge,
         iteration,
         repeat,
-        true,
       );
       for (const step of path) {
         expandChildren(
@@ -381,7 +392,6 @@ export function generateFlowerTree(
             startEdge,
             iteration,
             repeat,
-            true,
           );
           expandMemberChildren(
             root,
@@ -530,85 +540,87 @@ export function generateFlowerTree(
     edge: FlowerGraphEdge,
     repeatIndex: number,
     repeatCount: number,
-    forceUpright = false,
   ): FlowerTreeNode {
     const serial = (counters.get(templateId) ?? 0) + 1;
     counters.set(templateId, serial);
     const id = `${templateId}-${serial}`;
     const template = templates.get(templateId)!;
     const connection = edge.connection;
-    const randomness = clamp(connection.randomness ?? 0.35, 0, 1);
+    const spread = connection.spread ?? {
+      deviation: connection.angle ?? {min: 0, max: 10},
+      revolution: connection.azimuth ?? {min: 0, max: 360},
+      roll: connection.roll ?? {min: 0, max: 0},
+      randomness: connection.randomness ?? 0,
+      orientation: connection.placement?.orientation === 'parent' ? 'main' as const : 'spread' as const,
+    };
+    const main = connection.direction ?? {x: 0, y: 0, z: 0};
+    const randomness = clamp(spread.randomness, 0, 1);
     const evenLinearUnit = repeatCount > 1 ? repeatIndex / (repeatCount - 1) : 0.5;
-    const azimuthRange = connection.azimuth ?? {min: 0, max: 360};
     const evenCircularUnit = repeatCount > 1 ? repeatIndex / repeatCount : 0.5;
-    const parentDirection = sphericalDirection(parent.angle, parent.azimuth);
-    const reference = Math.abs(parentDirection.y) > 0.98
-      ? {x: 1, y: 0, z: 0}
-      : {x: 0, y: 1, z: 0};
-    const tangent = normalize(cross(reference, parentDirection));
-    const bitangent = cross(parentDirection, tangent);
-    const placementMode = connection.placement?.mode ?? 'directional';
-    let aroundParent: number;
-    let length: number;
-    let positionDirection: ReturnType<typeof sphericalDirection>;
-    let direction: ReturnType<typeof sphericalDirection>;
-
-    if (placementMode === 'directional') {
-      const inclinationUnit = lerp(evenLinearUnit, random(), randomness);
-      const inclination = clamp(rangeValue(connection.angle, inclinationUnit), -180, 180) * Math.PI / 180;
-      const azimuthUnit = lerp(evenCircularUnit, random(), randomness);
-      aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
-      const radialDirection = directionInPlane(tangent, bitangent, aroundParent);
-      direction = normalize({
-        x: parentDirection.x * Math.cos(inclination) + radialDirection.x * Math.sin(inclination),
-        y: parentDirection.y * Math.cos(inclination) + radialDirection.y * Math.sin(inclination),
-        z: parentDirection.z * Math.cos(inclination) + radialDirection.z * Math.sin(inclination),
+    const {axis: parentDirection, tangent, bitangent} = flowerTreeNodeFrame(parent);
+    const mainDirection = directionFromLocalRotations(
+      parentDirection,
+      tangent,
+      bitangent,
+      main,
+    );
+    const mainFrame = directionFrame(mainDirection, tangent, bitangent);
+    let positionDirection: {x: number; y: number; z: number};
+    let revolution: number;
+    if (coversFullSphere(spread.deviation, spread.revolution)) {
+      const evenLocal = maximallySeparatedSphereDirection(repeatIndex, repeatCount);
+      const randomLocal = uniformSphereDirection(random(), random());
+      const local = normalize({
+        x: lerp(evenLocal.x, randomLocal.x, randomness),
+        y: lerp(evenLocal.y, randomLocal.y, randomness),
+        z: lerp(evenLocal.z, randomLocal.z, randomness),
       });
-      positionDirection = direction;
+      positionDirection = directionFromLocalFrame(
+        mainDirection,
+        mainFrame.tangent,
+        mainFrame.bitangent,
+        local,
+      );
+      revolution = Math.atan2(local.z, local.x);
     } else {
-      const baseAzimuthUnit = placementMode === 'ring'
-        ? evenCircularUnit
-        : fractional((repeatIndex + 0.5) * 0.618033988749895);
-      const azimuthUnit = lerp(baseAzimuthUnit, random(), randomness);
-      aroundParent = rangeValue(azimuthRange, azimuthUnit) * Math.PI / 180;
-      const radialDirection = directionInPlane(tangent, bitangent, aroundParent);
-      if (placementMode === 'sphere') {
-        const polarUnit = lerp((repeatIndex + 0.5) / repeatCount, random(), randomness);
-        const axisAmount = 1 - 2 * polarUnit;
-        const radialAmount = Math.sqrt(Math.max(0, 1 - axisAmount * axisAmount));
-        positionDirection = normalize({
-          x: parentDirection.x * axisAmount + radialDirection.x * radialAmount,
-          y: parentDirection.y * axisAmount + radialDirection.y * radialAmount,
-          z: parentDirection.z * axisAmount + radialDirection.z * radialAmount,
-        });
-      } else {
-        positionDirection = radialDirection;
-      }
-      direction = connection.placement?.orientation === 'parent'
-        ? parentDirection
-        : positionDirection;
+      const deviationUnit = lerp(evenLinearUnit, random(), randomness);
+      const deviation = angularRangeValue(spread.deviation, deviationUnit);
+      const deviationVaries = Math.abs(spread.deviation.max - spread.deviation.min) > 0.0001;
+      const revolutionSpan = Math.abs(spread.revolution.max - spread.revolution.min);
+      const evenRevolutionUnit = deviationVaries
+        ? fractional((repeatIndex + 0.5) * 0.618033988749895)
+        : revolutionSpan >= 360 - 0.0001
+          ? evenCircularUnit
+          : evenLinearUnit;
+      const revolutionUnit = lerp(evenRevolutionUnit, random(), randomness);
+      revolution = rangeValue(spread.revolution, revolutionUnit) * Math.PI / 180;
+      positionDirection = directionFromAxis(
+        mainDirection,
+        mainFrame.tangent,
+        mainFrame.bitangent,
+        deviation,
+        revolution,
+      );
     }
-    const roll = connection.roll
-      ? rangeValue(connection.roll, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
-      : 0;
+    const direction = spread.orientation === 'main' ? mainDirection : positionDirection;
+    const aroundParent = Math.atan2(
+      dot(mainDirection, bitangent),
+      dot(mainDirection, tangent),
+    ) + revolution;
+    const rollUnit = lerp(
+      fractional((repeatIndex + 0.5) * 0.7548776662466927),
+      random(),
+      randomness,
+    );
+    const roll = (main.y + rangeValue(spread.roll, rollUnit)) * Math.PI / 180;
     const bendRotation = connection.stem?.bendRotation
       ? rangeValue(connection.stem.bendRotation, lerp(evenCircularUnit, random(), randomness)) * Math.PI / 180
       : 0;
-    if (forceUpright) {
-      direction = normalize({x: direction.x * 0.32, y: direction.y * 0.32 + 0.68, z: direction.z * 0.32});
-    }
     const angle = Math.acos(clamp(direction.y, -1, 1));
     const azimuth = Math.atan2(direction.z, direction.x);
-    if (placementMode === 'directional') {
-      length = Math.max(0, randomRange(connection.length, random));
-    } else {
-      const radiusUnit = lerp((repeatIndex + 0.5) / repeatCount, random(), randomness);
-      const minimumRadius = Math.max(0, Math.min(connection.length.min, connection.length.max));
-      const maximumRadius = Math.max(0, connection.length.min, connection.length.max);
-      length = placementMode === 'disc'
-        ? Math.sqrt(minimumRadius ** 2 + (maximumRadius ** 2 - minimumRadius ** 2) * radiusUnit)
-        : lerp(minimumRadius, maximumRadius, radiusUnit);
-    }
+    const evenLengthUnit = decorrelatedEvenUnit(repeatIndex, repeatCount);
+    const lengthUnit = lerp(evenLengthUnit, random(), randomness);
+    const length = rangeValue(connection.length, lengthUnit);
     const offset = offsets[id] ?? {x: 0, y: 0};
     const node: FlowerTreeNode = {
       id,
@@ -649,6 +661,203 @@ function directionInPlane(
   });
 }
 
+/** Resolves the editable X/Y/Z main rotation into the concrete direction at a generated parent. */
+export function flowerConnectionMainDirection(
+  parent: FlowerTreeNode,
+  connection: ResolvedFlowerNodeConnection,
+): {x: number; y: number; z: number} {
+  const {axis: parentDirection, tangent, bitangent} = flowerTreeNodeFrame(parent);
+  return directionFromLocalRotations(
+    parentDirection,
+    tangent,
+    bitangent,
+    connection.direction ?? {x: 0, y: 0, z: 0},
+  );
+}
+
+/** Direction of the incoming/base axis before the selected connection applies its X/Y/Z rotation. */
+export function flowerTreeNodeDirection(
+  node: FlowerTreeNode,
+): {x: number; y: number; z: number} {
+  return sphericalDirection(node.angle, node.azimuth);
+}
+
+function flowerTreeNodeFrame(node: FlowerTreeNode): {
+  axis: {x: number; y: number; z: number};
+  tangent: {x: number; y: number; z: number};
+  bitangent: {x: number; y: number; z: number};
+} {
+  const axis = flowerTreeNodeDirection(node);
+  const reference = Math.abs(axis.y) > 0.98
+    ? {x: 1, y: 0, z: 0}
+    : {x: 0, y: 1, z: 0};
+  const baseTangent = normalize(cross(reference, axis));
+  const baseBitangent = cross(axis, baseTangent);
+  const tangent = directionInPlane(baseTangent, baseBitangent, node.roll ?? 0);
+  return {axis, tangent, bitangent: cross(axis, tangent)};
+}
+
+function directionFromLocalRotations(
+  axis: {x: number; y: number; z: number},
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  rotation: FlowerNodeMainDirection,
+): {x: number; y: number; z: number} {
+  const x = clamp(rotation.x, -180, 180) * Math.PI / 180;
+  const z = clamp(rotation.z, -180, 180) * Math.PI / 180;
+  // Start on local +Y, rotate around local X and then local Z. Y is the axial roll.
+  const local = {
+    x: -Math.cos(x) * Math.sin(z),
+    y: Math.cos(x) * Math.cos(z),
+    z: Math.sin(x),
+  };
+  return normalize({
+    x: tangent.x * local.x + axis.x * local.y + bitangent.x * local.z,
+    y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
+    z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
+  });
+}
+
+function directionFromAxis(
+  axis: {x: number; y: number; z: number},
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  deviation: number,
+  revolution: number,
+): {x: number; y: number; z: number} {
+  const radial = directionInPlane(tangent, bitangent, revolution);
+  return normalize({
+    x: axis.x * Math.cos(deviation) + radial.x * Math.sin(deviation),
+    y: axis.y * Math.cos(deviation) + radial.y * Math.sin(deviation),
+    z: axis.z * Math.cos(deviation) + radial.z * Math.sin(deviation),
+  });
+}
+
+function directionFromLocalFrame(
+  axis: {x: number; y: number; z: number},
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  local: {x: number; y: number; z: number},
+): {x: number; y: number; z: number} {
+  return normalize({
+    x: tangent.x * local.x + axis.x * local.y + bitangent.x * local.z,
+    y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
+    z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
+  });
+}
+
+function coversFullSphere(deviation: NumberRange, revolution: NumberRange): boolean {
+  const minimum = Math.min(deviation.min, deviation.max);
+  const maximum = Math.max(deviation.min, deviation.max);
+  const reachesBothPoles = (minimum <= 0 && maximum >= 180)
+    || (minimum <= -180 && maximum >= 0);
+  return reachesBothPoles && Math.abs(revolution.max - revolution.min) >= 360 - 0.0001;
+}
+
+function maximallySeparatedSphereDirection(
+  index: number,
+  count: number,
+): {x: number; y: number; z: number} {
+  if (count <= 1) return {x: 0, y: 1, z: 0};
+  if (count === 2) return index === 0
+    ? {x: 0, y: 1, z: 0}
+    : {x: 0, y: -1, z: 0};
+  if (count === 3) return [
+    {x: 0, y: 1, z: 0},
+    {x: 1, y: 0, z: 0},
+    {x: 0, y: 0, z: 1},
+  ][index]!;
+  if (count === 4) {
+    if (index === 0) return {x: 0, y: 1, z: 0};
+    const y = -1 / 3;
+    const radius = Math.sqrt(1 - y * y);
+    const revolution = (index - 1) * Math.PI * 2 / 3;
+    return {x: radius * Math.cos(revolution), y, z: radius * Math.sin(revolution)};
+  }
+
+  const y = 1 - 2 * index / (count - 1);
+  const radius = Math.sqrt(Math.max(0, 1 - y * y));
+  const revolution = index * Math.PI * (3 - Math.sqrt(5));
+  return {x: radius * Math.cos(revolution), y, z: radius * Math.sin(revolution)};
+}
+
+function uniformSphereDirection(
+  verticalUnit: number,
+  revolutionUnit: number,
+): {x: number; y: number; z: number} {
+  const y = 1 - 2 * verticalUnit;
+  const radius = Math.sqrt(Math.max(0, 1 - y * y));
+  const revolution = revolutionUnit * Math.PI * 2;
+  return {x: radius * Math.cos(revolution), y, z: radius * Math.sin(revolution)};
+}
+
+function directionFrame(
+  axis: {x: number; y: number; z: number},
+  preferredTangent: {x: number; y: number; z: number},
+  preferredBitangent: {x: number; y: number; z: number},
+): {
+  tangent: {x: number; y: number; z: number};
+  bitangent: {x: number; y: number; z: number};
+} {
+  const axisProjection = dot(preferredTangent, axis);
+  let projected = {
+    x: preferredTangent.x - axis.x * axisProjection,
+    y: preferredTangent.y - axis.y * axisProjection,
+    z: preferredTangent.z - axis.z * axisProjection,
+  };
+  if (Math.hypot(projected.x, projected.y, projected.z) < 0.0001) {
+    const fallbackProjection = dot(preferredBitangent, axis);
+    projected = {
+      x: preferredBitangent.x - axis.x * fallbackProjection,
+      y: preferredBitangent.y - axis.y * fallbackProjection,
+      z: preferredBitangent.z - axis.z * fallbackProjection,
+    };
+  }
+  const tangent = normalize(projected);
+  return {tangent, bitangent: cross(axis, tangent)};
+}
+
+function angularRangeValue(range: NumberRange, unit: number): number {
+  const minimum = Math.min(range.min, range.max);
+  const maximum = Math.max(range.min, range.max);
+  if (minimum >= 0 && maximum <= 180) {
+    const minimumRadians = minimum * Math.PI / 180;
+    const maximumRadians = maximum * Math.PI / 180;
+    return Math.acos(clamp(lerp(
+      Math.cos(minimumRadians),
+      Math.cos(maximumRadians),
+      clamp(unit, 0, 1),
+    ), -1, 1));
+  }
+  return rangeValue(range, unit) * Math.PI / 180;
+}
+
+function dot(
+  first: {x: number; y: number; z: number},
+  second: {x: number; y: number; z: number},
+): number {
+  return first.x * second.x + first.y * second.y + first.z * second.z;
+}
+
 function fractional(value: number): number {
   return value - Math.floor(value);
+}
+
+function decorrelatedEvenUnit(index: number, count: number): number {
+  if (count <= 1) return 0.5;
+  const order = Array.from({length: count}, (_, candidate) => candidate)
+    .sort((first, second) => radicalInverse(first) - radicalInverse(second));
+  return order.indexOf(index) / (count - 1);
+}
+
+function radicalInverse(value: number): number {
+  let result = 0;
+  let fraction = 0.5;
+  let remaining = value;
+  while (remaining > 0) {
+    result += (remaining % 2) * fraction;
+    remaining = Math.floor(remaining / 2);
+    fraction *= 0.5;
+  }
+  return result;
 }

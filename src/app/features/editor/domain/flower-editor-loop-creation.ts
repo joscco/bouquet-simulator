@@ -10,6 +10,7 @@ import {FlowerSubtreeSelection} from '../../../core/models/flower-subtree';
 import {GraphNode, Point} from '../graph/flower-editor-graph';
 import {nodeBounds, selectedExternalConnections} from './flower-editor-definition';
 import {loopOutputNodeIds} from './flower-editor-loops';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
 
 export interface CreatedFlowerLoop {
   definition: FlowerDefinition;
@@ -28,12 +29,16 @@ export function createFlowerLoop(
   if (!selection) {
     const loopNode: FlowerNodeDefinition = {
       id: loopNodeId,
-      name: `Wiederholung ${loopNumber(loopNodeId)}`,
-      draggable: false,
+      name: `${FLOWER_CREATION_DEFAULTS.loop.namePrefix} ${loopNumber(loopNodeId)}`,
+      draggable: FLOWER_CREATION_DEFAULTS.node.draggable,
       graphic: null,
       incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
-      loop: {repeat: {min: 2, max: 4}, startNodeId: null, endNodeId: null},
+      loop: {
+        repeat: structuredClone(FLOWER_CREATION_DEFAULTS.loop.repeat),
+        startNodeId: null,
+        endNodeId: null,
+      },
     };
     return {
       definition: {...definition, nodes: [...definition.nodes, loopNode]},
@@ -49,15 +54,15 @@ export function createFlowerLoop(
   const selectedRoot = definition.nodes.find((node) => node.id === selection.rootNodeId)!;
   const loopNode: FlowerNodeDefinition = {
     id: loopNodeId,
-    name: `Wiederholung ${loopNumber(loopNodeId)}`,
-    draggable: false,
+    name: `${FLOWER_CREATION_DEFAULTS.loop.namePrefix} ${loopNumber(loopNodeId)}`,
+    draggable: FLOWER_CREATION_DEFAULTS.node.draggable,
     graphic: null,
     incoming: selection.rootNodeId === definition.rootNodeId
       ? undefined
       : structuredClone(nodeIncomingOrDefault(selectedRoot)),
     connections: selectedExternalConnections(definition, memberNodeIds),
     loop: {
-      repeat: {min: 2, max: 4},
+      repeat: structuredClone(FLOWER_CREATION_DEFAULTS.loop.repeat),
       startNodeId: selection.rootNodeId,
       endNodeId: continuationOutputNodeIds[0] ?? selection.rootNodeId,
       memberNodeIds,

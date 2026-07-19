@@ -2,16 +2,16 @@ import {
   GraphicPatternLayer,
   GraphicPatternType,
 } from '../../../core/models/flower.models';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
 
 export const GRAPHIC_PATTERN_OPTIONS: ReadonlyArray<{
   type: GraphicPatternType;
   label: string;
-  icon: string;
 }> = [
-  {type: 'gradient', label: 'Verlauf', icon: 'gradient'},
-  {type: 'veins', label: 'Adern', icon: 'account_tree'},
-  {type: 'spots', label: 'Flecken', icon: 'blur_on'},
-  {type: 'edge', label: 'Rand', icon: 'border_outer'},
+  {type: 'gradient', label: 'Verlauf'},
+  {type: 'veins', label: 'Adern'},
+  {type: 'spots', label: 'Flecken'},
+  {type: 'edge', label: 'Rand'},
 ];
 
 export function graphicPatternLabel(type: GraphicPatternType): string {
@@ -22,14 +22,5 @@ export function createDefaultGraphicPattern(
   id: string,
   type: GraphicPatternType,
 ): GraphicPatternLayer {
-  if (type === 'gradient') {
-    return {id, type, color: '#fef3c7', opacity: 0.55, direction: 'base-to-tip'};
-  }
-  if (type === 'veins') {
-    return {id, type, color: '#315c3a', opacity: 0.72, density: 7, size: 0.012, angle: 22};
-  }
-  if (type === 'spots') {
-    return {id, type, color: '#7c3aed', opacity: 0.62, density: 18, size: 0.035, seed: 0.42};
-  }
-  return {id, type, color: '#14532d', opacity: 0.58, width: 0.055};
+  return {id, type, ...structuredClone(FLOWER_CREATION_DEFAULTS.patterns[type])};
 }

@@ -14,6 +14,8 @@ import {
 } from '../../../core/models/flower-subtree';
 import {FlowerComponentCatalogEntry, slugify} from './flower-editor-definition';
 import {withDerivedFlowerRoot} from './flower-editor-roots';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
+import {upsertFlowerDefinitionById} from '../../../core/models/flower-definition-ids';
 
 export function createFlowerEditorCatalog(
   definitions: readonly FlowerDefinition[],
@@ -38,17 +40,24 @@ export function createFlowerEditorCatalog(
 }
 
 export function createEmptyFlowerDefinition(id: string): FlowerDefinition {
+  const defaults = FLOWER_CREATION_DEFAULTS;
   return {
     schemaVersion: 2,
     id,
-    name: 'Neue Blume',
+    name: defaults.definition.name,
     catalogRole: 'flower',
     availableInBouquet: true,
     availableAsComponent: true,
-    rootNodeId: 'base',
-    stem: {color: '#426f50', highlightColor: '#82a878', width: 8, taper: 1, bend: 0, curve: 14},
-    nodes: [{id: 'base', name: 'Basis', draggable: false, graphic: null, connections: []}],
-    editor: {nodePositions: {base: {x: 500, y: 840}}},
+    rootNodeId: defaults.definition.rootNodeId,
+    stem: structuredClone(defaults.definition.stem),
+    nodes: [{
+      id: defaults.definition.rootNodeId,
+      name: defaults.definition.rootNodeName,
+      draggable: defaults.node.draggable,
+      graphic: null,
+      connections: [],
+    }],
+    editor: {nodePositions: {[defaults.definition.rootNodeId]: {x: 500, y: 840}}},
   };
 }
 
@@ -86,8 +95,7 @@ export function normalizeFlowerDefinitionForEditor(
 export function upsertFlowerDefinition(
   definitions: readonly FlowerDefinition[],
   definition: FlowerDefinition,
+  previousId?: string,
 ): FlowerDefinition[] {
-  return definitions.some((candidate) => candidate.id === definition.id)
-    ? definitions.map((candidate) => candidate.id === definition.id ? definition : candidate)
-    : [...definitions, definition];
+  return upsertFlowerDefinitionById(definitions, definition, previousId);
 }

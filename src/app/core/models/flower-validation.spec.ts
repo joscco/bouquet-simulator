@@ -10,6 +10,28 @@ describe('flower definition validation', () => {
     }
   });
 
+  it('requires a flower id', () => {
+    const definition = validationDefinition();
+    definition.id = '   ';
+
+    expect(validateFlowerDefinition(definition)).toContainEqual({
+      severity: 'error',
+      message: 'Die Blume benötigt eine ID.',
+    });
+  });
+
+  it('allows zero-width stems for invisible connections', () => {
+    const definition = validationDefinition();
+    definition.nodes[0]!.connections[0]!.stem = {
+      color: '#000000',
+      width: 0,
+      startWidth: 0,
+      endWidth: 0,
+    };
+
+    expect(validateFlowerDefinition(definition)).toEqual([]);
+  });
+
   it('validates element-specific serrated leaf settings', () => {
     const definition = validationDefinition();
     const graphic = definition.nodes.find((node) => node.id === 'leaf')!.graphic!;
@@ -22,7 +44,7 @@ describe('flower definition validation', () => {
     };
     expect(validateFlowerDefinition(definition)).toEqual([]);
 
-    graphic.leafEdge.serrationCount = 30;
+    graphic.leafEdge.serrationCount = 81;
     expect(validateFlowerDefinition(definition).some((issue) =>
       issue.message.includes('Blattkante'))).toBe(true);
   });

@@ -12,10 +12,11 @@ import {clamp, roundToStep} from '../../core/utils/numbers';
 import {boundedRange, expandedRange, sortedRange} from './number-range';
 import {SliderHandle, SliderTrackComponent} from '../slider-track/slider-track.component';
 import {TranslocoPipe} from '@jsverse/transloco';
+import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.directive';
 
 @Component({
   selector: 'app-interval-slider',
-  imports: [SliderTrackComponent, TranslocoPipe],
+  imports: [SliderTrackComponent, TranslocoPipe, DragNumberInputDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': '@container block w-full min-w-0'},
   templateUrl: './interval-slider.component.html',
@@ -25,7 +26,7 @@ export class IntervalSliderComponent {
   readonly value = input.required<NumberRange>();
   readonly minimum = input.required<number>();
   readonly maximum = input.required<number>();
-  readonly step = input(1);
+  readonly step = input(0.1);
   readonly unit = input('');
   readonly modeSelectable = input(false);
   readonly valueChange = output<NumberRange>();

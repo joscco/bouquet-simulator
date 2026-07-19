@@ -4,6 +4,7 @@ import {validateFlowerDefinition} from '../../../core/models/flower-validation';
 import {BouquetStore} from '../../../core/state/bouquet.store';
 import {FlowerDefinitionStorage} from '../../../core/state/flower-definition-storage.service';
 import {upsertFlowerDefinition} from '../domain/flower-editor-catalog';
+import {definitionIdIsOccupied} from '../../../core/models/flower-definition-ids';
 import {EditorNotifications} from './editor-notifications.service';
 
 @Injectable()
@@ -13,16 +14,20 @@ export class FlowerEditorPersistence {
   private readonly notifications = inject(EditorNotifications);
   private readonly development = isDevMode();
 
-  saveToBrowser(definition: FlowerDefinition): boolean {
+  saveToBrowser(definition: FlowerDefinition, previousId = definition.id): boolean {
     const validationError = firstValidationError(definition);
     if (validationError) {
       this.showError(`Speichern nicht möglich: ${validationError}`);
       return false;
     }
-    const definitions = upsertFlowerDefinition(this.store.definitions(), definition);
+    if (definitionIdIsOccupied(this.store.definitions(), definition.id, previousId)) {
+      this.showError(`Speichern nicht möglich: Die Blumen-ID „${definition.id}“ ist bereits vergeben.`);
+      return false;
+    }
+    const definitions = upsertFlowerDefinition(this.store.definitions(), definition, previousId);
     try {
       this.storage.saveDefinitions(definitions);
-      this.store.replaceDefinition(definition);
+      this.store.replaceDefinition(definition, previousId);
       this.notifications.show('Im Browser gespeichert.');
       return true;
     } catch (error: unknown) {
@@ -33,17 +38,21 @@ export class FlowerEditorPersistence {
     }
   }
 
-  async saveToDefaults(definition: FlowerDefinition): Promise<boolean> {
+  async saveToDefaults(definition: FlowerDefinition, previousId = definition.id): Promise<boolean> {
     if (!this.development) return false;
     const validationError = firstValidationError(definition);
     if (validationError) {
       this.showError(`Übernahme nicht möglich: ${validationError}`);
       return false;
     }
-    const definitions = upsertFlowerDefinition(this.store.definitions(), definition);
+    if (definitionIdIsOccupied(this.store.definitions(), definition.id, previousId)) {
+      this.showError(`Übernahme nicht möglich: Die Blumen-ID „${definition.id}“ ist bereits vergeben.`);
+      return false;
+    }
+    const definitions = upsertFlowerDefinition(this.store.definitions(), definition, previousId);
     try {
       await writeDefinitionsToDefaults(definitions);
-      this.store.replaceDefinition(definition);
+      this.store.replaceDefinition(definition, previousId);
       this.storage.trySaveDefinitions(definitions);
       this.notifications.show('In src/app/core/data/default-flowers.ts übernommen.');
       return true;

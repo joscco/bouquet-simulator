@@ -3,7 +3,7 @@ import {
   FlowerNodeDefinition,
   ResolvedFlowerNodeConnection,
 } from './flower.models';
-import {effectiveConnection} from './flower-connections';
+import {effectiveConnection, normalizeIncomingConnection} from './flower-connections';
 
 export interface FlowerGraphEdge {
   sourceId: string;
@@ -85,6 +85,6 @@ export function graphLoopStartEdge(
     sourceId: startNodeId,
     targetId: startNodeId,
     connectionIndex: -1,
-    connection: {...structuredClone(startNode.incoming), childId: startNodeId},
+    connection: {...normalizeIncomingConnection(startNode.incoming), childId: startNodeId},
   };
 }

@@ -89,12 +89,12 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly videoFormat = computed(() => bouquetVideoFormat(this.videoFormatId()));
   readonly videoExportSupported = canRecordCanvasVideo();
   readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
-  readonly previewInsetLeft = signal(Math.min(64, this.viewportWidth()));
+  readonly previewInsetLeft = signal(this.viewportWidth() < 640 ? 0 : 64);
   readonly previewInsets = computed(() => ({
     left: this.previewInsetLeft(),
     right: 0,
     top: 0,
-    bottom: 0,
+    bottom: this.viewportWidth() < 640 ? 64 : 0,
   }));
   readonly bouquetDefinitions = computed(() =>
     this.store.materializedDefinitions().filter(isAvailableInBouquet));
@@ -347,6 +347,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   }
 
   private targetPreviewInset(open: boolean): number {
+    if (this.viewportWidth() < 640) return 0;
     return Math.min(open ? 424 : 64, this.viewportWidth());
   }
 

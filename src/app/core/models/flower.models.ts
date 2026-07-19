@@ -97,17 +97,56 @@ export interface FlowerNodePlacementSettings {
   orientation?: FlowerNodePlacementOrientation;
 }
 
+export type FlowerNodeGrowthOrientation = 'spread' | 'main';
+
+/** Feste Wachstumsrichtung relativ zur eingehenden Verbindung. */
+export interface FlowerNodeMainDirection {
+  /** Lokale Drehung um die X-Achse der eingehenden Verbindung, in Grad. */
+  x: number;
+  /** Lokale Drehung um die Y-/Wachstumsachse, in Grad. */
+  y: number;
+  /** Lokale Drehung um die Z-Achse der eingehenden Verbindung, in Grad. */
+  z: number;
+  /** @deprecated Alte polare Darstellung; wird beim Laden nach X/Y/Z migriert. */
+  inclination?: number;
+  /** @deprecated Alte polare Darstellung; wird beim Laden nach X/Y/Z migriert. */
+  azimuth?: number;
+  /** @deprecated Alte polare Darstellung; wird beim Laden nach X/Y/Z migriert. */
+  roll?: number;
+}
+
+/** Verteilung mehrerer Instanzen um die Hauptrichtung. */
+export interface FlowerNodeSpreadSettings {
+  /** Polarwinkel relativ zur Hauptrichtung, in Grad. */
+  deviation: NumberRange;
+  /** Umlaufwinkel um die Hauptrichtung, in Grad. */
+  revolution: NumberRange;
+  /** Zusätzliche Eigendrehung je Instanz, in Grad. */
+  roll: NumberRange;
+  /** 0 verteilt deterministisch gleichmäßig, 1 vollständig zufällig. */
+  randomness: number;
+  /** Wachstumsachse folgt der gestreuten Richtung oder bleibt in Hauptrichtung. */
+  orientation: FlowerNodeGrowthOrientation;
+}
+
 export interface FlowerNodeIncomingConnection {
   repeat: NumberRange;
   length: NumberRange;
+  direction?: FlowerNodeMainDirection;
+  spread?: FlowerNodeSpreadSettings;
+  /** @deprecated Wird beim Laden nach direction/spread migriert. */
   /** Neigung relativ zur Wachstumsrichtung des Elternknotens, in Grad. */
-  angle: NumberRange;
+  angle?: NumberRange;
+  /** @deprecated Wird beim Laden nach direction/spread migriert. */
   /** Drehung um die Wachstumsrichtung des Elternknotens, in Grad. */
   azimuth?: NumberRange;
+  /** @deprecated Wird beim Laden nach direction/spread migriert. */
   /** Individuelle Roll-Drehung um die eigene Wachstumsrichtung, in Grad. */
   roll?: NumberRange;
+  /** @deprecated Wird beim Laden nach spread.randomness migriert. */
   /** 0 verteilt Wiederholungen gleichmäßig, 1 vollständig zufällig. */
   randomness?: number;
+  /** @deprecated Wird beim Laden nach direction/spread migriert. */
   /** Optionale räumliche Anordnung; fehlend entspricht der gerichteten Astverteilung. */
   placement?: FlowerNodePlacementSettings;
   stem?: FlowerStemSettings;
@@ -143,6 +182,12 @@ export interface FlowerNodeGraphic {
   orientation?: 'connection' | 'toward-parent';
   /** Elementspezifische Kontur eines gezackten Blatts. */
   leafEdge?: GraphicLeafEdgeSettings;
+  /** Drehung des Blatts vom Ansatz bis zur Spitze, in Grad. */
+  twist?: number;
+  /** Anzahl radialer Rippen einer Kugel/Ellipsoid-Form. */
+  ribCount?: number;
+  /** Tiefe der radialen Rippen, 0 bis 100. */
+  ribDepth?: number;
   /** Konstante Drehung um die Wachstumsrichtung, in Grad. */
   rotationBase?: number;
   /** Symmetrische zufällige Abweichung von rotationBase, in Grad. */
@@ -151,7 +196,7 @@ export interface FlowerNodeGraphic {
   width: number;
   height: number;
   depth?: number;
-  /** Einheitliche Skalierung zusätzlich zu Breite, Höhe und Tiefe. */
+  /** @deprecated Breite, Höhe und Tiefe bestimmen die Größe vollständig. */
   scale?: number;
   /** Lokaler Versatz der Grafik relativ zum Ursprung des Knotens. */
   offset?: {x: number; y: number; z: number};

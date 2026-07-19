@@ -4,11 +4,10 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {
   FlowerDefinition,
+  FlowerNodeGrowthOrientation,
   FlowerNodeDefinition,
   FlowerNodeGraphic,
   FlowerNodeIncomingConnection,
-  FlowerNodePlacementMode,
-  FlowerNodePlacementOrientation,
   GraphicLeafEdgeSettings,
   GraphicPatternLayer,
   GraphicPatternType,
@@ -89,7 +88,7 @@ import {GraphicLeafEdgeEditorComponent} from './graphic-leaf-edge-editor.compone
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-inspector.component.html',
   host: {
-    'class': 'block h-full min-h-0 min-w-0 overflow-x-hidden overflow-y-auto bg-white lg:col-start-1 lg:row-start-1 lg:border-r lg:border-stone-200 [scrollbar-gutter:stable]',
+    'class': 'block h-auto min-h-0 min-w-0 overflow-x-hidden overflow-y-visible bg-white min-[1100px]:h-full min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:border-stone-200 [scrollbar-gutter:stable]',
   },
 })
 export class FlowerEditorInspectorComponent {
@@ -97,6 +96,7 @@ export class FlowerEditorInspectorComponent {
   readonly definition = input.required<FlowerDefinition>();
   readonly positions = input.required<Record<string, Point>>();
   readonly selectedNodeId = input.required<string>();
+  readonly selectedNodeIds = input<ReadonlySet<string>>(new Set());
 
   readonly definitionChange = output<FlowerDefinition>();
   readonly positionsChange = output<Record<string, Point>>();
@@ -111,20 +111,9 @@ export class FlowerEditorInspectorComponent {
   readonly graphicPositionExpanded = signal(false);
   readonly graphicBendExpanded = signal(false);
   readonly graphicPatternsExpanded = signal(false);
-  readonly graphicOrientationExpanded = signal(false);
 
   readonly graphicPrimitives = BUILT_IN_GRAPHICS;
   readonly graphicPatternTypes = GRAPHIC_PATTERN_OPTIONS;
-  readonly placementModes: ReadonlyArray<{
-    mode: FlowerNodePlacementMode;
-    icon: string;
-    labelKey: string;
-  }> = [
-    {mode: 'directional', icon: 'call_split', labelKey: 'inspector.placements.directional'},
-    {mode: 'ring', icon: 'radio_button_unchecked', labelKey: 'inspector.placements.ring'},
-    {mode: 'disc', icon: 'blur_circular', labelKey: 'inspector.placements.disc'},
-    {mode: 'sphere', icon: 'language', labelKey: 'inspector.placements.sphere'},
-  ];
   readonly graphicPatternLabel = graphicPatternLabel;
   readonly removedPattern = signal<{
     nodeId: string;
@@ -137,6 +126,37 @@ export class FlowerEditorInspectorComponent {
   });
   readonly selectedNode = computed(() =>
     this.definition().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
+  readonly editedNodeIds = computed<ReadonlySet<string>>(() => {
+    const selected = this.selectedNodeIds();
+    return selected.size ? selected : new Set([this.selectedNodeId()]);
+  });
+  readonly selectedNodes = computed(() => {
+    const ids = this.editedNodeIds();
+    return this.definition().nodes.filter((node) => ids.has(node.id));
+  });
+  readonly multiSelection = computed(() => this.selectedNodes().length > 1);
+  readonly allSelectedSupportIncoming = computed(() => this.selectedNodes().length > 0
+    && this.selectedNodes().every((node) => !node.loop && node.id !== this.definition().rootNodeId));
+  readonly allSelectedComponents = computed(() => this.selectedNodes().length > 0
+    && this.selectedNodes().every((node) => !!node.component));
+  readonly allSelectedLoops = computed(() => this.selectedNodes().length > 0
+    && this.selectedNodes().every((node) => !!node.loop));
+  readonly allSelectedBasicNodes = computed(() => this.selectedNodes().length > 0
+    && this.selectedNodes().every((node) => !node.component && !node.loop));
+  readonly allSelectedHaveGraphic = computed(() => this.selectedNodes().length > 0
+    && this.selectedNodes().every((node) => !!node.graphic));
+  readonly allSelectedLeafGraphics = computed(() => this.allSelectedHaveGraphic()
+    && this.selectedNodes().every((node) =>
+      canonicalGraphicPrimitive(node.graphic!.primitive ?? 'leaf-pointed') === 'leaf-pointed'));
+  readonly allSelectedSphereGraphics = computed(() => this.allSelectedHaveGraphic()
+    && this.selectedNodes().every((node) =>
+      canonicalGraphicPrimitive(node.graphic!.primitive ?? 'leaf-pointed') === 'sphere'));
+  readonly allSelectedShareGraphicPatterns = computed(() => {
+    if (!this.allSelectedHaveGraphic()) return false;
+    const signatures = this.selectedNodes().map((node) =>
+      (node.graphic!.patterns ?? []).map((pattern) => `${pattern.id}:${pattern.type}`).join('|'));
+    return new Set(signatures).size === 1;
+  });
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.definition(), this.selectedNodeId()));
   readonly incomingSettings = computed(() => {
@@ -175,8 +195,12 @@ export class FlowerEditorInspectorComponent {
     this.updateSelectedNode((node) => withGraphicEnabled(node, value));
   }
 
-  updateGraphic(key: 'width' | 'height' | 'depth' | 'scale', value: number): void {
-    this.updateSelectedNode((node) => withGraphicPatch(node, {[key]: Number(value)}));
+  updateGraphic(
+    key: 'width' | 'height' | 'depth' | 'twist' | 'ribCount' | 'ribDepth',
+    value: number,
+  ): void {
+    const normalized = key === 'ribCount' ? Math.round(Number(value)) : Number(value);
+    this.updateSelectedNode((node) => withGraphicPatch(node, {[key]: normalized}));
   }
 
   updateGraphicOffset(key: 'x' | 'y' | 'z', value: number): void {
@@ -229,17 +253,17 @@ export class FlowerEditorInspectorComponent {
     return canonicalGraphicPrimitive(graphic.primitive ?? 'leaf-pointed');
   }
 
-  isPaintableGraphic(graphic: FlowerNodeGraphic): boolean {
-    return this.graphicPrimitives.find((entry) =>
-      entry.value === this.graphicPrimitive(graphic))?.organic ?? false;
-  }
-
   updateGraphicBend(key: 'bendMain' | 'bendCross', value: number): void {
-    this.updateSelectedNode((node) => withGraphicPatch(node, {[key]: Number(value)}));
+    const profileKey = key === 'bendMain' ? 'bendMainProfile' : 'bendCrossProfile';
+    this.updateSelectedNode((node) => withGraphicPatch(node, {
+      [key]: Number(value),
+      [profileKey]: undefined,
+    }));
   }
 
-  hasGraphicBendProfile(graphic: FlowerNodeGraphic, direction: 'main' | 'cross'): boolean {
-    return hasGraphicBendProfile(graphic, direction);
+  allSelectedHaveGraphicBendProfile(direction: 'main' | 'cross'): boolean {
+    return this.selectedNodes().length > 0 && this.selectedNodes().every((node) =>
+      !!node.graphic && hasGraphicBendProfile(node.graphic, direction));
   }
 
   setGraphicBendProfile(enabled: boolean, direction: 'main' | 'cross'): void {
@@ -267,67 +291,48 @@ export class FlowerEditorInspectorComponent {
     this.updateSelectedNode((node) => withGraphicPatch(node, {orientation}));
   }
 
-  updateIncomingRange(group: 'repeat' | 'length' | 'angle' | 'azimuth' | 'roll', value: NumberRange): void {
+  updateIncomingRange(group: 'repeat' | 'length', value: NumberRange): void {
     this.updateIncoming((incoming) => ({...incoming, [group]: value}));
   }
 
-  incomingPlacementMode(incoming: FlowerNodeIncomingConnection): FlowerNodePlacementMode {
-    return incoming.placement?.mode ?? 'directional';
-  }
-
-  incomingPlacementOrientation(
-    incoming: FlowerNodeIncomingConnection,
-  ): FlowerNodePlacementOrientation {
-    return incoming.placement?.orientation
-      ?? (this.incomingPlacementMode(incoming) === 'disc' ? 'parent' : 'radial');
-  }
-
-  updateIncomingPlacementMode(mode: FlowerNodePlacementMode): void {
+  updateIncomingDirection(
+    key: 'x' | 'y' | 'z',
+    value: number,
+  ): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
-      length: mode === 'directional'
-        ? incoming.length
-        : mode === 'disc'
-          ? {min: 0, max: this.incomingRadius(incoming)}
-          : {min: this.incomingRadius(incoming), max: this.incomingRadius(incoming)},
-      placement: mode === 'directional'
-        ? {mode}
-        : {
-          mode,
-          orientation: incoming.placement?.orientation
-            ?? (mode === 'disc' ? 'parent' : 'radial'),
-        },
+      direction: {...incoming.direction!, [key]: Number(value)},
     }));
   }
 
-  incomingRadius(incoming: FlowerNodeIncomingConnection): number {
-    return Math.max(0, incoming.length.min, incoming.length.max);
-  }
-
-  updateIncomingRadius(radius: number): void {
+  updateIncomingSpreadRange(
+    key: 'deviation' | 'revolution' | 'roll',
+    value: NumberRange,
+  ): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
-      length: this.incomingPlacementMode(incoming) === 'disc'
-        ? {min: 0, max: Math.max(0, Number(radius))}
-        : {min: Math.max(0, Number(radius)), max: Math.max(0, Number(radius))},
+      spread: {...incoming.spread!, [key]: value},
     }));
   }
 
-  updateIncomingPlacementOrientation(orientation: FlowerNodePlacementOrientation): void {
+  updateIncomingGrowthOrientation(orientation: FlowerNodeGrowthOrientation): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
-      placement: {mode: this.incomingPlacementMode(incoming), orientation},
+      spread: {...incoming.spread!, orientation},
     }));
   }
 
   incomingRandomness(incoming: FlowerNodeIncomingConnection): number {
-    return Math.round((incoming.randomness ?? 0.35) * 100);
+    return Math.round(incoming.spread!.randomness * 100);
   }
 
   updateIncomingRandomness(percentage: number): void {
     this.updateIncoming((incoming) => ({
       ...incoming,
-      randomness: clamp(Number(percentage) / 100, 0, 1),
+      spread: {
+        ...incoming.spread!,
+        randomness: clamp(Number(percentage) / 100, 0, 1),
+      },
     }));
   }
 
@@ -443,10 +448,10 @@ export class FlowerEditorInspectorComponent {
   }
 
   private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {
-    const selectedId = this.selectedNodeId();
+    const selectedIds = this.editedNodeIds();
     this.updateDefinition((definition) => ({
       ...definition,
-      nodes: definition.nodes.map((node) => node.id === selectedId ? update(node) : node),
+      nodes: definition.nodes.map((node) => selectedIds.has(node.id) ? update(node) : node),
     }));
   }
 

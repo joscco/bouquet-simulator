@@ -1,4 +1,5 @@
 import {
+  ArrowHelper,
   Box3,
   Box3Helper,
   Color,
@@ -15,11 +16,14 @@ import {
   FlowerDefinition,
 } from '../../../core/models/flower.models';
 import {resolvedStemWidths} from '../../../core/models/flower-connections';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
 import {isFlowerTemplateHighlighted} from '../../../core/rendering/flower-highlights';
 import {graphicOrientationQuaternion} from '../../../core/rendering/graphic-orientation';
 import {
   FlowerTreeNode,
   flattenFlowerTemplates,
+  flowerConnectionMainDirection,
+  flowerTreeNodeDirection,
   generateFlowerTree,
 } from '../../../core/rendering/flower-tree';
 import {cutFlowerTree} from '../../../core/rendering/flower-tree-cut';
@@ -92,6 +96,7 @@ export function createBouquetFlower(
   );
 
   for (const stemEdge of stemEdges) {
+    if (stemEdge.startWidth === 0 && stemEdge.endWidth === 0) continue;
     const stem = createStemMesh({
       from: stemEdge.from,
       to: stemEdge.to,
@@ -138,7 +143,6 @@ export function createBouquetFlower(
     graphic.position.copy(flowerTreePosition(node)).add(
       new Vector3(graphicOffset.x, graphicOffset.y, graphicOffset.z).applyQuaternion(orientation),
     );
-    graphic.scale.setScalar(Math.max(0.01, template.graphic.scale ?? 1));
     graphic.userData['pick'] = {
       instanceId: flower.instanceId,
       scale: flower.scale,
@@ -149,12 +153,85 @@ export function createBouquetFlower(
     }
   }
 
+  addMainDirectionArrows(group, tree, nodes, options.highlightedConnection);
+
   if (options.selected) addSelectionBounds(group);
   configureFlowerMeshes(group, options.overlapping);
   group.rotation.set(flower.leanX ?? 0, flower.rotationY ?? 0, flower.leanZ ?? 0);
   group.position.set(flower.x, -flower.y, flower.z);
   group.scale.setScalar(flower.scale);
   return group;
+}
+
+function addMainDirectionArrows(
+  group: Group,
+  tree: ReturnType<typeof generateFlowerTree>,
+  nodes: ReadonlyMap<string, FlowerTreeNode>,
+  highlightedConnection: FlowerRenderOptions['highlightedConnection'],
+): void {
+  if (!highlightedConnection) return;
+  const renderedParents = new Set<string>();
+  for (const edge of tree.edges) {
+    if (
+      edge.connectionSourceId !== highlightedConnection.sourceId
+      || edge.connectionIndex !== highlightedConnection.index
+      || renderedParents.has(edge.from)
+    ) continue;
+    const parent = nodes.get(edge.from);
+    if (!parent) continue;
+    renderedParents.add(edge.from);
+    const length = Math.max(28, Math.min(90, (edge.connection.length.min + edge.connection.length.max) / 2));
+    const origin = flowerTreePosition(parent);
+    const baseDirection = flowerTreeNodeDirection(parent);
+    group.add(editorDirectionArrow(
+      baseDirection,
+      origin,
+      length * 0.78,
+      0xf59e0b,
+      'editorBaseDirection',
+      19,
+      0.34,
+      0.2,
+    ));
+    group.add(editorDirectionArrow(
+      flowerConnectionMainDirection(parent, edge.connection),
+      origin,
+      length,
+      0x10b981,
+      'editorMainDirection',
+      20,
+      0.28,
+      0.14,
+    ));
+  }
+}
+
+function editorDirectionArrow(
+  direction: {x: number; y: number; z: number},
+  origin: Vector3,
+  length: number,
+  color: number,
+  marker: 'editorBaseDirection' | 'editorMainDirection',
+  renderOrder: number,
+  headLengthRatio: number,
+  headWidthRatio: number,
+): ArrowHelper {
+  const arrow = new ArrowHelper(
+    new Vector3(direction.x, direction.y, direction.z).normalize(),
+    origin,
+    length,
+    color,
+    Math.min(13, length * headLengthRatio),
+    Math.min(8, length * headWidthRatio),
+  );
+  for (const material of [arrow.line.material, arrow.cone.material].flatMap((entry) =>
+    Array.isArray(entry) ? entry : [entry])) {
+    material.depthTest = false;
+  }
+  arrow.line.renderOrder = renderOrder;
+  arrow.cone.renderOrder = renderOrder;
+  arrow.userData[marker] = true;
+  return arrow;
 }
 
 function addVaseStemExtension(
@@ -245,11 +322,14 @@ function collectStemEdges(
     stemEdges.push({
       from,
       to,
-      startWidth: Math.max(1.1, resolvedWidths.startWidth),
-      endWidth: Math.max(1.1, resolvedWidths.endWidth),
+      startWidth: Math.max(0, resolvedWidths.startWidth),
+      endWidth: Math.max(0, resolvedWidths.endWidth),
       color: connection.stem?.color ?? definition.stem.color,
       bend: connection.stem?.bend ?? definition.stem.bend ?? 0,
-      curve: connection.stem?.curve ?? definition.stem.curve ?? 14,
+      curve: connection.stem?.curve
+        ?? definition.stem.curve
+        ?? FLOWER_CREATION_DEFAULTS.definition.stem.curve
+        ?? 0,
       curveRotation: (to.attachmentAzimuth ?? 0) + (to.roll ?? 0) + (to.bendRotation ?? 0),
       highlighted: highlightedConnection?.sourceId === edge.connectionSourceId
         && highlightedConnection?.index === edge.connectionIndex,

@@ -7,32 +7,17 @@ import {
 } from '../../../core/models/flower.models';
 import {clamp} from '../../../core/utils/numbers';
 import {createDefaultGraphicPattern} from './flower-editor-graphic-patterns';
+import {FLOWER_CREATION_DEFAULTS} from '../../../core/models/flower-creation-defaults';
 
 export interface RemovedGraphicPattern {
   pattern: GraphicPatternLayer;
   index: number;
 }
 
-const DEFAULT_GRAPHIC: FlowerNodeGraphic = {
-  primitive: 'leaf-pointed',
-  color: '#5b8d53',
-  width: 50,
-  height: 50,
-  depth: 8,
-  scale: 1,
-  offset: {x: 0, y: 0, z: 0},
-  orientation: 'toward-parent',
-  rotationBase: 0,
-  rotationSpread: 0,
-  rotation: {min: 0, max: 0},
-  start: {x: 0.5, y: 0.9},
-  end: {x: 0.5, y: 0.1},
-};
-
 export function withGraphicEnabled(node: FlowerNodeDefinition, enabled: boolean): FlowerNodeDefinition {
   return {
     ...node,
-    graphic: enabled ? node.graphic ?? structuredClone(DEFAULT_GRAPHIC) : null,
+    graphic: enabled ? node.graphic ?? structuredClone(FLOWER_CREATION_DEFAULTS.graphic) : null,
   };
 }
 

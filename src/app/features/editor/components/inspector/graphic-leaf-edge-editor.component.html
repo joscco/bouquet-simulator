@@ -1,6 +1,6 @@
 <div class="space-y-2">
   <app-numeric-slider [label]="'inspector.serrationCount' | transloco"
-    [value]="settings().serrationCount" [minimum]="1" [maximum]="18" [step]="1"
+    [value]="settings().serrationCount" [minimum]="1" [maximum]="80" [step]="1"
     (valueChange)="update('serrationCount', $event)" />
   <app-numeric-slider [label]="'inspector.serrationDepth' | transloco" unit="%"
     [value]="settings().serrationDepth" [minimum]="0" [maximum]="80"

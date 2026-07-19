@@ -1,13 +1,15 @@
 import {Injectable, inject} from '@angular/core';
 import {FlowerDefinition} from '../models/flower.models';
-import {ADDITIONAL_DEFAULT_FLOWERS} from '../data/additional-default-flowers';
+import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {BouquetStore} from './bouquet.store';
+
+const VERSION_3_CATALOG_ENTRY_IDS = new Set(['sunflower', 'tulip', 'lavender']);
 
 @Injectable({providedIn: 'root'})
 export class FlowerDefinitionStorage {
   static readonly STORAGE_KEY = 'bouquet-studio.flower-definitions.v1';
   private static readonly CATALOG_VERSION_KEY = 'bouquet-studio.flower-definitions.catalog-version';
-  private static readonly CATALOG_VERSION = 3;
+  private static readonly CATALOG_VERSION = 6;
 
   private readonly store = inject(BouquetStore);
   readonly restoredFromStorage = this.restoreDefinitions();
@@ -66,39 +68,15 @@ export class FlowerDefinitionStorage {
 
 function withNewCatalogEntries(value: unknown): unknown {
   if (!Array.isArray(value)) return value;
-  const defaultsById = new Map(ADDITIONAL_DEFAULT_FLOWERS.map((definition) => [definition.id, definition]));
-  const migrated = value.map((entry) => withNewPlacementDefaults(entry, defaultsById));
-  const existingIds = new Set(migrated
+  const existingIds = new Set(value
     .filter((entry): entry is {id: unknown} => !!entry && typeof entry === 'object' && 'id' in entry)
     .map((entry) => entry.id)
     .filter((id): id is string => typeof id === 'string'));
   return [
-    ...migrated,
-    ...ADDITIONAL_DEFAULT_FLOWERS
-      .filter((definition) => !existingIds.has(definition.id))
+    ...value,
+    ...DEFAULT_FLOWERS
+      .filter((definition) => VERSION_3_CATALOG_ENTRY_IDS.has(definition.id)
+        && !existingIds.has(definition.id))
       .map((definition) => structuredClone(definition)),
   ];
-}
-
-function withNewPlacementDefaults(
-  entry: unknown,
-  defaultsById: ReadonlyMap<string, FlowerDefinition>,
-): unknown {
-  if (!isRecord(entry) || typeof entry['id'] !== 'string' || !Array.isArray(entry['nodes'])) return entry;
-  const defaultDefinition = defaultsById.get(entry['id']);
-  if (!defaultDefinition) return entry;
-  const defaultNodes = new Map(defaultDefinition.nodes.map((node) => [node.id, node]));
-  return {
-    ...entry,
-    nodes: entry['nodes'].map((node) => {
-      if (!isRecord(node) || typeof node['id'] !== 'string' || !isRecord(node['incoming'])) return node;
-      const placement = defaultNodes.get(node['id'])?.incoming?.placement;
-      if (!placement || node['incoming']['placement'] !== undefined) return node;
-      return {...node, incoming: {...node['incoming'], placement: structuredClone(placement)}};
-    }),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }

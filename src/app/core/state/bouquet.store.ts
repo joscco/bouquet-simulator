@@ -38,6 +38,7 @@ import {
   normalizeDefinitions,
 } from './bouquet-state-validation';
 import {componentMatches} from './flower-component-matches';
+import {upsertFlowerDefinitionById} from '../models/flower-definition-ids';
 
 export {moveFlowerInsideVase} from './bouquet-flower-placement';
 
@@ -228,13 +229,17 @@ export class BouquetStore {
     this.updateActiveBouquetState((state) => this.withResolvedFlowerOverlaps(state));
   }
 
-  replaceDefinition(definition: FlowerDefinition): void {
+  replaceDefinition(definition: FlowerDefinition, previousId = definition.id): void {
     const normalized = normalizeDefinition(definition);
-    this.definitions.update((definitions) => {
-      const existing = definitions.findIndex((candidate) => candidate.id === normalized.id);
-      if (existing < 0) return [...definitions, normalized];
-      return definitions.map((candidate, index) => index === existing ? normalized : candidate);
-    });
+    this.definitions.update((definitions) =>
+      upsertFlowerDefinitionById(definitions, normalized, previousId));
+    if (previousId === normalized.id) return;
+    this.updateAllBouquetStates((state) => ({
+      ...state,
+      flowers: state.flowers.map((flower) => flower.definitionId === previousId
+        ? {...flower, definitionId: normalized.id}
+        : flower),
+    }));
   }
 
   restoreDefinitions(value: unknown): boolean {

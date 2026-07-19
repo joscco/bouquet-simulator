@@ -141,7 +141,7 @@ function createCrownHull(flower: BouquetFlower, definition: FlowerDefinition): C
   for (const node of tree.nodes) {
     const graphic = templates.get(node.templateId)?.graphic;
     if (!graphic) continue;
-    const graphicScale = Math.max(0.01, graphic.scale ?? 1);
+    const graphicScale = 1;
     const depth = Math.max(0.5, graphic.depth ?? Math.min(graphic.width, graphic.height) * 0.12);
     const radius = Math.max(
       MINIMUM_CROWN_RADIUS,

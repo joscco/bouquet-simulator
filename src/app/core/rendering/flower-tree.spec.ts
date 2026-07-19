@@ -216,18 +216,42 @@ describe('procedural flower tree generator', () => {
     expect(new Set(branches.map((node) => node.parentId)).size).toBeGreaterThan(0);
   });
 
-  it('fills a disc area instead of only placing nodes on its edge', () => {
+  it('keeps every instance in the main direction when all spread angles are zero', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.direction = {x: 35, y: 12, z: -40};
+    connection.spread = {
+      ...connection.spread!,
+      deviation: {min: 0, max: 0},
+      revolution: {min: 0, max: 0},
+      roll: {min: 0, max: 0},
+    };
+    const nodes = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch');
+
+    expect(new Set(nodes.map((node) => node.x.toFixed(6))).size).toBe(1);
+    expect(new Set(nodes.map((node) => node.y.toFixed(6))).size).toBe(1);
+    expect(new Set(nodes.map((node) => node.z.toFixed(6))).size).toBe(1);
+    expect(nodes.every((node) => node.roll === 12 * Math.PI / 180)).toBe(true);
+  });
+
+  it('distributes variable lengths without a separate distribution mode', () => {
     const definition = radialDefinition({randomness: 0});
     const connection = definition.nodes[0]!.connections[0]!;
     connection.repeat = {min: 16, max: 16};
     connection.length = {min: 0, max: 20};
-    connection.placement = {mode: 'disc', orientation: 'parent'};
+    connection.spread = {
+      ...connection.spread!,
+      deviation: {min: 90, max: 90},
+      orientation: 'main',
+    };
     const nodes = generateFlowerTree(definition, 0.31).nodes
       .filter((node) => node.templateId === 'branch');
     const radii = nodes.map((node) => Math.hypot(node.x, node.z));
 
     expect(radii.some((radius) => radius < 8)).toBe(true);
     expect(radii.some((radius) => radius > 17)).toBe(true);
+    expect(radii).not.toEqual([...radii].sort((first, second) => first - second));
     expect(nodes.every((node) => Math.abs(node.y) < 0.001)).toBe(true);
     expect(nodes.every((node) => Math.abs(node.angle) < 0.001)).toBe(true);
   });
@@ -237,7 +261,11 @@ describe('procedural flower tree generator', () => {
     const connection = definition.nodes[0]!.connections[0]!;
     connection.repeat = {min: 24, max: 24};
     connection.length = {min: 20, max: 20};
-    connection.placement = {mode: 'sphere', orientation: 'radial'};
+    connection.spread = {
+      ...connection.spread!,
+      deviation: {min: 0, max: 180},
+      orientation: 'spread',
+    };
     const nodes = generateFlowerTree(definition, 0.31).nodes
       .filter((node) => node.templateId === 'branch');
 
@@ -247,12 +275,76 @@ describe('procedural flower tree generator', () => {
     expect(nodes.some((node) => Math.abs(node.z) > 10)).toBe(true);
   });
 
+  it('uses canonical maximum-distance directions for one to four even sphere outgrowths', () => {
+    const directionsFor = (count: number) => {
+      const definition = radialDefinition({randomness: 0});
+      const connection = definition.nodes[0]!.connections[0]!;
+      connection.repeat = {min: count, max: count};
+      connection.spread!.deviation = {min: -180, max: 180};
+      connection.spread!.revolution = {min: -180, max: 180};
+      return generateFlowerTree(definition, 0.31).nodes
+        .filter((node) => node.templateId === 'branch')
+        .map((node) => ({
+          x: Math.sin(node.angle) * Math.cos(node.azimuth),
+          y: Math.cos(node.angle),
+          z: Math.sin(node.angle) * Math.sin(node.azimuth),
+        }));
+    };
+    const dotProduct = (
+      first: {x: number; y: number; z: number},
+      second: {x: number; y: number; z: number},
+    ) => first.x * second.x + first.y * second.y + first.z * second.z;
+
+    expect(directionsFor(1)[0]).toMatchObject({x: 0, y: 1, z: 0});
+    const pair = directionsFor(2);
+    expect(dotProduct(pair[0]!, pair[1]!)).toBeCloseTo(-1);
+    const axes = directionsFor(3);
+    expect(dotProduct(axes[0]!, axes[1]!)).toBeCloseTo(0);
+    expect(dotProduct(axes[0]!, axes[2]!)).toBeCloseTo(0);
+    expect(dotProduct(axes[1]!, axes[2]!)).toBeCloseTo(0);
+    const tetrahedron = directionsFor(4);
+    for (let first = 0; first < tetrahedron.length; first++) {
+      for (let second = first + 1; second < tetrahedron.length; second++) {
+        expect(dotProduct(tetrahedron[first]!, tetrahedron[second]!)).toBeCloseTo(-1 / 3);
+      }
+    }
+  });
+
+  it('uses the loop start node incoming settings for every repetition', () => {
+    const definition = oneNodeLoopDefinition();
+    const start = definition.nodes.find((node) => node.id === 'stem')!;
+    start.incoming = {
+      repeat: {min: 1, max: 1},
+      length: {min: 25, max: 25},
+      direction: {x: 90, y: 0, z: 0},
+      spread: {
+        deviation: {min: 0, max: 0},
+        revolution: {min: 0, max: 0},
+        roll: {min: 0, max: 0},
+        randomness: 0,
+        orientation: 'spread',
+      },
+    };
+
+    const stems = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'stem');
+
+    expect(stems).toHaveLength(2);
+    expect(Math.hypot(stems[0]!.x, stems[0]!.z)).toBeCloseTo(25);
+    expect(Math.abs(stems[0]!.y)).toBeLessThan(0.001);
+    expect(Math.hypot(
+      stems[1]!.x - stems[0]!.x,
+      stems[1]!.y - stems[0]!.y,
+      stems[1]!.z - stems[0]!.z,
+    )).toBeCloseTo(25);
+  });
+
   it('keeps a ring on one plane with an even radius', () => {
     const definition = radialDefinition({randomness: 0});
     const connection = definition.nodes[0]!.connections[0]!;
     connection.repeat = {min: 12, max: 12};
     connection.length = {min: 18, max: 18};
-    connection.placement = {mode: 'ring', orientation: 'radial'};
+    connection.spread = {...connection.spread!, deviation: {min: 90, max: 90}};
     const nodes = generateFlowerTree(definition, 0.31).nodes
       .filter((node) => node.templateId === 'branch');
 
@@ -260,39 +352,65 @@ describe('procedural flower tree generator', () => {
     expect(nodes.every((node) => Math.abs(Math.hypot(node.x, node.z) - 18) < 0.001)).toBe(true);
   });
 
+  it('includes both ends of a partial revolution interval when spread is even', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.repeat = {min: 5, max: 5};
+    connection.spread!.deviation = {min: 55, max: 55};
+    connection.spread!.revolution = {min: 30, max: 150};
+    const angles = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch')
+      .map((node) => Math.round((node.attachmentAzimuth ?? 0) * 180 / Math.PI));
+
+    expect(angles).toEqual([30, 60, 90, 120, 150]);
+  });
+
+  it('does not duplicate the seam of a complete even revolution', () => {
+    const definition = radialDefinition({randomness: 0});
+    const connection = definition.nodes[0]!.connections[0]!;
+    connection.repeat = {min: 4, max: 4};
+    connection.spread!.deviation = {min: 55, max: 55};
+    connection.spread!.revolution = {min: 0, max: 360};
+    const angles = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'branch')
+      .map((node) => Math.round((node.attachmentAzimuth ?? 0) * 180 / Math.PI));
+
+    expect(angles).toEqual([-180, -90, 0, 90]);
+  });
+
   it.each([0, 180])('preserves the radial distribution at a polar inclination of %s°', (angle) => {
     const definition = radialDefinition({randomness: 0});
-    definition.nodes[0]!.connections[0]!.angle = {min: angle, max: angle};
+    definition.nodes[0]!.connections[0]!.spread!.deviation = {min: angle, max: angle};
     const branches = generateFlowerTree(definition, 0.31).nodes
       .filter((node) => node.templateId === 'branch');
 
     expect(new Set(branches.map((node) => node.attachmentAzimuth)).size).toBe(branches.length);
   });
 
-  it('places a negative inclination on the opposite side of the parent axis', () => {
+  it('normalizes legacy negative inclination to the canonical 0–180° range', () => {
     const positiveDefinition = radialDefinition({randomness: 0});
     const negativeDefinition = radialDefinition({randomness: 0});
     const positiveConnection = positiveDefinition.nodes[0]!.connections[0]!;
     const negativeConnection = negativeDefinition.nodes[0]!.connections[0]!;
     positiveConnection.repeat = negativeConnection.repeat = {min: 1, max: 1};
-    positiveConnection.azimuth = negativeConnection.azimuth = {min: 0, max: 0};
-    positiveConnection.angle = {min: 45, max: 45};
-    negativeConnection.angle = {min: -45, max: -45};
+    positiveConnection.spread!.revolution = negativeConnection.spread!.revolution = {min: 0, max: 0};
+    positiveConnection.spread!.deviation = {min: 45, max: 45};
+    negativeConnection.spread!.deviation = {min: -45, max: -45};
 
     const positive = generateFlowerTree(positiveDefinition, 0.31).nodes
       .find((node) => node.templateId === 'branch')!;
     const negative = generateFlowerTree(negativeDefinition, 0.31).nodes
       .find((node) => node.templateId === 'branch')!;
 
-    expect(negative.x).toBeCloseTo(-positive.x);
+    expect(negative.x).toBeCloseTo(positive.x);
     expect(negative.y).toBeCloseTo(positive.y);
-    expect(negative.z).toBeCloseTo(-positive.z);
+    expect(negative.z).toBeCloseTo(positive.z);
   });
 
   it('samples roll and curvature rotation per generated part', () => {
     const definition = radialDefinition({randomness: 0});
     const connection = definition.nodes[0]!.connections[0]!;
-    connection.roll = {min: -180, max: 180};
+    connection.spread!.roll = {min: -180, max: 180};
     connection.stem = {
       color: '#000000',
       width: 4,
@@ -322,9 +440,14 @@ describe('procedural flower tree generator', () => {
           childId: 'branch',
           repeat: {min: 4, max: 4},
           length: {min: 10, max: 10},
-          angle: {min: 90, max: 90},
-          azimuth: {min: 0, max: 360},
-          randomness: 0,
+          direction: {x: 0, y: 0, z: 0},
+          spread: {
+            deviation: {min: 90, max: 90},
+            revolution: {min: 0, max: 360},
+            roll: {min: 0, max: 0},
+            randomness: 0,
+            orientation: 'spread',
+          },
         }],
       },
       {id: 'branch', name: 'Ast', draggable: false, graphic: null, connections: []},
@@ -358,6 +481,58 @@ describe('procedural flower tree generator', () => {
     const tree = generateFlowerTree(definition, 0.31);
 
     expect(tree.nodes.some((node) => node.templateId === 'after')).toBe(false);
+  });
+
+  it('spreads repeated components evenly instead of stacking them', () => {
+    const definition = componentDefinition();
+    const entry = definition.nodes[0]!.connections[0]!;
+    entry.repeat = {min: 4, max: 4};
+    entry.length = {min: 20, max: 20};
+    entry.direction = {x: 0, y: 0, z: 0};
+    entry.spread = {
+      deviation: {min: 90, max: 90},
+      revolution: {min: 0, max: 360},
+      roll: {min: 0, max: 0},
+      randomness: 0,
+      orientation: 'spread',
+    };
+    const roots = generateFlowerTree(definition, 0.31).nodes
+      .filter((node) => node.templateId === 'component::inner-root');
+
+    expect(roots).toHaveLength(4);
+    expect(new Set(roots.map((node) => `${node.x.toFixed(3)}:${node.z.toFixed(3)}`)).size).toBe(4);
+    expect(roots.map((node) => Math.round((node.attachmentAzimuth ?? 0) * 180 / Math.PI)))
+      .toEqual([-180, -90, 0, 90]);
+  });
+
+  it('rotates the internal frame of a component around Y', () => {
+    const withRotation = (y: number) => {
+      const definition = componentDefinition();
+      const entry = definition.nodes[0]!.connections[0]!;
+      entry.direction = {x: 0, y, z: 0};
+      entry.spread = {
+        deviation: {min: 0, max: 0}, revolution: {min: 0, max: 0}, roll: {min: 0, max: 0},
+        randomness: 0, orientation: 'spread',
+      };
+      const component = definition.nodes.find((node) => node.id === 'component')!.component!;
+      const internal = component.nodes!.find((node) => node.id === 'inner-root')!.connections[0]!;
+      internal.direction = {x: 0, y: 0, z: 0};
+      internal.spread = {
+        deviation: {min: 90, max: 90}, revolution: {min: 0, max: 0}, roll: {min: 0, max: 0},
+        randomness: 0, orientation: 'spread',
+      };
+      const tree = generateFlowerTree(definition, 0.31);
+      const root = tree.nodes.find((node) => node.templateId === 'component::inner-root')!;
+      const output = tree.nodes.find((node) => node.templateId === 'component::inner-out')!;
+      return {x: output.x - root.x, z: output.z - root.z};
+    };
+
+    const unrotated = withRotation(0);
+    const rotated = withRotation(90);
+    expect(Math.abs(unrotated.x)).toBeLessThan(0.001);
+    expect(Math.abs(unrotated.z)).toBeGreaterThan(9);
+    expect(Math.abs(rotated.x)).toBeGreaterThan(9);
+    expect(Math.abs(rotated.z)).toBeLessThan(0.001);
   });
 });
 
@@ -458,9 +633,14 @@ function radialDefinition(options: {randomness: number}): FlowerDefinition {
           childId: 'branch',
           repeat: {min: 5, max: 5},
           length: {min: 10, max: 10},
-          angle: {min: 90, max: 90},
-          azimuth: {min: 0, max: 360},
-          randomness: options.randomness,
+          direction: {x: 0, y: 0, z: 0},
+          spread: {
+            deviation: {min: 90, max: 90},
+            revolution: {min: 0, max: 360},
+            roll: {min: 0, max: 0},
+            randomness: options.randomness,
+            orientation: 'spread',
+          },
         }],
       },
       node('branch', []),
