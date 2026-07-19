@@ -16,6 +16,7 @@
         <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
         <span class="mx-1 h-6 w-px bg-stone-200"></span>
         <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
+        <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
 
         @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
           <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
@@ -122,6 +123,8 @@
         (definitionChange)="applyDefinitionChange($event)"
         (positionsChange)="graphPositions.set($event)"
         (nodeSelection)="selectNode($event.id, $event.additive)"
+        (componentOpen)="openComponentDefinition($event)"
+        (positionEditStart)="beginPositionEdit()"
         (message)="showTreeMessage($event)"
       />
     </main>
@@ -202,7 +205,12 @@
             @if (isDevelopment) {
               <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
             }
-            <button app-button variant="icon" tone="primary" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()"><mat-icon>save</mat-icon></button>
+            <button app-button variant="icon" tone="primary" class="relative" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()">
+              <mat-icon>save</mat-icon>
+              @if (hasUnsavedChanges()) {
+                <span class="absolute right-0.5 top-0.5 size-2 rounded-full border border-white bg-amber-400" aria-hidden="true"></span>
+              }
+            </button>
           </div>
         </section>
         <div class="min-h-0 flex-none overflow-visible min-[1100px]:flex-1 min-[1100px]:overflow-y-auto">
@@ -220,4 +228,23 @@
       </div>
     </aside>
   </div>
+
+  @if (pendingTransition()) {
+    <div class="fixed inset-0 z-[140] flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]" role="presentation" (click)="cancelPendingTransition()">
+      <section class="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-4 shadow-2xl" role="alertdialog" aria-modal="true" [attr.aria-labelledby]="'unsaved-title'" (click)="$event.stopPropagation()">
+        <div class="flex items-start gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700"><mat-icon>edit_note</mat-icon></span>
+          <div class="min-w-0">
+            <h2 id="unsaved-title" class="m-0 text-sm font-bold text-stone-900">{{ 'editor.unsavedTitle' | transloco }}</h2>
+            <p class="mb-0 mt-1 text-[11px] leading-relaxed text-stone-500">{{ 'editor.unsavedMessage' | transloco: {name: draft().name} }}</p>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
+          <button app-button variant="text" (click)="cancelPendingTransition()">{{ 'editor.cancelSwitch' | transloco }}</button>
+          <button app-button variant="text" tone="danger" (click)="discardPendingChanges()">{{ 'editor.discardChanges' | transloco }}</button>
+          <button app-button variant="icon-text" tone="primary" (click)="savePendingChanges()"><mat-icon>save</mat-icon>{{ 'editor.saveAndContinue' | transloco }}</button>
+        </div>
+      </section>
+    </div>
+  }
 </section>

@@ -103,6 +103,7 @@ function createGraphNodes(
         root: node.id === definition.rootNodeId,
         hasGraphic: !!node.graphic,
         component: !!node.component,
+        componentDefinitionId: node.component?.sourceDefinitionId,
         componentNodeCount: node.component?.nodes?.length ?? 0,
         componentOutputCount: node.component?.nodes
           ? componentOutputIds(node.component.nodes, node.component.outputNodeIds).length

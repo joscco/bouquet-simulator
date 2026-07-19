@@ -160,6 +160,21 @@
         <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
           {{ node.root ? 'AKTIVE WURZEL' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
         </text>
+        @if (node.componentDefinitionId; as definitionId) {
+          <g
+            class="cursor-pointer outline-none"
+            [attr.transform]="'translate(' + (node.width / 2 - 24) + ' -18)'"
+            tabindex="0"
+            role="link"
+            (pointerdown)="openComponent($event, definitionId)"
+            (keydown.enter)="openComponent($event, definitionId)"
+            (keydown.space)="openComponent($event, definitionId)"
+          >
+            <rect x="-15" y="-15" width="30" height="30" rx="9" fill="#ffffff" stroke="#c7d2fe" stroke-width="1.5" />
+            <path d="M-5 5 5-5M-1-5h6v6" fill="none" stroke="#4338ca" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            <title>Quelldefinition öffnen</title>
+          </g>
+        }
         @for (port of node.outputPorts; track $index) {
           <g>
             <circle

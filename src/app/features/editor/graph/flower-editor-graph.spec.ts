@@ -308,6 +308,7 @@ describe('flower editor graph layout', () => {
       .nodes.find((node) => node.id === 'thorn-stem')!;
 
     expect(consumer.nodes[0]!.component?.nodes).toBeUndefined();
+    expect(component.componentDefinitionId).toBe(source.id);
     expect(component.componentOutputCount).toBe(1);
     expect(component.outputPorts).toHaveLength(1);
   });

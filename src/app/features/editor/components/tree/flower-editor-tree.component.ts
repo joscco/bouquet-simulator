@@ -62,6 +62,8 @@ export class FlowerEditorTreeComponent {
   readonly definitionChange = output<FlowerDefinition>();
   readonly positionsChange = output<Record<string, Point>>();
   readonly nodeSelection = output<FlowerEditorTreeSelection>();
+  readonly componentOpen = output<string>();
+  readonly positionEditStart = output<void>();
   readonly message = output<FlowerEditorTreeMessage>();
 
   readonly graphZoom = signal(1);
@@ -88,7 +90,12 @@ export class FlowerEditorTreeComponent {
     this.validationIssues().filter((issue) => issue.severity === 'error').length);
 
   @ViewChild('graphCanvas', {static: false}) private graphCanvas?: ElementRef<SVGSVGElement>;
-  private nodeDrag: {pointerId: number; nodeId: string; offset: Point} | null = null;
+  private nodeDrag: {
+    pointerId: number;
+    nodeId: string;
+    offset: Point;
+    historyStarted: boolean;
+  } | null = null;
   private readonly graphTouches = new Map<number, Point>();
   private graphPinchDistance: number | null = null;
   private graphPan: {pointerId: number; client: Point; center: Point} | null = null;
@@ -182,6 +189,7 @@ export class FlowerEditorTreeComponent {
       pointerId: event.pointerId,
       nodeId,
       offset: {x: point.x - node.x, y: point.y - node.y},
+      historyStarted: false,
     };
     (event.currentTarget as SVGGElement).setPointerCapture(event.pointerId);
   }
@@ -316,6 +324,12 @@ export class FlowerEditorTreeComponent {
     this.selectNode(targetId);
   }
 
+  openComponent(event: Event, definitionId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.componentOpen.emit(definitionId);
+  }
+
   private selectNode(id: string, additive = false): void {
     this.nodeSelection.emit({id, additive});
   }
@@ -324,6 +338,10 @@ export class FlowerEditorTreeComponent {
     const layout = this.graphLayout();
     const dragged = layout.nodes.find((node) => node.id === this.nodeDrag!.nodeId);
     if (!dragged) return;
+    if (!this.nodeDrag!.historyStarted) {
+      this.nodeDrag!.historyStarted = true;
+      this.positionEditStart.emit();
+    }
     const target = {x: point.x - this.nodeDrag!.offset.x, y: point.y - this.nodeDrag!.offset.y};
     if (!dragged.loop) {
       this.positionsChange.emit({...this.positions(), [dragged.id]: target});

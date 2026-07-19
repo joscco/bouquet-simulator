@@ -9,6 +9,7 @@ export interface GraphNode extends Point {
   root: boolean;
   hasGraphic: boolean;
   component: boolean;
+  componentDefinitionId?: string;
   componentNodeCount: number;
   componentOutputCount: number;
   outputPorts: Point[];

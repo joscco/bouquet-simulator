@@ -31,6 +31,9 @@
 
 ## Bedienung
 
+- [x] Referenzierte Komponentenknoten direkt mit ihrer Quelldefinition verlinken.
+- [x] Vor einem Definitionswechsel ungespeicherte Änderungen mit Speichern, Verwerfen oder Abbrechen abfangen.
+- [x] Die letzten Bearbeitungsschritte inklusive Parameter-, Struktur- und Positionsänderungen rückgängig machen.
 - [x] Rippenparameter und Musterauswahl mit lesbaren, formspezifischen Miniaturen darstellen.
 - [x] Zahlenfelder durch Dezimalschritte, Ziehen im Feld, Auswahl bei Fokus und Tastatursteuerung nutzerfreundlicher machen.
 - [x] Katalogsuche als eigenen Suchdialog mit Auswahl-Button umsetzen.

@@ -39,6 +39,7 @@ import {
 } from './bouquet-state-validation';
 import {componentMatches} from './flower-component-matches';
 import {upsertFlowerDefinitionById} from '../models/flower-definition-ids';
+import {isAvailableInBouquet} from '../models/flower-catalog';
 
 export {moveFlowerInsideVase} from './bouquet-flower-placement';
 
@@ -381,6 +382,15 @@ export class BouquetStore {
   }
 
   private createInitialBouquet(): BouquetState {
+    const flowerIds = this.definitions()
+      .filter(isAvailableInBouquet)
+      .slice(0, 3)
+      .map((definition) => definition.id);
+    const placements = [
+      {x: -18, y: -16, z: 4, scale: 1.03, leanX: 0.04, leanZ: 0.16},
+      {x: 16, y: -15, z: -9, scale: 0.92, leanX: -0.08, leanZ: -0.14},
+      {x: 2, y: -17, z: 18, scale: 1, leanX: 0.13, leanZ: -0.02},
+    ];
     return this.withResolvedFlowerOverlaps({
       schemaVersion: 2,
       rotation: 0,
@@ -388,11 +398,18 @@ export class BouquetStore {
       vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
       backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
       sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
-      flowers: [
-        this.createPlacement('garden-rose', -18, -16, 4, 1.03, 0.04, 0.16),
-        this.createPlacement('meadow-daisy', 16, -15, -9, 0.92, -0.08, -0.14),
-        this.createPlacement('lilac', 2, -17, 18, 1, 0.13, -0.02),
-      ],
+      flowers: flowerIds.map((definitionId, index) => {
+        const placement = placements[index]!;
+        return this.createPlacement(
+          definitionId,
+          placement.x,
+          placement.y,
+          placement.z,
+          placement.scale,
+          placement.leanX,
+          placement.leanZ,
+        );
+      }),
     });
   }
 

@@ -65,9 +65,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "connections": [],
         "component": {
           "schemaVersion": 1,
-          "id": "pfingstrosenbluete",
+          "id": "peony-blossom",
           "name": "Pfingstrosenblüte",
-          "sourceDefinitionId": "pfingstrosenbluete"
+          "sourceDefinitionId": "peony-blossom"
         }
       },
       {
@@ -208,7 +208,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   },
   {
     "schemaVersion": 2,
-    "id": "pfingstrosenbluete",
+    "id": "peony-blossom",
     "name": "Pfingstrosenblüte",
     "catalogRole": "component",
     "outputNodeIds": [],
@@ -372,7 +372,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   },
   {
     "schemaVersion": 2,
-    "id": "meadow-daisy",
+    "id": "daisy",
     "name": "Margerite",
     "rootNodeId": "base",
     "stem": {
@@ -438,9 +438,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#50835a",
-            "width": 7,
-            "startWidth": 7,
-            "endWidth": 4.760000000000001,
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 5,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -522,9 +522,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#50835a",
-            "width": 7,
-            "startWidth": 7,
-            "endWidth": 4.760000000000001,
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 2,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -571,9 +571,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#50835a",
-            "width": 7,
-            "startWidth": 7,
-            "endWidth": 4.760000000000001,
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 5,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -675,8 +675,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "spread": {
             "deviation": {
-              "min": 12,
-              "max": 42
+              "min": 18,
+              "max": 18
             },
             "revolution": {
               "min": -180,
@@ -691,9 +691,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#50835a",
-            "width": 7,
-            "startWidth": 7,
-            "endWidth": 4.760000000000001,
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 5,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -873,28 +873,28 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
     "editor": {
       "nodePositions": {
         "loop-1": {
-          "x": 661.9964820034255,
-          "y": 523.0302005764768
+          "x": 500,
+          "y": 391
         },
         "base": {
-          "x": 653.0587156483759,
-          "y": 927.2694443112766
+          "x": 500,
+          "y": 673
         },
         "stem": {
-          "x": 744.7984159481828,
-          "y": 673.6795095663807
+          "x": 500,
+          "y": 457
         },
         "margeritenbluete-2": {
-          "x": 650.7083998207861,
-          "y": 107.6587325533232
+          "x": 500,
+          "y": 104
         },
         "leaf": {
-          "x": 563.0779150515084,
-          "y": 401.2189308805424
+          "x": 374,
+          "y": 325
         },
         "node-5": {
-          "x": 760.9150489553426,
-          "y": 372.3808915865728
+          "x": 626,
+          "y": 325
         }
       }
     },
@@ -1987,34 +1987,13 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "id": "flower-head-copy",
         "name": "Blütenkopf",
         "draggable": true,
-        "graphic": {
-          "primitive": "sphere",
-          "color": "#e4b43f",
-          "width": 20,
-          "height": 10,
-          "depth": 20,
-          "start": {
-            "x": 0.5,
-            "y": 0.5
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0
-          },
-          "rotation": {
-            "min": 0,
-            "max": 0
-          },
-          "offset": {
-            "x": 0,
-            "y": 8,
-            "z": 0
-          },
-          "orientation": "connection"
-        },
+        "graphic": null,
         "connections": [
           {
             "childId": "petal"
+          },
+          {
+            "childId": "node-4"
           }
         ],
         "incoming": {
@@ -2024,7 +2003,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "length": {
             "min": 0,
-            "max": 51
+            "max": 0
           },
           "direction": {
             "x": 0,
@@ -2049,9 +2028,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#477348",
-            "width": 1,
-            "startWidth": 1,
-            "endWidth": 0.72,
+            "width": 5,
+            "startWidth": 5,
+            "endWidth": 5,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -2060,6 +2039,91 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             }
           }
         }
+      },
+      {
+        "id": "node-4",
+        "name": "Knoten 4",
+        "draggable": false,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#ffea00",
+          "width": 5,
+          "height": 5,
+          "depth": 5,
+          "twist": 0,
+          "ribCount": 0,
+          "ribDepth": 0,
+          "leafEdge": {
+            "serrationCount": 7,
+            "serrationDepth": 0,
+            "serrationSharpness": 70,
+            "edgeCurvature": 0
+          },
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 1,
+            "max": 1
+          },
+          "length": {
+            "min": 50,
+            "max": 50
+          },
+          "direction": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "spread": {
+            "deviation": {
+              "min": 0,
+              "max": 0
+            },
+            "revolution": {
+              "min": -180,
+              "max": 180
+            },
+            "roll": {
+              "min": 0,
+              "max": 0
+            },
+            "randomness": 0,
+            "orientation": "spread"
+          },
+          "stem": {
+            "color": "#426f50",
+            "width": 3,
+            "startWidth": 3,
+            "endWidth": 3,
+            "bend": 0,
+            "curve": 0,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
       }
     ],
     "editor": {
@@ -2071,6 +2135,10 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "petal": {
           "x": 500,
           "y": 608
+        },
+        "node-4": {
+          "x": 680.066113575007,
+          "y": 582.441522271382
         },
         "flower-head-copy": {
           "x": 500,

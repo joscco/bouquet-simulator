@@ -80,6 +80,22 @@ import {
   glbFilename,
 } from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
 
+type EditorTransition =
+  | {type: 'catalog'; key: string}
+  | {type: 'new'}
+  | {type: 'duplicate'}
+  | {type: 'import'; definition: FlowerDefinition};
+
+interface EditorHistorySnapshot {
+  definition: FlowerDefinition;
+  positions: Record<string, Point>;
+  selectedNodeId: string;
+  signature: string;
+}
+
+const MAX_UNDO_STEPS = 30;
+const HISTORY_GROUP_WINDOW_MS = 350;
+
 @Component({
   selector: 'app-flower-editor',
   imports: [
@@ -112,6 +128,7 @@ export class FlowerEditorComponent {
   );
   readonly selectedCatalogKey = signal(`definition:${this.draft().id}`);
   private readonly persistedDefinitionId = signal(this.draft().id);
+  readonly pendingTransition = signal<EditorTransition | null>(null);
   readonly catalogSearch = signal(this.draft().name);
   readonly catalogSearchOpen = signal(false);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
@@ -148,6 +165,13 @@ export class FlowerEditorComponent {
   readonly graphPositions = signal<Record<string, Point>>(
     structuredClone(this.draft().editor?.nodePositions ?? {}),
   );
+  private readonly savedSignature = signal('');
+  private readonly undoHistory: EditorHistorySnapshot[] = [];
+  private lastHistoryRecordAt = 0;
+  private lastHistoryGroup = '';
+  readonly canUndo = signal(false);
+  readonly hasUnsavedChanges = computed(() =>
+    this.currentStateSignature() !== this.savedSignature());
   readonly subtreeSelection = computed(() =>
     resolveFlowerSubtreeSelection(this.draft(), this.subtreeAnchorIds()));
   readonly subtreeNodeIds = computed(() => this.subtreeSelection()?.nodeIds ?? new Set<string>());
@@ -171,11 +195,20 @@ export class FlowerEditorComponent {
   constructor() {
     const requestedCatalogKey = this.urlState.readCatalogKey();
     if (requestedCatalogKey && this.catalogEntries().some((entry) => entry.key === requestedCatalogKey)) {
-      this.selectCatalogEntry(requestedCatalogKey);
+      this.openCatalogEntry(requestedCatalogKey);
     } else {
       this.graphPositions.set(materializePositions(this.draft()));
       this.urlState.writeCatalogKey(this.selectedCatalogKey());
+      this.markCurrentStateSaved();
     }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  undoShortcut(event: KeyboardEvent): void {
+    if (this.pendingTransition()) return;
+    if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== 'z') return;
+    event.preventDefault();
+    this.undo();
   }
 
   @HostListener('document:pointerdown', ['$event'])
@@ -189,6 +222,10 @@ export class FlowerEditorComponent {
   }
 
   createNewDefinition(): void {
+    this.requestTransition({type: 'new'});
+  }
+
+  private createNewDefinitionNow(): void {
     const id = this.uniqueDefinitionId('neue-blume');
     const definition = createEmptyFlowerDefinition(id);
     this.store.replaceDefinition(definition);
@@ -197,6 +234,10 @@ export class FlowerEditorComponent {
   }
 
   duplicateDefinition(): void {
+    this.requestTransition({type: 'duplicate'});
+  }
+
+  private duplicateDefinitionNow(): void {
     const source = this.definitionWithEditorState();
     const id = this.uniqueDefinitionId(`${source.id}-kopie`);
     const definition = duplicateFlowerDefinition(source, id);
@@ -223,6 +264,8 @@ export class FlowerEditorComponent {
       ? this.selectedNodeId()
       : null;
     const normalized = withDerivedFlowerRoot(definition, selectedNodeId);
+    if (JSON.stringify(normalized) === JSON.stringify(this.draft())) return;
+    this.recordUndo('definition');
     this.draft.set(normalized);
     if (!selectedNodeId) {
       this.selectedNodeId.set(normalized.rootNodeId || normalized.nodes[0]?.id || '');
@@ -275,6 +318,7 @@ export class FlowerEditorComponent {
       incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
       connections: [],
     };
+    this.recordUndo('structure', true);
     this.graphPositions.update((positions) => ({
       ...positions,
       [node.id]: nextEditorNodePosition(positions, this.selectedNodeId()),
@@ -308,6 +352,7 @@ export class FlowerEditorComponent {
       selection,
       this.graphLayout().nodes,
     );
+    this.recordUndo('structure', true);
     this.draft.set(created.definition);
     this.graphPositions.set(created.nodePositions);
     if (created.wrappedSelection) this.clearSubtreeSelection();
@@ -316,6 +361,7 @@ export class FlowerEditorComponent {
 
   autoLayout(): void {
     const positions = createCompactGraphPositions(this.draft());
+    this.recordUndo('positions', true);
     this.graphPositions.set(positions);
     this.graphTree?.resetView(positions);
     this.notify('Graph automatisch angeordnet.');
@@ -424,6 +470,19 @@ export class FlowerEditorComponent {
   }
 
   selectCatalogEntry(key: string): void {
+    this.requestTransition({type: 'catalog', key});
+  }
+
+  openComponentDefinition(definitionId: string): void {
+    const key = `definition:${definitionId}`;
+    if (!this.catalogEntries().some((entry) => entry.key === key)) {
+      this.notifyError('Die Quelldefinition dieser Komponente existiert nicht mehr.');
+      return;
+    }
+    this.requestTransition({type: 'catalog', key});
+  }
+
+  private openCatalogEntry(key: string): void {
     const entry = this.catalogEntries().find((candidate) => candidate.key === key);
     if (!entry) return;
     if (entry.source === 'definition') {
@@ -436,8 +495,48 @@ export class FlowerEditorComponent {
 
   chooseCatalogEntry(entry: FlowerComponentCatalogEntry): void {
     this.selectCatalogEntry(entry.key);
-    this.catalogSearch.set(entry.tree.name);
     this.catalogSearchOpen.set(false);
+  }
+
+  beginPositionEdit(): void {
+    this.recordUndo('positions', true);
+  }
+
+  undo(): void {
+    let snapshot = this.undoHistory.pop();
+    while (snapshot && snapshot.signature === this.currentStateSignature()) {
+      snapshot = this.undoHistory.pop();
+    }
+    this.canUndo.set(this.undoHistory.length > 0);
+    if (!snapshot) return;
+    this.draft.set(structuredClone(snapshot.definition));
+    this.graphPositions.set(structuredClone(snapshot.positions));
+    this.selectedNodeId.set(snapshot.definition.nodes.some((node) =>
+      node.id === snapshot!.selectedNodeId)
+      ? snapshot.selectedNodeId
+      : snapshot.definition.rootNodeId);
+    this.subtreeAnchorIds.set(new Set());
+    this.lastHistoryGroup = '';
+    this.lastHistoryRecordAt = 0;
+  }
+
+  savePendingChanges(): void {
+    const transition = this.pendingTransition();
+    if (!transition || !this.saveCurrentDraft()) return;
+    this.pendingTransition.set(null);
+    this.performTransition(transition);
+  }
+
+  discardPendingChanges(): void {
+    const transition = this.pendingTransition();
+    if (!transition) return;
+    this.pendingTransition.set(null);
+    if (transition.type === 'duplicate') this.restorePersistedDraft();
+    this.performTransition(transition);
+  }
+
+  cancelPendingTransition(): void {
+    this.pendingTransition.set(null);
   }
 
   downloadSavedTree(tree: FlowerSubtreeDefinition): void {
@@ -475,10 +574,16 @@ export class FlowerEditorComponent {
   }
 
   saveToCatalog(): void {
+    this.saveCurrentDraft();
+  }
+
+  private saveCurrentDraft(): boolean {
     const definition = this.definitionWithEditorState();
     if (this.persistence.saveToBrowser(definition, this.persistedDefinitionId())) {
       this.finishDefinitionSave(definition);
+      return true;
     }
+    return false;
   }
 
   async saveToDefaults(): Promise<void> {
@@ -537,8 +642,7 @@ export class FlowerEditorComponent {
       }
       const error = validateFlowerDefinition(definition).find((issue) => issue.severity === 'error');
       if (error) throw new Error(error.message);
-      this.loadDefinition(definition);
-      this.notify('Geladen.');
+      this.requestTransition({type: 'import', definition});
     } catch (error: unknown) {
       this.notifyError(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
     } finally {
@@ -547,8 +651,7 @@ export class FlowerEditorComponent {
   }
 
   selectDefinition(id: string): void {
-    const definition = this.store.definitions().find((candidate) => candidate.id === id);
-    if (definition) this.loadDefinition(definition);
+    this.selectCatalogEntry(`definition:${id}`);
   }
 
   private uniqueDefinitionId(seed: string): string {
@@ -599,6 +702,8 @@ export class FlowerEditorComponent {
     this.graphPositions.set(positions);
     this.subtreeAnchorIds.set(new Set());
     this.selectNode(clone.rootNodeId || clone.nodes[0]?.id || '');
+    this.resetUndoHistory();
+    this.markCurrentStateSaved();
   }
 
   private finishDefinitionSave(definition: FlowerDefinition): void {
@@ -608,6 +713,85 @@ export class FlowerEditorComponent {
     this.selectedCatalogKey.set(catalogKey);
     this.urlState.writeCatalogKey(catalogKey);
     this.catalogSearch.set(definition.name);
+    this.markCurrentStateSaved();
+  }
+
+  private requestTransition(transition: EditorTransition): void {
+    if (transition.type === 'catalog' && transition.key === this.selectedCatalogKey()) return;
+    this.catalogSearchOpen.set(false);
+    if (this.hasUnsavedChanges()) {
+      this.pendingTransition.set(transition);
+      return;
+    }
+    this.performTransition(transition);
+  }
+
+  private performTransition(transition: EditorTransition): void {
+    switch (transition.type) {
+      case 'catalog':
+        this.openCatalogEntry(transition.key);
+        break;
+      case 'new':
+        this.createNewDefinitionNow();
+        break;
+      case 'duplicate':
+        this.duplicateDefinitionNow();
+        break;
+      case 'import':
+        this.loadDefinition(transition.definition);
+        this.notify('Geladen.');
+        break;
+    }
+  }
+
+  private restorePersistedDraft(): void {
+    const definition = this.store.definitions().find((candidate) =>
+      candidate.id === this.persistedDefinitionId());
+    if (!definition) return;
+    const clone = normalizeFlowerDefinitionForEditor(definition);
+    this.draft.set(clone);
+    this.graphPositions.set(materializePositions(clone));
+    this.selectedNodeId.set(clone.rootNodeId || clone.nodes[0]?.id || '');
+  }
+
+  private recordUndo(group: string, forceNewStep = false): void {
+    const now = Date.now();
+    if (
+      !forceNewStep
+      && group === this.lastHistoryGroup
+      && now - this.lastHistoryRecordAt < HISTORY_GROUP_WINDOW_MS
+    ) return;
+    const snapshot = this.currentSnapshot();
+    if (this.undoHistory.at(-1)?.signature === snapshot.signature) return;
+    this.undoHistory.push(snapshot);
+    if (this.undoHistory.length > MAX_UNDO_STEPS) this.undoHistory.shift();
+    this.canUndo.set(true);
+    this.lastHistoryGroup = group;
+    this.lastHistoryRecordAt = now;
+  }
+
+  private currentSnapshot(): EditorHistorySnapshot {
+    return {
+      definition: structuredClone(this.draft()),
+      positions: structuredClone(this.graphPositions()),
+      selectedNodeId: this.selectedNodeId(),
+      signature: this.currentStateSignature(),
+    };
+  }
+
+  private currentStateSignature(): string {
+    return JSON.stringify(definitionWithEditorState(this.draft(), this.graphPositions()));
+  }
+
+  private markCurrentStateSaved(): void {
+    this.savedSignature.set(this.currentStateSignature());
+  }
+
+  private resetUndoHistory(): void {
+    this.undoHistory.length = 0;
+    this.canUndo.set(false);
+    this.lastHistoryGroup = '';
+    this.lastHistoryRecordAt = 0;
   }
 
   private definitionWithEditorState(): FlowerDefinition {
