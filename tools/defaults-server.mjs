@@ -1,19 +1,32 @@
 import {createServer} from 'node:http';
-import {rename, writeFile} from 'node:fs/promises';
+import {mkdir, readFile, rename, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 const port = 4300;
 const defaultsFile = resolve('src/app/core/data/default-flowers.ts');
 const temporaryFile = `${defaultsFile}.tmp`;
+const previewsDirectory = resolve('public/previews');
+const previewManifestFile = resolve(previewsDirectory, 'manifest.json');
+const previewSourceFile = resolve('src/app/core/data/default-flower-previews.ts');
 const maximumBodySize = 5 * 1024 * 1024;
 
 createServer(async (request, response) => {
-  if (request.method !== 'PUT' || request.url !== '/api/defaults') {
+  if (request.method !== 'PUT') {
     sendJson(response, 404, {error: 'Nicht gefunden.'});
     return;
   }
 
   try {
+    if (request.url === '/api/default-preview') {
+      const preview = JSON.parse(await readBody(request));
+      await writePreview(preview);
+      sendJson(response, 200, {saved: preview.id, file: `public/previews/${preview.filename}`});
+      return;
+    }
+    if (request.url !== '/api/defaults') {
+      sendJson(response, 404, {error: 'Nicht gefunden.'});
+      return;
+    }
     const definitions = JSON.parse(await readBody(request));
     validateDefinitions(definitions);
     const source = [
@@ -34,6 +47,43 @@ createServer(async (request, response) => {
 }).listen(port, '127.0.0.1', () => {
   console.log(`Defaults-Server: http://127.0.0.1:${port}`);
 });
+
+async function writePreview(value) {
+  if (
+    !value
+    || typeof value.id !== 'string'
+    || !value.id
+    || typeof value.filename !== 'string'
+    || !/^[a-z0-9_-]+\.png$/.test(value.filename)
+    || typeof value.dataUrl !== 'string'
+    || !value.dataUrl.startsWith('data:image/png;base64,')
+    || typeof value.preview?.key !== 'string'
+    || typeof value.preview?.url !== 'string'
+  ) {
+    throw new Error('Die Preview-Daten sind ungültig.');
+  }
+  await mkdir(previewsDirectory, {recursive: true});
+  const manifest = await readPreviewManifest();
+  manifest[value.id] = value.preview;
+  const base64 = value.dataUrl.slice(value.dataUrl.indexOf(',') + 1);
+  await writeFile(resolve(previewsDirectory, value.filename), Buffer.from(base64, 'base64'));
+  await writeFile(previewManifestFile, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  const source = [
+    '// Wird zusammen mit den Default-PNGs vom lokalen Defaults-Server erzeugt.',
+    `export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url: string}>> = ${JSON.stringify(manifest, null, 2)};`,
+    '',
+  ].join('\n');
+  await writeFile(previewSourceFile, source, 'utf8');
+}
+
+async function readPreviewManifest() {
+  try {
+    const parsed = JSON.parse(await readFile(previewManifestFile, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 async function readBody(request) {
   const chunks = [];

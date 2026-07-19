@@ -92,6 +92,8 @@ import {
   FlowerSearchEntry,
 } from '../../shared/flower-search-dialog/flower-search-dialog.component';
 import {EditorDisclosureComponent} from '../../shared/editor-disclosure/editor-disclosure.component';
+import {FlowerThumbnailGenerator} from '../../shared/flower-thumbnail/flower-thumbnail-generator.service';
+import {FlowerThumbnailCache} from '../../shared/flower-thumbnail/flower-thumbnail-cache.service';
 
 type EditorTransition =
   | {type: 'catalog'; key: string}
@@ -145,6 +147,8 @@ export class FlowerEditorComponent implements OnDestroy {
   private readonly persistence = inject(FlowerEditorPersistence);
   private readonly urlState = inject(FlowerEditorUrlState);
   private readonly subtreeLibrary = inject(FlowerSubtreeLibrary);
+  private readonly thumbnailGenerator = inject(FlowerThumbnailGenerator);
+  private readonly thumbnailCache = inject(FlowerThumbnailCache);
   private readonly transloco = inject(TranslocoService);
   readonly isDevelopment = isDevMode();
   readonly draft = signal<FlowerDefinition>(
@@ -498,6 +502,7 @@ export class FlowerEditorComponent implements OnDestroy {
       {id, name},
     );
     this.subtreeLibrary.save(tree);
+    void this.generateAndStoreThumbnail(this.definitionFromComponent(tree, 'component'));
     downloadJson(tree, `${tree.id}.tree.json`);
     this.notify(`„${tree.name}“ wurde als Komponente gespeichert und exportiert.`);
   }
@@ -520,6 +525,7 @@ export class FlowerEditorComponent implements OnDestroy {
         {id, name},
       );
       this.subtreeLibrary.save(extracted.subtree);
+      void this.generateAndStoreThumbnail(this.definitionFromComponent(extracted.subtree, 'component'));
       this.applyDefinitionChange(extracted.definition);
       this.graphPositions.set(extracted.nodePositions);
       this.subtreeAnchorIds.set(new Set());
@@ -678,6 +684,7 @@ export class FlowerEditorComponent implements OnDestroy {
 
   removeSavedTree(id: string): void {
     this.subtreeLibrary.remove(id);
+    void this.thumbnailCache.deleteDefinition(id);
     this.notify('Komponente aus der Bibliothek entfernt.');
   }
 
@@ -698,6 +705,7 @@ export class FlowerEditorComponent implements OnDestroy {
       const tree = await readJsonFile<unknown>(file);
       if (!isFlowerSubtreeDefinition(tree)) throw new Error('Keine gültige Komponenten-Datei.');
       const imported = this.subtreeLibrary.import(tree);
+      void this.generateAndStoreThumbnail(this.definitionFromComponent(imported, 'component'));
       this.notify(`„${imported.name}“ wurde zu den Komponenten hinzugefügt.`);
     } catch (error: unknown) {
       this.notifyError(error instanceof Error ? error.message : 'Komponenten-Import fehlgeschlagen.');
@@ -714,6 +722,7 @@ export class FlowerEditorComponent implements OnDestroy {
     const definition = this.definitionWithEditorState();
     if (this.persistence.saveToBrowser(definition, this.persistedDefinitionId())) {
       this.finishDefinitionSave(definition);
+      void this.generateAndStoreThumbnail(definition);
       return true;
     }
     return false;
@@ -722,8 +731,21 @@ export class FlowerEditorComponent implements OnDestroy {
   async saveToDefaults(): Promise<void> {
     if (!this.isDevelopment) return;
     const definition = this.definitionWithEditorState();
-    if (await this.persistence.saveToDefaults(definition, this.persistedDefinitionId())) {
-      this.finishDefinitionSave(definition);
+    try {
+      const previewDefinition = this.materializedThumbnailDefinition(definition);
+      const preview = await this.thumbnailGenerator.generate(previewDefinition);
+      if (await this.persistence.saveToDefaults(
+        definition,
+        this.persistedDefinitionId(),
+        {definition: previewDefinition, blob: preview},
+      )) {
+        this.thumbnailCache.storeBlob(previewDefinition, preview);
+        this.finishDefinitionSave(definition);
+      }
+    } catch (error: unknown) {
+      this.notifyError(error instanceof Error
+        ? `Preview konnte nicht gespeichert werden: ${error.message}`
+        : 'Preview konnte nicht gespeichert werden.');
     }
   }
 
@@ -935,6 +957,23 @@ export class FlowerEditorComponent implements OnDestroy {
       definitionWithEditorState(this.draft(), this.graphPositions()),
       this.selectedNodeId(),
     );
+  }
+
+  private materializedThumbnailDefinition(definition: FlowerDefinition): FlowerDefinition {
+    return materializeDefinitionComponents([
+      definition,
+      ...this.store.definitions().filter((candidate) => candidate.id !== definition.id),
+    ])[0] ?? definition;
+  }
+
+  private async generateAndStoreThumbnail(definition: FlowerDefinition): Promise<void> {
+    try {
+      const previewDefinition = this.materializedThumbnailDefinition(definition);
+      const blob = await this.thumbnailGenerator.generate(previewDefinition);
+      this.thumbnailCache.storeBlob(previewDefinition, blob);
+    } catch {
+      // Die Definition ist bereits gespeichert; eine fehlende Vorschau kann später nacherzeugt werden.
+    }
   }
 
   private definitionFromComponent(tree: FlowerSubtreeDefinition, role: 'flower' | 'component'): FlowerDefinition {

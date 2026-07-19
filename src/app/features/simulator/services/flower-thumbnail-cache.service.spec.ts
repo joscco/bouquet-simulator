@@ -8,9 +8,9 @@ describe('flower thumbnail cache', () => {
     const definition = flowerDefinition();
     const key = cache.keyFor(definition);
 
-    cache.store(key, 'data:image/webp;base64,preview');
+    cache.store(key, 'data:image/png;base64,cHJldmlldw==');
 
-    expect(cache.snapshot(cache.keyFor(structuredClone(definition)))).toBe('data:image/webp;base64,preview');
+    expect(cache.snapshot(cache.keyFor(structuredClone(definition)))).toBe('data:image/png;base64,cHJldmlldw==');
     expect(cache.keyFor({...definition, name: 'Geänderte Blume'})).not.toBe(key);
     expect(cache.snapshot(cache.keyFor({...definition, name: 'Geänderte Blume'}))).toBeNull();
   });
@@ -22,6 +22,17 @@ describe('flower thumbnail cache', () => {
     cache.store(key, 'not-an-image');
 
     expect(cache.snapshot(key)).toBeNull();
+  });
+
+  it('falls back when a stored or bundled image cannot be loaded', () => {
+    const cache = new FlowerThumbnailCache();
+    const key = cache.keyFor(flowerDefinition());
+    cache.store(key, 'data:image/png;base64,cHJldmlldw==');
+
+    cache.markMissing(key);
+
+    expect(cache.snapshot(key)).toBeNull();
+    expect(cache.status(key)).toBe('missing');
   });
 });
 

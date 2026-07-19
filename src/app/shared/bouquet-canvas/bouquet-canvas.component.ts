@@ -84,6 +84,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly overlappingIds = input<ReadonlySet<string>>(new Set<string>());
   readonly snapshotKey = input<string | null>(null);
   readonly thumbnailMode = input(false);
+  readonly snapshotSize = input(320);
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
   readonly fitToContent = input(false);
@@ -172,6 +173,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const selectedId = this.selectedId();
       const overlappingIdsSignature = [...this.overlappingIds()].sort().join('|');
       const snapshotKey = this.snapshotKey();
+      const thumbnailMode = this.thumbnailMode();
       const highlightedNodeIdsSignature = [...this.highlightedNodeIds()].sort().join('|');
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
@@ -221,7 +223,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastVaseId = vaseId;
       this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
-      this.scene.background = new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
+      this.scene.background = thumbnailMode ? null : new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
       this.applySceneLighting(backgroundMode);
       this.sceneEffects.configure(state.sceneEffects, backgroundMode);
       this.syncEffectsAnimation();
@@ -402,7 +404,12 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     const renderer = this.renderer;
     if (!renderer) return;
     const host = this.canvasHost.nativeElement;
-    renderer.setSize(Math.max(1, host.clientWidth), Math.max(1, host.clientHeight));
+    const snapshotSize = this.thumbnailMode() ? this.snapshotSize() : null;
+    renderer.setSize(
+      snapshotSize ?? Math.max(1, host.clientWidth),
+      snapshotSize ?? Math.max(1, host.clientHeight),
+      snapshotSize === null,
+    );
     this.resizeCamera();
   }
 
@@ -436,7 +443,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       orbitPitch: this.orbitPitch(),
       viewOffset: this.viewOffset(),
       vaseEnabled: this.vaseEnabled(),
-      recordingViewport: this.recordingViewport,
+      recordingViewport: this.thumbnailMode()
+        ? {width: this.snapshotSize(), height: this.snapshotSize()}
+        : this.recordingViewport,
     };
   }
 
@@ -452,7 +461,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         this.emittedSnapshotKey = snapshotKey;
         this.snapshotReady.emit({
           key: snapshotKey,
-          dataUrl: this.renderer.domElement.toDataURL('image/webp', 0.86),
+          dataUrl: this.renderer.domElement.toDataURL(
+            this.thumbnailMode() ? 'image/png' : 'image/webp',
+            0.92,
+          ),
         });
       }
     });

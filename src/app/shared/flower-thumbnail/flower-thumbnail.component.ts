@@ -14,6 +14,7 @@ import {BouquetState, FlowerDefinition} from '../../core/models/flower.models';
 import {BouquetCanvasComponent} from '../bouquet-canvas/bouquet-canvas.component';
 import {FlowerThumbnailCache} from './flower-thumbnail-cache.service';
 import {FlowerThumbnailRenderQueue} from './flower-thumbnail-render-queue.service';
+import {flowerDefinitionWithPreviewAnchor} from './flower-thumbnail-definition';
 
 let nextThumbnailRequestId = 0;
 
@@ -37,7 +38,7 @@ export class FlowerThumbnailComponent implements AfterViewInit, OnDestroy {
   readonly snapshot = computed(() => this.cache.snapshot(this.snapshotKey()));
   readonly renderActive = computed(() =>
     this.renderQueue.activeRequests().has(this.renderRequestId));
-  readonly previewDefinitions = computed(() => [withPreviewAnchor(this.definition())]);
+  readonly previewDefinitions = computed(() => [flowerDefinitionWithPreviewAnchor(this.definition())]);
   readonly previewState = computed<BouquetState>(() => ({
     schemaVersion: 2,
     rotation: -0.38,
@@ -64,12 +65,19 @@ export class FlowerThumbnailComponent implements AfterViewInit, OnDestroy {
       }
       const snapshotKey = this.snapshotKey();
       const snapshot = this.snapshot();
+      const status = this.cache.status(snapshotKey);
       if (this.requestedSnapshotKey !== snapshotKey) {
         this.renderQueue.cancel(this.renderRequestId);
         this.requestedSnapshotKey = snapshotKey;
       }
-      if (snapshot) this.renderQueue.cancel(this.renderRequestId);
-      else this.renderQueue.enqueue(this.renderRequestId);
+      if (snapshot) {
+        this.renderQueue.cancel(this.renderRequestId);
+      } else if (status === 'missing') {
+        this.renderQueue.enqueue(this.renderRequestId);
+      } else {
+        this.renderQueue.cancel(this.renderRequestId);
+        if (status === 'idle') this.cache.load(this.definition());
+      }
     });
   }
 
@@ -89,32 +97,12 @@ export class FlowerThumbnailComponent implements AfterViewInit, OnDestroy {
     this.renderQueue.cancel(this.renderRequestId);
   }
 
+  handleSnapshotError(): void {
+    this.cache.markMissing(this.snapshotKey());
+  }
+
   ngOnDestroy(): void {
     this.visibilityObserver?.disconnect();
     this.renderQueue.cancel(this.renderRequestId);
   }
-}
-
-/**
- * A component root may consist only of an incoming stem segment. When rendered
- * as a standalone flower that segment has no parent and would be invisible.
- */
-function withPreviewAnchor(definition: FlowerDefinition): FlowerDefinition {
-  const root = definition.nodes.find((node) => node.id === definition.rootNodeId);
-  if (!root?.incoming) return definition;
-
-  const occupiedIds = new Set(definition.nodes.map((node) => node.id));
-  let anchorId = '__thumbnail-root__';
-  while (occupiedIds.has(anchorId)) anchorId += '_';
-  return {
-    ...definition,
-    rootNodeId: anchorId,
-    nodes: [{
-      id: anchorId,
-      name: '',
-      draggable: false,
-      graphic: null,
-      connections: [{childId: root.id}],
-    }, ...definition.nodes],
-  };
 }

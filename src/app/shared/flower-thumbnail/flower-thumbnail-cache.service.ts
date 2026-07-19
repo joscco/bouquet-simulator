@@ -61,7 +61,8 @@ export class FlowerThumbnailCache {
     const definitionId = flowerThumbnailDefinitionId(key);
     if (!definitionId) return;
     const blob = dataUrlToBlob(dataUrl);
-    this.storeBlobByKey(key, definitionId, blob);
+    this.setSnapshot(key, dataUrl);
+    void this.persistBlob({key, definitionId, blob});
   }
 
   storeBlob(definition: FlowerDefinition, blob: Blob): void {
@@ -69,6 +70,7 @@ export class FlowerThumbnailCache {
   }
 
   async deleteDefinition(definitionId: string): Promise<void> {
+    this.removeMemoryEntriesForDefinition(definitionId);
     const database = await this.database();
     if (!database) return;
     await new Promise<void>((resolve) => {
@@ -86,6 +88,21 @@ export class FlowerThumbnailCache {
     });
   }
 
+  markMissing(key: string): void {
+    const objectUrl = this.objectUrls.get(key);
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      this.objectUrls.delete(key);
+    }
+    this.snapshots.update((snapshots) => {
+      if (!(key in snapshots)) return snapshots;
+      const next = {...snapshots};
+      delete next[key];
+      return next;
+    });
+    this.setStatus(key, 'missing');
+  }
+
   private storeBlobByKey(key: string, definitionId: string, blob: Blob): void {
     this.setSnapshot(key, this.objectUrl(key, blob));
     void this.persistBlob({key, definitionId, blob});
@@ -101,11 +118,27 @@ export class FlowerThumbnailCache {
   }
 
   private objectUrl(key: string, blob: Blob): string {
+    if (typeof URL.createObjectURL !== 'function') return '';
     const previous = this.objectUrls.get(key);
     if (previous) URL.revokeObjectURL(previous);
     const url = URL.createObjectURL(blob);
     this.objectUrls.set(key, url);
     return url;
+  }
+
+  private removeMemoryEntriesForDefinition(definitionId: string): void {
+    const matchingKeys = new Set([
+      ...Object.keys(this.snapshots()),
+      ...Object.keys(this.statuses()),
+    ].filter((key) => flowerThumbnailDefinitionId(key) === definitionId));
+    if (!matchingKeys.size) return;
+    for (const key of matchingKeys) {
+      const objectUrl = this.objectUrls.get(key);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      this.objectUrls.delete(key);
+    }
+    this.snapshots.update((snapshots) => withoutKeys(snapshots, matchingKeys));
+    this.statuses.update((statuses) => withoutKeys(statuses, matchingKeys));
   }
 
   private async readStoredBlob(key: string): Promise<Blob | null> {
@@ -154,6 +187,12 @@ export class FlowerThumbnailCache {
     });
     return this.databasePromise;
   }
+}
+
+function withoutKeys<T>(record: Record<string, T>, keys: ReadonlySet<string>): Record<string, T> {
+  const next = {...record};
+  for (const key of keys) delete next[key];
+  return next;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {

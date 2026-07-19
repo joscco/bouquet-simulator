@@ -6,12 +6,15 @@ import {FlowerDefinitionStorage} from '../../../core/state/flower-definition-sto
 import {upsertFlowerDefinition} from '../domain/flower-editor-catalog';
 import {definitionIdIsOccupied} from '../../../core/models/flower-definition-ids';
 import {EditorNotifications} from './editor-notifications.service';
+import {writeDefaultFlowerPreview} from '../../../shared/flower-thumbnail/default-flower-preview-writer';
+import {FlowerThumbnailCache} from '../../../shared/flower-thumbnail/flower-thumbnail-cache.service';
 
 @Injectable()
 export class FlowerEditorPersistence {
   private readonly store = inject(BouquetStore);
   private readonly storage = inject(FlowerDefinitionStorage);
   private readonly notifications = inject(EditorNotifications);
+  private readonly thumbnailCache = inject(FlowerThumbnailCache);
   private readonly development = isDevMode();
 
   saveToBrowser(definition: FlowerDefinition, previousId = definition.id): boolean {
@@ -38,7 +41,11 @@ export class FlowerEditorPersistence {
     }
   }
 
-  async saveToDefaults(definition: FlowerDefinition, previousId = definition.id): Promise<boolean> {
+  async saveToDefaults(
+    definition: FlowerDefinition,
+    previousId = definition.id,
+    preview?: {definition: FlowerDefinition; blob: Blob},
+  ): Promise<boolean> {
     if (!this.development) return false;
     const validationError = firstValidationError(definition);
     if (validationError) {
@@ -52,6 +59,7 @@ export class FlowerEditorPersistence {
     const definitions = upsertFlowerDefinition(this.store.definitions(), definition, previousId);
     try {
       await writeDefinitionsToDefaults(definitions);
+      if (preview) await writeDefaultFlowerPreview(preview.definition, preview.blob);
       this.store.replaceDefinition(definition, previousId);
       this.storage.trySaveDefinitions(definitions);
       this.notifications.show('In src/app/core/data/default-flowers.ts übernommen.');
@@ -75,6 +83,7 @@ export class FlowerEditorPersistence {
     try {
       this.storage.saveDefinitions(definitions);
       this.store.removeDefinition(definition.id);
+      void this.thumbnailCache.deleteDefinition(definition.id);
       this.notifications.show(`„${definition.name}“ wurde gelöscht.`);
       return definitions[0] ?? null;
     } catch (error: unknown) {

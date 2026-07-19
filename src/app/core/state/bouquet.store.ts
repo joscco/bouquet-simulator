@@ -63,7 +63,7 @@ export class BouquetStore {
   readonly materializedDefinitions = computed(() => materializeDefinitionComponents(this.definitions()));
   readonly bouquets = signal<BouquetProject[]>([{
     id: this.createBouquetId(),
-    name: 'Strauß 1',
+    name: 'Strauß',
     state: this.createInitialBouquet(),
   }]);
   readonly activeBouquetId = signal(this.bouquets()[0]!.id);
