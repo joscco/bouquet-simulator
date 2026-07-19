@@ -1,0 +1,14 @@
+<div class="absolute right-3 top-16 z-20 flex gap-1 rounded-[10px] border border-stone-200 bg-white/90 p-1 shadow-sm backdrop-blur-xl" role="toolbar" [attr.aria-label]="'editor.preview' | transloco">
+  <button class="grid size-[34px] cursor-pointer place-items-center rounded-[7px] border border-transparent bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-40" type="button" [disabled]="disabled()" [attr.aria-label]="'editor.centerView' | transloco" [attr.title]="'editor.centerView' | transloco" (click)="centerView.emit()">
+    <svg class="size-5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 4H4v4m12-4h4v4M8 20H4v-4m12 4h4v-4"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  </button>
+  <button class="grid size-[34px] cursor-pointer place-items-center rounded-[7px] border border-transparent bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-40" type="button" [disabled]="disabled()" [attr.aria-label]="'editor.regenerate' | transloco" [attr.title]="'editor.regenerate' | transloco" (click)="regeneratePreview.emit()">
+    <svg class="size-5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 7v5h-5M4 17v-5h5"/>
+      <path d="M6.1 8.2A7 7 0 0 1 18.8 10M17.9 15.8A7 7 0 0 1 5.2 14"/>
+    </svg>
+  </button>
+</div>

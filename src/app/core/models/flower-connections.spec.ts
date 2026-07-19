@@ -1,5 +1,4 @@
 import {describe, expect, it} from 'vitest';
-import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {
   DEFAULT_INCOMING_CONNECTION,
   effectiveConnection,
@@ -9,7 +8,7 @@ import {
   normalizeConnectionReferences,
   resolvedStemWidths,
 } from './flower-connections';
-import {FlowerNodeMainDirection} from './flower.models';
+import {FlowerDefinition, FlowerNodeMainDirection} from './flower.models';
 import {validateFlowerDefinition} from './flower-validation';
 
 describe('node-owned incoming connections', () => {
@@ -193,7 +192,36 @@ describe('node-owned incoming connections', () => {
   });
 });
 
-function daisyComponentDefinition() {
-  return DEFAULT_FLOWERS.find((definition) =>
-    definition.id === 'margeritenbluete-2' && definition.rootNodeId === 'flower-head')!;
+function daisyComponentDefinition(): FlowerDefinition {
+  return {
+    schemaVersion: 2 as const,
+    id: 'test-daisy-component',
+    name: 'Test blossom',
+    rootNodeId: 'flower-head',
+    stem: {
+      color: '#426f50',
+      highlightColor: '#82a878',
+      width: 8,
+      taper: 0.8,
+      bend: 0,
+      curve: 14,
+    },
+    nodes: [
+      {
+        id: 'flower-head',
+        name: 'Flower head',
+        draggable: false,
+        graphic: null,
+        connections: [{childId: 'petal'}],
+      },
+      {
+        id: 'petal',
+        name: 'Petal',
+        draggable: false,
+        graphic: null,
+        incoming: structuredClone(DEFAULT_INCOMING_CONNECTION),
+        connections: [],
+      },
+    ],
+  };
 }

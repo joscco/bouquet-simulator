@@ -31,6 +31,15 @@
 
 ## Bedienung
 
+- [x] Sämtliche eigenen Komponenten-CSS-Dateien entfernen und Layout sowie Zustände ausschließlich mit Tailwind-Klassen abbilden.
+- [x] Strauß- und Komponenten-Editor angleichen: Preview als durchgehende Bühne und animiertes Halbseiten-Panel für die Einstellungen; im Komponenteneditor inklusive ausklappbarem Node-Tree.
+- [x] Globale Kopfzeile auf Sprachwahl oben links und textbasierten Ansichtstoggle oben rechts reduzieren.
+- [x] Kopfzeile beim Öffnen der Settings unverändert über die gesamte Bildschirmbreite stehen lassen.
+- [x] Settings als Schublade mit einem abgerundeten, mitwandernden Griff und drehendem Richtungspfeil bedienen.
+- [x] Strauß- und Komponenten-Einstellungen auf dieselbe projizierbare Settings-Schubladen-Komponente umstellen.
+- [x] Preview-Menü unter dem Ansichtstoggle auf Zentrieren und Neuberechnen reduzieren; 3D-Export in die Einstellungen verschieben.
+- [x] Dieselbe Preview-Werkzeugleiste mit Zentrieren und Neuberechnen in Strauß- und Komponentenansicht verwenden.
+- [x] Suchdialog vor Settings und Preview anzeigen, ohne die globale Kopfzeile zu verdecken.
 - [x] Referenzierte Komponentenknoten direkt mit ihrer Quelldefinition verlinken.
 - [x] Vor einem Definitionswechsel ungespeicherte Änderungen mit Speichern, Verwerfen oder Abbrechen abfangen.
 - [x] Die letzten Bearbeitungsschritte inklusive Parameter-, Struktur- und Positionsänderungen rückgängig machen.

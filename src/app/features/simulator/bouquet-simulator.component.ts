@@ -7,11 +7,11 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import {MatSnackBar, MatSnackBarModule} from '@angular/material/snack-bar';
 import {TranslocoService} from '@jsverse/transloco';
-import {gsap} from 'gsap';
 import {BouquetStore} from '../../core/state/bouquet.store';
 import {BouquetCanvasComponent} from '../../shared/bouquet-canvas/bouquet-canvas.component';
 import {downloadBlob, downloadJson, readJsonFile} from '../../shared/download-json';
@@ -52,6 +52,8 @@ import {
   exportBouquetModelGlb,
   glbFilename,
 } from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
+import {PreviewLayoutAnimator} from '../../shared/bouquet-canvas/preview-layout-animator';
+import {PreviewToolbarComponent} from '../../shared/preview-toolbar/preview-toolbar.component';
 
 @Component({
   selector: 'app-bouquet-simulator',
@@ -60,6 +62,7 @@ import {
     BouquetCanvasComponent,
     BouquetSidePanelComponent,
     BouquetFlowerPickerComponent,
+    PreviewToolbarComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './bouquet-simulator.component.html',
@@ -88,14 +91,25 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly videoFormatId = signal<BouquetVideoFormatId>(DEFAULT_BOUQUET_VIDEO_FORMAT_ID);
   readonly videoFormat = computed(() => bouquetVideoFormat(this.videoFormatId()));
   readonly videoExportSupported = canRecordCanvasVideo();
-  readonly viewportWidth = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
-  readonly previewInsetLeft = signal(this.viewportWidth() < 640 ? 0 : 64);
-  readonly previewInsets = computed(() => ({
-    left: this.previewInsetLeft(),
-    right: 0,
-    top: 0,
-    bottom: this.viewportWidth() < 640 ? 64 : 0,
-  }));
+  readonly viewportSize = signal({
+    width: typeof window === 'undefined' ? 1280 : window.innerWidth,
+    height: typeof window === 'undefined' ? 720 : window.innerHeight,
+  });
+  readonly portraitLayout = computed(() => {
+    const viewport = this.viewportSize();
+    return viewport.height >= viewport.width;
+  });
+  readonly settingsPanelExtent = computed(() => {
+    const viewport = this.viewportSize();
+    return this.portraitLayout() ? viewport.height * 0.5 : viewport.width * 0.5;
+  });
+  readonly targetPreviewInsets = computed(() => {
+    if (!this.menuOpen()) return {left: 0, right: 0, top: 0, bottom: 0};
+    return this.portraitLayout()
+      ? {left: 0, right: 0, top: 0, bottom: this.settingsPanelExtent()}
+      : {left: this.settingsPanelExtent(), right: 0, top: 0, bottom: 0};
+  });
+  readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
   readonly bouquetDefinitions = computed(() =>
     this.store.materializedDefinitions().filter(isAvailableInBouquet));
   readonly flowerOverlaps = computed(() => detectBouquetFlowerOverlaps(
@@ -132,7 +146,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly sceneEffects = computed(() =>
     normalizedBouquetSceneEffects(this.store.state().sceneEffects ?? DEFAULT_BOUQUET_SCENE_EFFECTS));
 
-  private menuLayoutTween: {kill: () => void} | null = null;
+  private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
 
   constructor() {
     this.projectStorage.restoreProject(this.definitionStorage.restoredFromStorage);
@@ -141,20 +155,20 @@ export class BouquetSimulatorComponent implements OnDestroy {
   }
 
   @HostListener('window:resize')
-  updateViewportWidth(): void {
-    this.viewportWidth.set(window.innerWidth);
-    this.cancelMenuLayoutTween();
-    this.previewInsetLeft.set(this.targetPreviewInset(this.menuOpen()));
+  updateViewportSize(): void {
+    this.viewportSize.set({width: window.innerWidth, height: window.innerHeight});
+    this.previewLayoutAnimator.cancel();
+    this.previewInsets.set(this.targetPreviewInsets());
   }
 
   toggleMenu(): void {
     const open = !this.menuOpen();
     this.menuOpen.set(open);
-    this.animateMenuLayout(open);
+    this.animateMenuLayout();
   }
 
   ngOnDestroy(): void {
-    this.cancelMenuLayoutTween();
+    this.previewLayoutAnimator.cancel();
   }
 
   addFlower(definitionId: string): void {
@@ -307,48 +321,28 @@ export class BouquetSimulatorComponent implements OnDestroy {
     }
   }
 
-  private animateMenuLayout(open: boolean): void {
-    this.cancelMenuLayoutTween();
-
-    const layout = {
-      inset: this.previewInsetLeft(),
+  private animateMenuLayout(): void {
+    const currentInsets = untracked(this.previewInsets);
+    const targetInsets = untracked(this.targetPreviewInsets);
+    const current = {
+      ...currentInsets,
       x: this.viewOffset().x,
       y: this.viewOffset().y,
     };
-    const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-
-    if (reducedMotion) {
-      this.previewInsetLeft.set(this.targetPreviewInset(open));
-      this.viewOffset.set({x: 0, y: 0});
-      return;
-    }
-
-    this.menuLayoutTween = gsap.to(layout, {
-      inset: this.targetPreviewInset(open),
+    const target = {
+      ...targetInsets,
       x: 0,
       y: 0,
-      duration: BouquetSimulatorComponent.MENU_ANIMATION_SECONDS,
-      ease: 'power3.out',
-      onUpdate: () => {
-        this.previewInsetLeft.set(layout.inset);
-        this.viewOffset.set({x: layout.x, y: layout.y});
-      },
-      onComplete: () => {
-        this.menuLayoutTween = null;
-        this.previewInsetLeft.set(this.targetPreviewInset(open));
-        this.viewOffset.set({x: 0, y: 0});
-      },
-    });
-  }
-
-  private cancelMenuLayoutTween(): void {
-    this.menuLayoutTween?.kill();
-    this.menuLayoutTween = null;
-  }
-
-  private targetPreviewInset(open: boolean): number {
-    if (this.viewportWidth() < 640) return 0;
-    return Math.min(open ? 424 : 64, this.viewportWidth());
+    };
+    this.previewLayoutAnimator.animate(current, target, (frame) => {
+      this.previewInsets.set({
+        left: frame.left,
+        right: frame.right,
+        top: frame.top,
+        bottom: frame.bottom,
+      });
+      this.viewOffset.set({x: frame.x, y: frame.y});
+    }, BouquetSimulatorComponent.MENU_ANIMATION_SECONDS);
   }
 
   private resetTransientView(): void {

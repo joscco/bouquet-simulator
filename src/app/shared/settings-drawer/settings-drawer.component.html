@@ -1,0 +1,36 @@
+<aside
+  class="pointer-events-none absolute inset-0"
+  [attr.aria-busy]="busy()"
+  [attr.inert]="disabled() ? '' : null"
+>
+  <section
+    class="absolute bottom-0 left-0 top-16 z-[45] w-[50vw] max-w-[100vw] overflow-hidden rounded-tr-[18px] border-r border-t border-stone-200/90 bg-white shadow-[18px_0_45px_rgb(28_25_23/14%)] transition-[transform,opacity] duration-[320ms] ease-[ease] will-change-transform motion-reduce:transition-none portrait:inset-x-0 portrait:top-auto portrait:h-[50dvh] portrait:w-full portrait:rounded-t-[18px] portrait:border-r-0 portrait:shadow-[0_-18px_45px_rgb(28_25_23/14%)]"
+    [class]="open()
+      ? 'pointer-events-auto translate-x-0 translate-y-0 opacity-100'
+      : 'pointer-events-none -translate-x-[calc(100%+16px)] opacity-0 portrait:translate-x-0 portrait:translate-y-[calc(100%+16px)]'"
+    [id]="panelId()"
+    [attr.aria-hidden]="!open()"
+    [attr.inert]="open() ? null : ''"
+  >
+    <ng-content />
+  </section>
+
+  <button
+    class="pointer-events-auto absolute top-1/2 z-[70] grid h-[78px] w-[42px] -translate-y-1/2 cursor-pointer place-items-center rounded-r-[18px] border border-l-0 border-stone-200/90 bg-white text-emerald-900 shadow-[8px_5px_22px_rgb(28_25_23/14%)] transition-[left,color] duration-[320ms] ease-[ease] before:pointer-events-none before:absolute before:-inset-y-px before:-left-1 before:w-[5px] before:bg-white before:content-[''] hover:text-emerald-950 motion-reduce:transition-none portrait:top-auto portrait:h-[42px] portrait:w-[78px] portrait:-translate-x-1/2 portrait:translate-y-0 portrait:rounded-b-none portrait:rounded-t-[18px] portrait:border-b-0 portrait:border-l portrait:shadow-[5px_-8px_22px_rgb(28_25_23/14%)] portrait:transition-[bottom,color] portrait:before:-inset-x-px portrait:before:inset-y-auto portrait:before:-bottom-1 portrait:before:h-[5px] portrait:before:w-auto"
+    [class]="open()
+      ? 'left-[50vw] portrait:bottom-[50dvh] portrait:left-1/2'
+      : 'left-0 portrait:bottom-0 portrait:left-1/2'"
+    type="button"
+    [attr.aria-label]="toggleLabel()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="panelId()"
+    (click)="toggle.emit()"
+  >
+    <svg class="size-[22px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round] transition-transform duration-[320ms] motion-reduce:transition-none portrait:hidden" [class.rotate-180]="open()" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m9 5 7 7-7 7"/>
+    </svg>
+    <svg class="hidden size-[22px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round] transition-transform duration-[320ms] motion-reduce:transition-none portrait:block" [class.rotate-180]="open()" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m5 15 7-7 7 7"/>
+    </svg>
+  </button>
+</aside>

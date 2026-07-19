@@ -1,17 +1,15 @@
-import {ChangeDetectionStrategy, Component, computed, input, output, signal} from '@angular/core';
-import {MatIconModule} from '@angular/material/icon';
-import {MatTooltipModule} from '@angular/material/tooltip';
+import {ChangeDetectionStrategy, Component, computed, input, signal} from '@angular/core';
 import {BouquetState, FlowerDefinition} from '../../../../core/models/flower.models';
 import {materializeDefinitionComponents} from '../../../../core/models/flower-components';
 import {BouquetCanvasComponent} from '../../../../shared/bouquet-canvas/bouquet-canvas.component';
 import {Point} from '../../graph/flower-editor-graph';
 import {clamp} from '../../../../core/utils/numbers';
-import {AppButtonComponent} from '../../../../shared/app-button/app-button.component';
 import {TranslocoPipe} from '@jsverse/transloco';
+import {PreviewToolbarComponent} from '../../../../shared/preview-toolbar/preview-toolbar.component';
 
 @Component({
   selector: 'app-flower-editor-preview',
-  imports: [BouquetCanvasComponent, MatIconModule, MatTooltipModule, AppButtonComponent, TranslocoPipe],
+  imports: [BouquetCanvasComponent, PreviewToolbarComponent, TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-preview.component.html',
   host: {'class': 'contents'},
@@ -21,9 +19,7 @@ export class FlowerEditorPreviewComponent {
   readonly catalogDefinitions = input.required<FlowerDefinition[]>();
   readonly highlightedNodeIds = input<ReadonlySet<string>>(new Set<string>());
   readonly highlightedConnection = input<{sourceId: string; index: number} | null>(null);
-  readonly modelExporting = input(false);
-  readonly modelExport = output<number>();
-
+  readonly viewportInsets = input({left: 0, right: 0, top: 0, bottom: 0});
   readonly zoom = signal(1);
   readonly viewOffset = signal<Point>({x: 0, y: 0});
   readonly seed = signal(0.42);

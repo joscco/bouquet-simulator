@@ -66,8 +66,8 @@ export class FlowerEditorTreeComponent {
   readonly positionEditStart = output<void>();
   readonly message = output<FlowerEditorTreeMessage>();
 
-  readonly graphZoom = signal(1);
-  readonly graphCenter = signal<Point>({x: 500, y: 500});
+  readonly graphZoom = signal(this.initialGraphZoom());
+  readonly graphCenter = signal<Point | null>(null);
   readonly connectionDrag = signal<{
     sourceId: string;
     start: Point;
@@ -78,7 +78,7 @@ export class FlowerEditorTreeComponent {
   readonly graphViewBox = computed(() => {
     const width = 1000 / this.graphZoom();
     const height = 1000 / this.graphZoom();
-    const center = this.graphCenter();
+    const center = this.currentGraphCenter();
     return `${center.x - width / 2} ${center.y - height / 2} ${width} ${height}`;
   });
   readonly pendingConnectionPath = computed(() => {
@@ -102,7 +102,7 @@ export class FlowerEditorTreeComponent {
 
   resetView(positions: Record<string, Point>): void {
     this.graphCenter.set(centerOfGraphPositions(positions));
-    this.graphZoom.set(1);
+    this.graphZoom.set(this.initialGraphZoom());
   }
 
   isSubtreeNodeSelected(id: string): boolean {
@@ -149,7 +149,7 @@ export class FlowerEditorTreeComponent {
     this.graphPan = {
       pointerId: event.pointerId,
       client: {x: event.clientX, y: event.clientY},
-      center: this.graphCenter(),
+      center: this.currentGraphCenter(),
     };
     (event.currentTarget as SVGSVGElement).setPointerCapture(event.pointerId);
   }
@@ -157,7 +157,7 @@ export class FlowerEditorTreeComponent {
   graphWheel(event: WheelEvent): void {
     event.preventDefault();
     const currentZoom = this.graphZoom();
-    const currentCenter = this.graphCenter();
+    const currentCenter = this.currentGraphCenter();
     const point = this.graphClientPoint(event);
     const currentSize = 1000 / currentZoom;
     const relative = {
@@ -369,6 +369,18 @@ export class FlowerEditorTreeComponent {
 
   private setGraphZoom(zoom: number): void {
     this.graphZoom.set(clamp(zoom, 0.2, 1.8));
+  }
+
+  private currentGraphCenter(): Point {
+    return this.graphCenter() ?? centerOfGraphPositions(this.positions());
+  }
+
+  private initialGraphZoom(): number {
+    if (typeof window === 'undefined' || window.innerWidth >= 1100) return 1;
+    if (window.matchMedia?.('(orientation: portrait)').matches) {
+      return window.innerWidth >= 700 ? 0.75 : 0.9;
+    }
+    return 1;
   }
 
 }

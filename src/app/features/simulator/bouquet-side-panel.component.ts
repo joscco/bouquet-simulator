@@ -34,8 +34,9 @@ import {
   BouquetFlowerListItemComponent,
 } from './components/bouquet-flower-list-item/bouquet-flower-list-item.component';
 import {VaseIconComponent} from './components/vase-icon/vase-icon.component';
+import {SettingsDrawerComponent} from '../../shared/settings-drawer/settings-drawer.component';
 
-type QuickAction = 'shuffle' | 'viewReset' | 'bouquetReset';
+type QuickAction = 'bouquetReset';
 type DisclosureSection = 'vase' | 'scene' | 'files';
 
 @Component({
@@ -48,6 +49,7 @@ type DisclosureSection = 'vase' | 'scene' | 'files';
     AppButtonComponent,
     BouquetFlowerListItemComponent,
     VaseIconComponent,
+    SettingsDrawerComponent,
     TranslocoPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,8 +66,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
     tooltipKey: string;
     danger?: boolean;
   }> = [
-    {action: 'shuffle', icon: 'shuffle', labelKey: 'bouquet.shuffle', tooltipKey: 'bouquet.shuffleHint'},
-    {action: 'viewReset', icon: 'center_focus_strong', labelKey: 'bouquet.view', tooltipKey: 'bouquet.viewHint'},
     {
       action: 'bouquetReset',
       icon: 'delete_sweep',
@@ -102,8 +102,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
     this.resetConfirmationBouquetId() === this.activeBouquetId());
 
   readonly pickerOpen = output<void>();
-  readonly shuffle = output<void>();
-  readonly viewReset = output<void>();
   readonly bouquetReset = output<void>();
   readonly selectionChange = output<string>();
   readonly lengthChange = output<{instanceId: string; lengthPercent: number}>();
@@ -148,12 +146,6 @@ export class BouquetSidePanelComponent implements OnDestroy {
 
   emitQuickAction(action: QuickAction): void {
     switch (action) {
-      case 'shuffle':
-        this.shuffle.emit();
-        return;
-      case 'viewReset':
-        this.viewReset.emit();
-        return;
       case 'bouquetReset':
         if (this.resetConfirmationBouquetId() !== this.activeBouquetId()) {
           if (this.resetConfirmationTimer !== null) clearTimeout(this.resetConfirmationTimer);

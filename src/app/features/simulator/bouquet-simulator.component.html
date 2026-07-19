@@ -28,8 +28,11 @@
     (selectionChange)="selectedId.set($event)"
   />
 
-  @if (!menuOpen() || viewportWidth() >= 640) {
-  }
+  <app-preview-toolbar
+    [disabled]="videoExporting()"
+    (centerView)="resetView()"
+    (regeneratePreview)="shuffleBouquet()"
+  />
 
   <app-bouquet-side-panel
     [menuOpen]="menuOpen()"
@@ -53,8 +56,6 @@
     [sceneEffects]="sceneEffects()"
     [videoFormat]="videoFormat()"
     (pickerOpen)="pickerOpen.set(true)"
-    (shuffle)="shuffleBouquet()"
-    (viewReset)="resetView()"
     (bouquetReset)="resetBouquet()"
     (selectionChange)="selectedId.set($event)"
     (lengthChange)="setFlowerLength($event.instanceId, $event.lengthPercent)"

@@ -1,9 +1,25 @@
-<section class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text">
-  <div class="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto min-[1100px]:grid min-[1100px]:grid-cols-[360px_minmax(400px,1fr)_340px] min-[1100px]:overflow-hidden">
+<section
+  class="relative flex h-dvh min-h-0 w-full max-w-full select-none flex-col overflow-hidden bg-stone-100 [&_input]:select-text [&_textarea]:select-text"
+  [style.--editor-panel-extent]="editorPanelExtent() + 'px'"
+>
+  <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden [--editor-graph-height:min(38vh,400px)] portrait:[--editor-graph-height:min(22dvh,360px)]">
     <main
-      class="relative order-2 h-[min(360px,46dvh)] min-h-[280px] shrink-0 overflow-hidden bg-[#f7f6f2] min-[1100px]:col-start-2 min-[1100px]:row-start-1 min-[1100px]:h-full min-[1100px]:min-h-0"
+      class="absolute left-0 top-[120px] z-50 h-[var(--editor-graph-height)] w-[var(--editor-panel-extent)] max-w-[100vw] origin-top overflow-hidden border-b border-r border-stone-200/90 bg-[#f7f6f2] shadow-[0_14px_32px_rgb(28_25_23/10%)] transition-[transform,opacity] duration-[280ms] ease-[ease] will-change-transform motion-reduce:transition-none portrait:inset-x-0 portrait:bottom-[calc(var(--editor-panel-extent)-56px-var(--editor-graph-height))] portrait:top-auto portrait:w-full portrait:max-w-full portrait:border-r-0"
+      [class]="editorPanelOpen() && graphSectionExpanded()
+        ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+        : 'pointer-events-none -translate-y-3 scale-[0.985] opacity-0'"
+      id="flower-editor-graph-drawer"
+      [attr.aria-hidden]="!editorPanelOpen() || !graphSectionExpanded()"
+      [attr.inert]="!editorPanelOpen() || !graphSectionExpanded() ? '' : null"
     >
-      <div class="absolute left-4 top-4 z-20 flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90! p-1 shadow-lg backdrop-blur">
+      <header class="absolute inset-x-0 top-0 z-[35] flex h-12 items-center gap-3 border-b border-stone-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-xl">
+        <div class="min-w-0 flex-1">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.graph' | transloco }}</div>
+          <div class="truncate text-xs font-bold text-stone-800">{{ draft().name }}</div>
+        </div>
+        <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleGraphSection()"><mat-icon>expand_less</mat-icon></button>
+      </header>
+      <div class="absolute left-4 top-[58px] z-20 flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90! p-1 shadow-lg backdrop-blur">
         <button app-button variant="icon"
           [matTooltip]="'editor.editSelection' | transloco"
           [attr.aria-label]="'editor.editSelection' | transloco"
@@ -26,7 +42,7 @@
       </div>
 
       @if (addMenuOpen()) {
-        <section class="absolute left-4 top-[4.75rem] z-30 w-[min(380px,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute left-4 top-[110px] z-30 w-[min(380px,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-3 flex items-center justify-between gap-2">
             <div>
               <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
@@ -78,7 +94,7 @@
       }
 
       @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
-        <section class="absolute left-4 top-[4.75rem] z-20 w-[min(390px,calc(100%-2rem))] rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute left-4 top-[110px] z-20 w-[min(390px,calc(100%-2rem))] rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-2 flex items-start gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
@@ -122,7 +138,7 @@
         [subtreeNodeIds]="subtreeNodeIds()"
         (definitionChange)="applyDefinitionChange($event)"
         (positionsChange)="graphPositions.set($event)"
-        (nodeSelection)="selectNode($event.id, $event.additive)"
+        (nodeSelection)="selectNodeFromTree($event)"
         (componentOpen)="openComponentDefinition($event)"
         (positionEditStart)="beginPositionEdit()"
         (message)="showTreeMessage($event)"
@@ -130,68 +146,47 @@
     </main>
 
     <aside class="contents">
-      <div
-        class="sticky top-0 z-[45] order-1 h-[38dvh] min-h-[220px] max-h-[360px] shrink-0 bg-stone-100 p-3 pt-16 min-[1100px]:relative min-[1100px]:z-auto min-[1100px]:col-start-3 min-[1100px]:row-start-1 min-[1100px]:h-full min-[1100px]:min-h-0 min-[1100px]:max-h-none"
-      >
+      <div class="absolute inset-0 z-0 h-full min-w-0 w-full bg-stone-100">
         <app-flower-editor-preview
           [definition]="draft()"
           [catalogDefinitions]="store.definitions()"
           [highlightedNodeIds]="previewHighlightedNodeIds()"
           [highlightedConnection]="selectedIncoming()"
-          [modelExporting]="modelExporting()"
-          (modelExport)="exportFlowerModel($event)"
+          [viewportInsets]="previewInsets()"
         />
       </div>
 
-      <div
-        class="relative order-3 flex h-auto shrink-0 flex-col overflow-visible bg-white pb-20 min-[1100px]:col-start-1 min-[1100px]:row-start-1 min-[1100px]:h-full min-[1100px]:min-h-0 min-[1100px]:overflow-hidden min-[1100px]:pb-0"
+      <app-settings-drawer
+        [open]="editorPanelOpen()"
+        panelId="flower-editor-inspector-sheet"
+        [toggleLabel]="'editor.properties' | transloco"
+        (toggle)="toggleEditorPanel()"
       >
-        <section class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3">
-          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>
-          <div #catalogSearchContainer class="relative">
-            <button
-              class="flex h-10 w-full items-center gap-2 rounded-lg border border-stone-300 bg-stone-50 px-2.5 text-left text-xs font-semibold text-stone-700 transition hover:border-emerald-700 hover:bg-white"
-              type="button"
-              [attr.aria-label]="'editor.search' | transloco"
-              [attr.aria-expanded]="catalogSearchOpen()"
-              (click)="catalogSearch.set(''); catalogSearchOpen.set(true)"
-            >
-              <mat-icon class="text-[18px]! text-emerald-800">search</mat-icon>
-              <span class="min-w-0 flex-1 truncate">{{ 'picker.title' | transloco }}</span>
-            </button>
-            @if (catalogSearchOpen()) {
-              <div class="fixed inset-0 z-[100] flex items-start justify-center bg-stone-950/35 p-3 pt-[max(4rem,10dvh)] backdrop-blur-[2px]" role="presentation" (click)="catalogSearchOpen.set(false)">
-                <section class="w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl" role="dialog" aria-modal="true" [attr.aria-label]="'editor.search' | transloco" (click)="$event.stopPropagation()">
-                  <div class="flex items-center gap-2 border-b border-stone-200 p-3">
-                    <mat-icon class="text-[20px]! text-emerald-800">search</mat-icon>
-                    <input
-                      class="h-10 min-w-0 flex-1 rounded-lg border border-stone-300 bg-stone-50 px-3 text-sm font-medium text-stone-800 outline-none focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
-                      type="search"
-                      autofocus
-                      [attr.aria-label]="'editor.search' | transloco"
-                      [placeholder]="'editor.search' | transloco"
-                      [value]="catalogSearch()"
-                      (input)="catalogSearch.set($any($event.target).value)"
-                      (keydown.escape)="catalogSearchOpen.set(false); $event.stopPropagation()"
-                    >
-                    <button app-button variant="icon" [matTooltip]="'common.close' | transloco" [attr.aria-label]="'common.close' | transloco" (click)="catalogSearchOpen.set(false)"><mat-icon>close</mat-icon></button>
-                  </div>
-                  <div id="flower-catalog-search-results" role="listbox" class="max-h-[min(60dvh,32rem)] overflow-y-auto p-2">
-                    @for (entry of filteredCatalogEntries(); track entry.key) {
-                      <button class="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-xs transition hover:bg-stone-100" type="button" role="option"
-                        [attr.aria-selected]="entry.key === selectedCatalogKey()" (click)="chooseCatalogEntry(entry)">
-                        <mat-icon class="text-[20px]! text-emerald-800">{{ entry.source === 'saved' ? 'account_tree' : entry.availableInBouquet ? 'local_florist' : 'extension' }}</mat-icon>
-                        <span class="min-w-0 flex-1 truncate font-semibold text-stone-700">{{ entry.tree.name }}</span>
-                      </button>
-                    } @empty {
-                      <div class="px-3 py-8 text-center text-[11px] text-stone-400">{{ 'editor.noResult' | transloco }}</div>
-                    }
-                  </div>
-                </section>
-              </div>
-            }
+      <div class="flex h-full flex-col overflow-hidden bg-white">
+        <header class="relative flex min-h-14 shrink-0 items-center gap-2 border-b border-stone-200/80 bg-white px-3 py-2 portrait:px-3 portrait:pb-2 portrait:pt-2.5">
+          <span class="hidden portrait:absolute portrait:left-1/2 portrait:top-[5px] portrait:block portrait:h-1 portrait:w-9 portrait:-translate-x-1/2 portrait:rounded-full portrait:bg-stone-300" aria-hidden="true"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.properties' | transloco }}</div>
+            <div class="truncate text-xs font-bold text-stone-800">{{ selectedNodeName() }}</div>
           </div>
-          <div class="mt-2 flex items-center gap-1">
+          <button app-button variant="icon-text" [tone]="graphSectionExpanded() ? 'primary' : 'neutral'" [attr.aria-expanded]="graphSectionExpanded()" aria-controls="flower-editor-graph-drawer" (click)="toggleGraphSection()">
+            <mat-icon>account_tree</mat-icon>
+            {{ 'editor.graph' | transloco }}
+          </button>
+          <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
+        </header>
+        <section
+          class="relative z-40 shrink-0 border-b border-stone-200 bg-white p-3 transition-[margin] duration-[320ms] ease-[ease] motion-reduce:transition-none"
+          [class]="graphSectionExpanded() ? 'mt-[var(--editor-graph-height)]' : 'mt-0'"
+        >
+          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.sidebarTitle' | transloco }}</div>
+          <div class="flex items-center gap-1">
+            <button app-button variant="icon" [matTooltip]="'editor.search' | transloco" [attr.aria-label]="'editor.search' | transloco" (click)="catalogSearch.set(''); catalogSearchOpen.set(true)">
+              <svg class="size-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.75" cy="10.75" r="6.25"/>
+                <path d="m15.4 15.4 4.1 4.1" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button app-button variant="icon" [matTooltip]="'editor.new' | transloco" [attr.aria-label]="'editor.new' | transloco" (click)="createNewDefinition()"><mat-icon>add</mat-icon></button>
             <button app-button variant="icon" [matTooltip]="'editor.duplicate' | transloco" [attr.aria-label]="'editor.duplicate' | transloco" (click)="duplicateDefinition()"><mat-icon>content_copy</mat-icon></button>
             @if (selectedCatalogEntry()) {
@@ -201,6 +196,9 @@
             <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
             <button app-button variant="icon" [matTooltip]="'editor.load' | transloco" [attr.aria-label]="'editor.load' | transloco" (click)="definitionFile.click()"><mat-icon>upload_file</mat-icon></button>
             <button app-button variant="icon" [matTooltip]="'editor.export' | transloco" [attr.aria-label]="'editor.export' | transloco" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.exportModel' | transloco" [attr.aria-label]="'editor.exportModel' | transloco" [disabled]="modelExporting()" (click)="exportCurrentFlowerModel()">
+              <mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon>
+            </button>
             <span class="flex-1"></span>
             @if (isDevelopment) {
               <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
@@ -213,7 +211,7 @@
             </button>
           </div>
         </section>
-        <div class="min-h-0 flex-none overflow-visible min-[1100px]:flex-1 min-[1100px]:overflow-y-auto">
+        <div class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
           <app-flower-editor-inspector
             [definition]="draft()"
             [positions]="graphPositions()"
@@ -226,8 +224,41 @@
           />
         </div>
       </div>
+      </app-settings-drawer>
     </aside>
   </div>
+
+  @if (catalogSearchOpen()) {
+    <div #catalogSearchContainer class="fixed inset-0 z-[110] flex items-start justify-center bg-stone-950/35 p-3 pt-[max(4.75rem,10dvh)] backdrop-blur-[2px]" role="presentation" (click)="catalogSearchOpen.set(false)">
+      <section class="w-full max-w-md overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl" role="dialog" aria-modal="true" [attr.aria-label]="'editor.search' | transloco" (click)="$event.stopPropagation()">
+        <div class="flex items-center gap-2 border-b border-stone-200 p-3">
+          <mat-icon class="text-[20px]! text-emerald-800">search</mat-icon>
+          <input
+            class="h-10 min-w-0 flex-1 rounded-lg border border-stone-300 bg-stone-50 px-3 text-sm font-medium text-stone-800 outline-none focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+            type="search"
+            autofocus
+            [attr.aria-label]="'editor.search' | transloco"
+            [placeholder]="'editor.search' | transloco"
+            [value]="catalogSearch()"
+            (input)="catalogSearch.set($any($event.target).value)"
+            (keydown.escape)="catalogSearchOpen.set(false); $event.stopPropagation()"
+          >
+          <button app-button variant="icon" [matTooltip]="'common.close' | transloco" [attr.aria-label]="'common.close' | transloco" (click)="catalogSearchOpen.set(false)"><mat-icon>close</mat-icon></button>
+        </div>
+        <div id="flower-catalog-search-results" role="listbox" class="max-h-[min(60dvh,32rem)] overflow-y-auto p-2">
+          @for (entry of filteredCatalogEntries(); track entry.key) {
+            <button class="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-xs transition hover:bg-stone-100" type="button" role="option"
+              [attr.aria-selected]="entry.key === selectedCatalogKey()" (click)="chooseCatalogEntry(entry)">
+              <mat-icon class="text-[20px]! text-emerald-800">{{ entry.source === 'saved' ? 'account_tree' : entry.availableInBouquet ? 'local_florist' : 'extension' }}</mat-icon>
+              <span class="min-w-0 flex-1 truncate font-semibold text-stone-700">{{ entry.tree.name }}</span>
+            </button>
+          } @empty {
+            <div class="px-3 py-8 text-center text-[11px] text-stone-400">{{ 'editor.noResult' | transloco }}</div>
+          }
+        </div>
+      </section>
+    </div>
+  }
 
   @if (pendingTransition()) {
     <div class="fixed inset-0 z-[140] flex items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]" role="presentation" (click)="cancelPendingTransition()">

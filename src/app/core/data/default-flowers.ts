@@ -705,14 +705,14 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "connections": [],
         "component": {
           "schemaVersion": 1,
-          "id": "margeritenbluete-2",
+          "id": "daisy-blossom",
           "name": "Margeritenblüte",
           "rootNodeId": "flower-head",
           "outputNodeIds": [
             "petal"
           ],
           "createdAt": "catalog",
-          "sourceDefinitionId": "margeritenbluete-2",
+          "sourceDefinitionId": "daisy-blossom",
           "nodes": [
             {
               "id": "flower-head",
@@ -1837,7 +1837,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
   },
   {
     "schemaVersion": 2,
-    "id": "margeritenbluete-2",
+    "id": "daisy-blossom",
     "name": "Margeritenblüte",
     "catalogRole": "component",
     "rootNodeId": "flower-head",
@@ -2042,7 +2042,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "node-4",
-        "name": "Knoten 4",
+        "name": "Bubbles",
         "draggable": false,
         "graphic": {
           "primitive": "sphere",

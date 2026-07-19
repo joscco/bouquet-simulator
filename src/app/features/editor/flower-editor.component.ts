@@ -3,11 +3,14 @@ import {
   Component,
   ElementRef,
   HostListener,
+  OnDestroy,
   ViewChild,
   computed,
+  effect,
   inject,
   isDevMode,
   signal,
+  untracked,
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {MatIconModule} from '@angular/material/icon';
@@ -79,6 +82,11 @@ import {
   flowerModelState,
   glbFilename,
 } from '../../shared/bouquet-canvas/exporting/bouquet-model-exporter';
+import {
+  PreviewLayoutAnimator,
+  PreviewLayoutFrame,
+} from '../../shared/bouquet-canvas/preview-layout-animator';
+import {SettingsDrawerComponent} from '../../shared/settings-drawer/settings-drawer.component';
 
 type EditorTransition =
   | {type: 'catalog'; key: string}
@@ -96,6 +104,14 @@ interface EditorHistorySnapshot {
 const MAX_UNDO_STEPS = 30;
 const HISTORY_GROUP_WINDOW_MS = 350;
 
+function previewLayoutFrame(insets: {left: number; right: number; top: number; bottom: number}): PreviewLayoutFrame {
+  return {...insets, x: 0, y: 0};
+}
+
+function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right: number; top: number; bottom: number} {
+  return {left: frame.left, right: frame.right, top: frame.top, bottom: frame.bottom};
+}
+
 @Component({
   selector: 'app-flower-editor',
   imports: [
@@ -108,13 +124,14 @@ const HISTORY_GROUP_WINDOW_MS = 350;
     FlowerEditorTreeComponent,
     FlowerEditorPreviewComponent,
     FlowerEditorInspectorComponent,
+    SettingsDrawerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor.component.html',
   host: {'class': 'block w-full max-w-[100vw] overflow-x-hidden'},
   providers: [EditorNotifications, FlowerEditorPersistence],
 })
-export class FlowerEditorComponent {
+export class FlowerEditorComponent implements OnDestroy {
   readonly catalogEntryType = catalogEntryType;
   readonly store = inject(BouquetStore);
   private readonly notifications = inject(EditorNotifications);
@@ -129,6 +146,30 @@ export class FlowerEditorComponent {
   readonly selectedCatalogKey = signal(`definition:${this.draft().id}`);
   private readonly persistedDefinitionId = signal(this.draft().id);
   readonly pendingTransition = signal<EditorTransition | null>(null);
+  readonly editorPanelOpen = signal(false);
+  readonly graphSectionExpanded = signal(false);
+  readonly viewportSize = signal({
+    width: typeof window === 'undefined' ? 1280 : window.innerWidth,
+    height: typeof window === 'undefined' ? 720 : window.innerHeight,
+  });
+  readonly portraitLayout = computed(() => {
+    const viewport = this.viewportSize();
+    return viewport.height >= viewport.width;
+  });
+  readonly editorPanelExtent = computed(() => {
+    const viewport = this.viewportSize();
+    return this.portraitLayout()
+      ? viewport.height * 0.5
+      : viewport.width * 0.5;
+  });
+  readonly targetPreviewInsets = computed(() => {
+    if (!this.editorPanelOpen()) return {left: 0, right: 0, top: 0, bottom: 0};
+    return this.portraitLayout()
+      ? {left: 0, right: 0, top: 0, bottom: this.editorPanelExtent()}
+      : {left: this.editorPanelExtent(), right: 0, top: 0, bottom: 0};
+  });
+  readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
+  private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
   readonly catalogSearch = signal(this.draft().name);
   readonly catalogSearchOpen = signal(false);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
@@ -181,6 +222,9 @@ export class FlowerEditorComponent {
   });
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.draft(), this.selectedNodeId()));
+  readonly selectedNodeName = computed(() =>
+    this.draft().nodes.find((node) => node.id === this.selectedNodeId())?.name
+      ?? this.transloco.translate('editor.properties'));
   readonly materializedDraft = computed(() => materializeDefinitionComponents([
     this.draft(),
     ...this.store.definitions().filter((definition) => definition.id !== this.draft().id),
@@ -192,7 +236,17 @@ export class FlowerEditorComponent {
 
   @ViewChild('graphTree') private graphTree?: FlowerEditorTreeComponent;
   @ViewChild('catalogSearchContainer') private catalogSearchContainer?: ElementRef<HTMLElement>;
+  @ViewChild(FlowerEditorPreviewComponent) private flowerPreview?: FlowerEditorPreviewComponent;
   constructor() {
+    effect(() => {
+      const target = this.targetPreviewInsets();
+      const current = untracked(this.previewInsets);
+      this.previewLayoutAnimator.animate(
+        previewLayoutFrame(current),
+        previewLayoutFrame(target),
+        (frame) => this.previewInsets.set(previewInsetsFromFrame(frame)),
+      );
+    });
     const requestedCatalogKey = this.urlState.readCatalogKey();
     if (requestedCatalogKey && this.catalogEntries().some((entry) => entry.key === requestedCatalogKey)) {
       this.openCatalogEntry(requestedCatalogKey);
@@ -209,6 +263,18 @@ export class FlowerEditorComponent {
     if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== 'z') return;
     event.preventDefault();
     this.undo();
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  closePortraitOverlayOnEscape(event: Event): void {
+    if (!this.editorPanelOpen()) return;
+    event.preventDefault();
+    this.closePortraitOverlays();
+  }
+
+  @HostListener('window:resize')
+  updateViewportSize(): void {
+    this.viewportSize.set({width: window.innerWidth, height: window.innerHeight});
   }
 
   @HostListener('document:pointerdown', ['$event'])
@@ -502,6 +568,27 @@ export class FlowerEditorComponent {
     this.recordUndo('positions', true);
   }
 
+  toggleEditorPanel(): void {
+    this.editorPanelOpen.update((open) => !open);
+  }
+
+  toggleGraphSection(): void {
+    this.graphSectionExpanded.update((expanded) => !expanded);
+  }
+
+  closePortraitOverlays(): void {
+    this.editorPanelOpen.set(false);
+  }
+
+  selectNodeFromTree(event: {id: string; additive: boolean}): void {
+    this.selectNode(event.id, event.additive);
+    if (!event.additive) this.editorPanelOpen.set(true);
+  }
+
+  ngOnDestroy(): void {
+    this.previewLayoutAnimator.cancel();
+  }
+
   undo(): void {
     let snapshot = this.undoHistory.pop();
     while (snapshot && snapshot.signature === this.currentStateSignature()) {
@@ -631,6 +718,10 @@ export class FlowerEditorComponent {
     }
   }
 
+  exportCurrentFlowerModel(): void {
+    void this.exportFlowerModel(this.flowerPreview?.seed() ?? 0.42);
+  }
+
   async importFlower(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -700,6 +791,7 @@ export class FlowerEditorComponent {
     this.catalogSearchOpen.set(false);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
+    this.graphTree?.resetView(positions);
     this.subtreeAnchorIds.set(new Set());
     this.selectNode(clone.rootNodeId || clone.nodes[0]?.id || '');
     this.resetUndoHistory();
