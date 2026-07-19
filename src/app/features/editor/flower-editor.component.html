@@ -5,17 +5,10 @@
   <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden">
     <ng-template #graphContent>
     <div
-      class="relative mb-3 h-[clamp(320px,48dvh,540px)] min-h-0 w-full overflow-hidden rounded-xl border border-stone-200 bg-[#f7f6f2] shadow-inner"
+      class="relative h-[clamp(320px,48dvh,540px)] min-h-0 w-full overflow-hidden rounded-xl border border-stone-200 bg-[#f7f6f2] shadow-inner portrait:h-[clamp(230px,30dvh,360px)]"
       id="flower-editor-graph-drawer"
     >
-      <header class="absolute inset-x-0 top-0 z-[35] flex h-12 items-center gap-3 border-b border-stone-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-xl">
-        <div class="min-w-0 flex-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.graph' | transloco }}</div>
-          <div class="truncate text-xs font-bold text-stone-800">{{ draft().name }}</div>
-        </div>
-        <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleGraphSection()"><mat-icon>expand_less</mat-icon></button>
-      </header>
-      <div class="absolute left-4 top-[58px] z-20 flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90! p-1 shadow-lg backdrop-blur">
+      <div class="absolute left-2 top-2 z-30 flex flex-col items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90! p-1 shadow-lg backdrop-blur">
         <button app-button variant="icon"
           [matTooltip]="'editor.editSelection' | transloco"
           [attr.aria-label]="'editor.editSelection' | transloco"
@@ -26,19 +19,19 @@
         </button>
         <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
         <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
-        <span class="mx-1 h-6 w-px bg-stone-200"></span>
+        <span class="my-1 h-px w-6 bg-stone-200"></span>
         <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
         <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
-
-        @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
-          <span class="ml-1 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
-            {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
-          </span>
-        }
       </div>
 
+      @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
+        <span class="absolute right-2 top-2 z-20 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800 shadow-sm">
+          {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
+        </span>
+      }
+
       @if (addMenuOpen()) {
-        <section class="absolute left-4 top-[110px] z-30 w-[min(380px,calc(100%-2rem))] rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute left-[58px] top-2 z-40 w-[min(380px,calc(100%-4.125rem))] rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-3 flex items-center justify-between gap-2">
             <div>
               <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
@@ -90,7 +83,7 @@
       }
 
       @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
-        <section class="absolute left-4 top-[110px] z-20 w-[min(390px,calc(100%-2rem))] rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute left-[58px] top-2 z-40 w-[min(390px,calc(100%-4.125rem))] rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-2 flex items-start gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
@@ -264,13 +257,15 @@
               [expanded]="nodeSectionExpanded()"
               (expandedChange)="setNodeSectionExpanded($event)"
             >
-              <button app-button variant="icon-text" class="mb-2 w-full" [tone]="graphSectionExpanded() ? 'primary' : 'neutral'" [attr.aria-expanded]="graphSectionExpanded()" aria-controls="flower-editor-graph-drawer" (click)="toggleGraphSection()">
-                <mat-icon>account_tree</mat-icon>
-                {{ 'editor.graph' | transloco }}
-              </button>
-              @if (graphSectionExpanded()) {
-                <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
-              }
+              <div class="sticky top-0 z-[45] -mx-2.5 bg-white px-2.5 pb-2 shadow-[0_10px_18px_-18px_rgb(28_25_23/55%)]">
+                <button app-button variant="icon-text" class="mb-2 w-full" [tone]="graphSectionExpanded() ? 'primary' : 'neutral'" [attr.aria-expanded]="graphSectionExpanded()" aria-controls="flower-editor-graph-drawer" (click)="toggleGraphSection()">
+                  <mat-icon>account_tree</mat-icon>
+                  {{ 'editor.graph' | transloco }}
+                </button>
+                @if (graphSectionExpanded()) {
+                  <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
+                }
+              </div>
               <app-flower-editor-inspector
                 class="-mx-2.5 -mb-3"
                 [definition]="draft()"

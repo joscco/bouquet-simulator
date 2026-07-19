@@ -33,7 +33,11 @@
     [attr.aria-hidden]="!expanded()"
     [attr.inert]="expanded() ? null : ''"
   >
-    <div class="min-h-0 overflow-hidden">
+    <div
+      class="min-h-0"
+      [class.overflow-hidden]="!expanded()"
+      [class.overflow-visible]="expanded()"
+    >
       <div class="border-t border-stone-200 px-2.5 py-3">
         <ng-content />
       </div>
