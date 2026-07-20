@@ -202,6 +202,22 @@ describe('procedural flower tree generator', () => {
     expect(movedLeaf.y - baseLeaf.y).toBeCloseTo(-15);
   });
 
+  it('applies the configured local origin offset to a node and its descendants', () => {
+    const baseDefinition = branchDefinition();
+    const shiftedDefinition = branchDefinition();
+    shiftedDefinition.nodes[0]!.connections[0]!.originOffset = {x: 0, y: 7, z: 0};
+
+    const baseTree = generateFlowerTree(baseDefinition, 0.31);
+    const shiftedTree = generateFlowerTree(shiftedDefinition, 0.31);
+    const baseBranch = baseTree.nodes.find((node) => node.templateId === 'branch')!;
+    const shiftedBranch = shiftedTree.nodes.find((node) => node.templateId === 'branch')!;
+    const baseLeaf = baseTree.nodes.find((node) => node.templateId === 'leaf')!;
+    const shiftedLeaf = shiftedTree.nodes.find((node) => node.templateId === 'leaf')!;
+
+    expect(shiftedBranch.y - baseBranch.y).toBeCloseTo(-7);
+    expect(shiftedLeaf.y - baseLeaf.y).toBeCloseTo(-7);
+  });
+
   it('is deterministic for a given definition and seed', () => {
     const definition = radialDefinition({randomness: 0.8});
     expect(generateFlowerTree(definition, 0.31))

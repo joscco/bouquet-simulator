@@ -8,14 +8,13 @@ import {
   output,
   signal,
 } from '@angular/core';
-import {MatIconModule} from '@angular/material/icon';
 import {FlowerDefinition} from '../../../../core/models/flower.models';
 import {
   connectionFromIncoming,
+  effectiveConnection,
   incomingConnectionReference,
   nodeIncomingOrDefault,
 } from '../../../../core/models/flower-connections';
-import {validateFlowerDefinition} from '../../../../core/models/flower-validation';
 import {clamp} from '../../../../core/utils/numbers';
 import {
   Point,
@@ -46,12 +45,15 @@ interface CompactGraphEdge {
   key: string;
   sourceId: string;
   targetId: string;
+  start: Point;
+  end: Point;
   path: string;
 }
 
 interface CompactLoopRegion {
   id: string;
   name: string;
+  compactName: string;
   label: string;
   x: number;
   y: number;
@@ -60,22 +62,10 @@ interface CompactLoopRegion {
   root: boolean;
   inputPoint: Point;
   outputPoints: Array<Point & {label: string; name: string}>;
-  tooltipWidth: number;
 }
 
-interface CompactNodeGesture {
-  pointerId: number;
-  nodeId: string;
-  startClient: Point;
-  startGraph: Point;
-  loopStartId?: string;
-  connecting: boolean;
-}
-
-function compactPortOffsets(count: number): number[] {
-  const spacing = count > 4 ? 10 : 14;
-  return Array.from({length: count}, (_, index) => (index - (count - 1) / 2) * spacing);
-}
+const COMPACT_NODE_WIDTH = 112;
+const COMPACT_NODE_HEIGHT = 52;
 
 function distributedPortOffsets(count: number, availableSpan: number): number[] {
   if (count <= 1) return [0];
@@ -102,7 +92,7 @@ function compactConnectionPath(
 
 @Component({
   selector: 'app-flower-editor-tree',
-  imports: [MatIconModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-tree.component.html',
   host: {'class': 'relative block h-full min-h-0 w-full'},
@@ -126,13 +116,14 @@ export class FlowerEditorTreeComponent {
 
   readonly graphZoom = signal(1);
   readonly graphCenter = signal<Point>({x: 150, y: 95});
+  readonly graphCameraTouched = signal(false);
+  readonly graphCameraDefinitionId = signal<string | null>(null);
   readonly connectionDrag = signal<{
     sourceId: string;
     start: Point;
     end: Point;
     loopStartId?: string;
   } | null>(null);
-  readonly hoveredNodeId = signal<string | null>(null);
   readonly graphLayout = computed(() => createGraphLayout(this.layoutDefinition(), this.positions()));
   readonly compactGraph = computed(() => {
     const definition = this.layoutDefinition();
@@ -153,30 +144,55 @@ export class FlowerEditorTreeComponent {
     const availableHeight = 118;
     const rawSpanX = maximumX - minimumX;
     const rawSpanY = maximumY - minimumY;
-    const scale = Math.max(0.45, Math.min(1,
+    const fittedScale = Math.max(0.82, Math.min(1,
       availableWidth / Math.max(1, rawSpanX),
       availableHeight / Math.max(1, rawSpanY),
     ));
-    const renderedWidth = rawSpanX * scale;
-    const renderedHeight = rawSpanY * scale;
+    // Do not compress the hierarchy axis. Its level gap is what gives the
+    // connection curves enough visible length between the node cards. Only the
+    // perpendicular branch distribution may be condensed to fit the drawer.
+    const scaleX = direction === 'horizontal' ? 1 : fittedScale;
+    const scaleY = direction === 'vertical' ? 1 : fittedScale;
+    const renderedWidth = rawSpanX * scaleX;
+    const renderedHeight = rawSpanY * scaleY;
     const offsetX = (300 - renderedWidth) / 2;
     const offsetY = (190 - renderedHeight) / 2;
     const nodes = sourceNodes.map((node) => {
-      const x = offsetX + (node.x - minimumX) * scale;
-      const y = offsetY + (node.y - minimumY) * scale;
+      const x = offsetX + (node.x - minimumX) * scaleX;
+      const y = offsetY + (node.y - minimumY) * scaleY;
       const outputCount = Math.max(1, node.outputPorts.length);
-      const offsets = compactPortOffsets(outputCount);
+      const compactWidth = COMPACT_NODE_WIDTH;
+      const compactHeight = COMPACT_NODE_HEIGHT;
+      const offsets = distributedPortOffsets(outputCount, compactHeight - 18);
+      const compactLabelLength = node.component ? 9 : 13;
+      const compactLabel = node.name.length > compactLabelLength
+        ? `${node.name.slice(0, compactLabelLength - 1)}…`
+        : node.name;
+      const compactType = node.component
+        ? 'KOMPONENTE'
+        : node.hasGraphic
+          ? '3D-ELEMENT'
+          : node.root
+            ? 'START'
+            : 'KNOTEN';
       return {
         ...node,
         x,
         y,
-        compactInputPoint: direction === 'vertical' ? {x, y: y + 31} : {x: x - 31, y},
+        compactWidth,
+        compactHeight,
+        compactLabel,
+        compactType,
+        compactInputPoint: direction === 'vertical'
+          ? {x, y: y + compactHeight / 2}
+          : {x: x - compactWidth / 2, y},
         compactOutputPoints: offsets.map((offset, index) => ({
-          ...(direction === 'vertical' ? {x: x + offset, y: y - 31} : {x: x + 31, y: y + offset}),
+          ...(direction === 'vertical'
+            ? {x: x + offset, y: y - compactHeight / 2}
+            : {x: x + compactWidth / 2, y: y + offset}),
           label: node.outputPortLabels[index] ?? (outputCount > 1 ? String(index + 1) : ''),
           name: node.outputPortNames[index] ?? '',
         })),
-        compactTooltipWidth: Math.min(132, Math.max(52, 20 + node.name.length * 6.4)),
       };
     });
     const nodesById = new Map(nodes.map((node) => [node.id, node]));
@@ -189,20 +205,18 @@ export class FlowerEditorTreeComponent {
         .map((id) => originalNodesById.get(id))
         .filter((node) => node !== undefined);
       const points = members.length ? members : [originalNodesById.get(loopNode.id) ?? loop];
-      const minimumMemberX = Math.min(...points.map((node) => node.x));
-      const maximumMemberX = Math.max(...points.map((node) => node.x));
-      const minimumMemberY = Math.min(...points.map((node) => node.y));
-      const maximumMemberY = Math.max(...points.map((node) => node.y));
+      const minimumMemberX = Math.min(...points.map((node) => node.x - node.compactWidth / 2));
+      const maximumMemberX = Math.max(...points.map((node) => node.x + node.compactWidth / 2));
+      const minimumMemberY = Math.min(...points.map((node) => node.y - node.compactHeight / 2));
+      const maximumMemberY = Math.max(...points.map((node) => node.y + node.compactHeight / 2));
       const label = loopNode.loop.repeat.min === loopNode.loop.repeat.max
-        ? `↻ ${loopNode.loop.repeat.min}×`
-        : `↻ ${loopNode.loop.repeat.min}–${loopNode.loop.repeat.max}×`;
+        ? `${loopNode.loop.repeat.min}×`
+        : `${loopNode.loop.repeat.min}–${loopNode.loop.repeat.max}×`;
       const badgeWidth = 18 + label.length * 5.2;
-      const width = Math.max(170, maximumMemberX - minimumMemberX + 104, badgeWidth + 48);
-      const height = Math.max(130, maximumMemberY - minimumMemberY + 112);
-      const centerX = (minimumMemberX + maximumMemberX) / 2;
-      const centerY = (minimumMemberY + maximumMemberY) / 2;
-      const x = centerX - width / 2;
-      const y = centerY - height / 2;
+      const width = Math.max(190, maximumMemberX - minimumMemberX + 64, badgeWidth + 48);
+      const height = Math.max(134, maximumMemberY - minimumMemberY + 72);
+      const x = (minimumMemberX + maximumMemberX - width) / 2;
+      const y = minimumMemberY - 42;
       const outputCount = Math.max(1, loop.outputPorts.length);
       const outputOffsets = distributedPortOffsets(
         outputCount,
@@ -223,6 +237,9 @@ export class FlowerEditorTreeComponent {
       return [{
         id: loopNode.id,
         name: loopNode.name,
+        compactName: loopNode.name.length > 18
+          ? `${loopNode.name.slice(0, 17)}…`
+          : loopNode.name,
         label,
         x,
         y,
@@ -231,33 +248,37 @@ export class FlowerEditorTreeComponent {
         root: loop.root,
         inputPoint,
         outputPoints,
-        tooltipWidth: Math.min(132, Math.max(56, 20 + loopNode.name.length * 6.4)),
       }];
     });
-    const edges = layout.edges.flatMap<CompactGraphEdge>((edge) => {
-      if (edge.sourceId === edge.targetId) return [];
-      const source = nodesById.get(edge.sourceId);
-      const target = nodesById.get(edge.targetId);
-      if (!source || !target) return [];
-      const sourcePoint = source.compactOutputPoints[
-        Math.min(Math.max(0, edge.index), source.compactOutputPoints.length - 1)
-      ] ?? {x: source.x, y: source.y};
-      const targetPoint = target.root
-        ? {x: target.x, y: target.y}
-        : target.compactInputPoint;
-      return [{
-        key: edge.key,
-        sourceId: edge.sourceId,
-        targetId: edge.targetId,
-        path: compactConnectionPath(sourcePoint, targetPoint, direction),
-      }];
-    });
+    const edges = definition.nodes.flatMap<CompactGraphEdge>((sourceDefinition) =>
+      sourceDefinition.connections.flatMap((legacyConnection, connectionIndex) => {
+        const targetId = effectiveConnection(definition, legacyConnection).childId;
+        const source = nodesById.get(sourceDefinition.id);
+        const target = nodesById.get(targetId);
+        if (!source || !target || source.id === target.id) return [];
+        const start = source.compactOutputPoints[
+          Math.min(connectionIndex, source.compactOutputPoints.length - 1)
+        ] ?? {x: source.x, y: source.y};
+        const end = target.compactInputPoint;
+        return [{
+          key: `${source.id}-${target.id}-${connectionIndex}`,
+          sourceId: source.id,
+          targetId: target.id,
+          start,
+          end,
+          path: compactConnectionPath(start, end, direction),
+        }];
+      }));
     return {nodes, edges, loops};
   });
   readonly graphViewBox = computed(() => {
-    const width = 300 / this.graphZoom();
-    const height = 190 / this.graphZoom();
-    const center = this.currentGraphCenter();
+    const framed = this.framedCompactCamera();
+    const cameraIsCurrent = this.graphCameraTouched()
+      && this.graphCameraDefinitionId() === this.layoutDefinition().id;
+    const zoom = cameraIsCurrent ? this.graphZoom() : framed.zoom;
+    const center = cameraIsCurrent ? this.graphCenter() : framed.center;
+    const width = 300 / zoom;
+    const height = 190 / zoom;
     return `${center.x - width / 2} ${center.y - height / 2} ${width} ${height}`;
   });
   readonly pendingConnectionPath = computed(() => {
@@ -266,10 +287,6 @@ export class FlowerEditorTreeComponent {
       ? compactConnectionPath(pending.start, pending.end, this.compactLayoutDirection())
       : '';
   });
-  readonly validationIssues = computed(() => validateFlowerDefinition(this.definition(), {allowForest: true}));
-  readonly validationErrorCount = computed(() =>
-    this.validationIssues().filter((issue) => issue.severity === 'error').length);
-
   @ViewChild('graphCanvas', {static: false}) private graphCanvas?: ElementRef<SVGSVGElement>;
   private nodeDrag: {
     pointerId: number;
@@ -280,7 +297,6 @@ export class FlowerEditorTreeComponent {
   private readonly graphTouches = new Map<number, Point>();
   private graphPinchDistance: number | null = null;
   private graphPan: {pointerId: number; client: Point; center: Point} | null = null;
-  private compactNodeGesture: CompactNodeGesture | null = null;
 
   resetView(positions: Record<string, Point>): void {
     void positions;
@@ -293,37 +309,15 @@ export class FlowerEditorTreeComponent {
   }
 
   resetCompactView(): void {
-    const graph = this.compactGraph();
-    if (!graph.nodes.length) {
-      this.graphCenter.set({x: 150, y: 95});
-      this.graphZoom.set(1);
-      return;
-    }
-    const minimumX = Math.min(
-      ...graph.nodes.map((node) => node.x - 42),
-      ...graph.loops.map((loop) => loop.x - 8),
-    );
-    const maximumX = Math.max(
-      ...graph.nodes.map((node) => node.x + 42),
-      ...graph.loops.map((loop) => loop.x + loop.width + 8),
-    );
-    const minimumY = Math.min(
-      ...graph.nodes.map((node) => node.y - 58),
-      ...graph.loops.map((loop) => loop.y - 8),
-    );
-    const maximumY = Math.max(
-      ...graph.nodes.map((node) => node.y + 42),
-      ...graph.loops.map((loop) => loop.y + loop.height + 8),
-    );
-    this.graphCenter.set({x: (minimumX + maximumX) / 2, y: (minimumY + maximumY) / 2});
-    this.graphZoom.set(clamp(Math.min(
-      1,
-      300 / Math.max(1, maximumX - minimumX),
-      190 / Math.max(1, maximumY - minimumY),
-    ), 0.3, 1));
+    const camera = this.framedCompactCamera();
+    this.graphCenter.set(camera.center);
+    this.graphZoom.set(camera.zoom);
+    this.graphCameraDefinitionId.set(this.layoutDefinition().id);
+    this.graphCameraTouched.set(true);
   }
 
   zoomCompactView(factor: number): void {
+    this.initializeGraphCamera();
     this.setGraphZoom(this.graphZoom() * factor);
   }
 
@@ -349,18 +343,6 @@ export class FlowerEditorTreeComponent {
     return active.has(sourceId) && active.has(targetId);
   }
 
-  showCompactNodeTooltip(id: string): boolean {
-    return this.selectedNodeId() === id || this.hoveredNodeId() === id;
-  }
-
-  setCompactNodeHovered(id: string, hovered: boolean): void {
-    if (hovered) {
-      this.hoveredNodeId.set(id);
-      return;
-    }
-    if (this.hoveredNodeId() === id) this.hoveredNodeId.set(null);
-  }
-
   selectConnection(event: PointerEvent, targetId: string): void {
     event.stopPropagation();
     this.selectNode(targetId);
@@ -372,6 +354,7 @@ export class FlowerEditorTreeComponent {
 
   graphPointerDown(event: PointerEvent): void {
     if (event.button !== 0 && event.pointerType !== 'touch') return;
+    this.initializeGraphCamera();
     if (event.pointerType === 'touch') {
       this.graphTouches.set(event.pointerId, {x: event.clientX, y: event.clientY});
       if (this.graphTouches.size === 2) {
@@ -390,6 +373,7 @@ export class FlowerEditorTreeComponent {
 
   graphWheel(event: WheelEvent): void {
     event.preventDefault();
+    this.initializeGraphCamera();
     const currentZoom = this.graphZoom();
     const currentCenter = this.currentGraphCenter();
     const point = this.graphClientPoint(event);
@@ -430,28 +414,10 @@ export class FlowerEditorTreeComponent {
     (event.currentTarget as SVGGElement).setPointerCapture(event.pointerId);
   }
 
-  startCompactNodeInteraction(event: PointerEvent, nodeId: string): void {
+  selectCompactNode(event: PointerEvent, nodeId: string): void {
     if (event.button !== 0 && event.pointerType !== 'touch') return;
     event.stopPropagation();
-    if (event.shiftKey) {
-      this.selectNode(nodeId, true);
-      return;
-    }
-    const node = this.compactGraph().nodes.find((candidate) => candidate.id === nodeId);
-    if (!node) return;
-    this.selectNode(nodeId);
-    const definitionNode = this.definition().nodes.find((candidate) => candidate.id === nodeId);
-    this.compactNodeGesture = {
-      pointerId: event.pointerId,
-      nodeId,
-      startClient: {x: event.clientX, y: event.clientY},
-      startGraph: {x: node.x, y: node.y},
-      loopStartId: definitionNode?.loop && !(definitionNode.loop.memberNodeIds?.length)
-        ? nodeId
-        : undefined,
-      connecting: false,
-    };
-    (event.currentTarget as SVGGElement).setPointerCapture?.(event.pointerId);
+    this.selectNode(nodeId, event.shiftKey);
   }
 
   startCompactPortConnection(event: PointerEvent, nodeId: string, portIndex = 0): void {
@@ -533,27 +499,6 @@ export class FlowerEditorTreeComponent {
       return;
     }
     const point = this.graphPoint(event);
-    const compactGesture = this.compactNodeGesture;
-    if (compactGesture?.pointerId === event.pointerId) {
-      const dragDistance = Math.hypot(
-        event.clientX - compactGesture.startClient.x,
-        event.clientY - compactGesture.startClient.y,
-      );
-      const threshold = event.pointerType === 'touch' ? 8 : 5;
-      if (!compactGesture.connecting && dragDistance >= threshold) {
-        compactGesture.connecting = true;
-        this.connectionDrag.set({
-          sourceId: compactGesture.nodeId,
-          start: compactGesture.startGraph,
-          end: point,
-          loopStartId: compactGesture.loopStartId,
-        });
-      } else if (compactGesture.connecting) {
-        const connection = this.connectionDrag();
-        if (connection) this.connectionDrag.set({...connection, end: point});
-      }
-      return;
-    }
     if (this.nodeDrag?.pointerId === event.pointerId) {
       this.moveDraggedNode(point);
       return;
@@ -567,7 +512,6 @@ export class FlowerEditorTreeComponent {
     if (this.graphTouches.size < 2) this.graphPinchDistance = null;
     if (this.graphPan?.pointerId === event.pointerId) this.graphPan = null;
     if (this.nodeDrag?.pointerId === event.pointerId) this.nodeDrag = null;
-    if (this.compactNodeGesture?.pointerId === event.pointerId) this.compactNodeGesture = null;
     if (!this.connectionDrag()) return;
     if (event.type === 'pointerup') {
       const point = this.graphPoint(event);
@@ -707,11 +651,59 @@ export class FlowerEditorTreeComponent {
   }
 
   private setGraphZoom(zoom: number): void {
+    this.graphCameraTouched.set(true);
     this.graphZoom.set(clamp(zoom, 0.3, 3));
   }
 
   private currentGraphCenter(): Point {
-    return this.graphCenter();
+    return this.graphCameraTouched()
+      && this.graphCameraDefinitionId() === this.layoutDefinition().id
+      ? this.graphCenter()
+      : this.framedCompactCamera().center;
+  }
+
+  private initializeGraphCamera(): void {
+    if (
+      this.graphCameraTouched()
+      && this.graphCameraDefinitionId() === this.layoutDefinition().id
+    ) return;
+    const camera = this.framedCompactCamera();
+    this.graphCenter.set(camera.center);
+    this.graphZoom.set(camera.zoom);
+    this.graphCameraDefinitionId.set(this.layoutDefinition().id);
+    this.graphCameraTouched.set(true);
+  }
+
+  private framedCompactCamera(): {center: Point; zoom: number} {
+    const graph = this.compactGraph();
+    const visibleNodes = graph.nodes.filter((node) => !node.loop);
+    if (!visibleNodes.length && !graph.loops.length) {
+      return {center: {x: 150, y: 95}, zoom: 1};
+    }
+    const minimumX = Math.min(
+      ...visibleNodes.map((node) => node.x - node.compactWidth / 2 - 18),
+      ...graph.loops.map((loop) => loop.x - 8),
+    );
+    const maximumX = Math.max(
+      ...visibleNodes.map((node) => node.x + node.compactWidth / 2 + 18),
+      ...graph.loops.map((loop) => loop.x + loop.width + 8),
+    );
+    const minimumY = Math.min(
+      ...visibleNodes.map((node) => node.y - node.compactHeight / 2 - 46),
+      ...graph.loops.map((loop) => loop.y - 8),
+    );
+    const maximumY = Math.max(
+      ...visibleNodes.map((node) => node.y + node.compactHeight / 2 + 18),
+      ...graph.loops.map((loop) => loop.y + loop.height + 8),
+    );
+    return {
+      center: {x: (minimumX + maximumX) / 2, y: (minimumY + maximumY) / 2},
+      zoom: clamp(Math.min(
+        1,
+        300 / Math.max(1, maximumX - minimumX),
+        190 / Math.max(1, maximumY - minimumY),
+      ), 0.3, 1),
+    };
   }
 
 }

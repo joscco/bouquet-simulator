@@ -139,6 +139,7 @@ export function normalizeIncomingConnection(
   const normalized: FlowerNodeIncomingConnection = {
     repeat: structuredClone(clone.repeat ?? DEFAULT_INCOMING_CONNECTION.repeat),
     length: structuredClone(clone.length ?? DEFAULT_INCOMING_CONNECTION.length),
+    originOffset: clone.originOffset ? normalizedOriginOffset(clone.originOffset) : undefined,
     direction,
     spread: {
       deviation: normalizedDeviation(spread?.deviation ?? legacyDeviation),
@@ -151,6 +152,16 @@ export function normalizeIncomingConnection(
     stem: clone.stem ? structuredClone(clone.stem) : undefined,
   };
   return normalized;
+}
+
+function normalizedOriginOffset(
+  offset: FlowerNodeIncomingConnection['originOffset'],
+): NonNullable<FlowerNodeIncomingConnection['originOffset']> {
+  return {
+    x: finiteOr(offset?.x, 0),
+    y: finiteOr(offset?.y, 0),
+    z: finiteOr(offset?.z, 0),
+  };
 }
 
 export function resolvedStemWidths(

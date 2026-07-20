@@ -15,6 +15,7 @@ describe('node-owned incoming connections', () => {
   it('uses an even full revolution as the default spread', () => {
     expect(DEFAULT_INCOMING_CONNECTION.spread?.randomness).toBe(0);
     expect(DEFAULT_INCOMING_CONNECTION.spread?.revolution).toEqual({min: -180, max: 180});
+    expect(DEFAULT_INCOMING_CONNECTION.originOffset).toBeUndefined();
     expect(DEFAULT_INCOMING_CONNECTION.stem).toMatchObject({
       color: expect.any(String),
       width: expect.any(Number),
@@ -148,6 +149,20 @@ describe('node-owned incoming connections', () => {
     expect(normalized.direction?.y).toBe(25);
     expect(normalized.direction?.z).toBeCloseTo(-90);
     expect(normalized.direction?.inclination).toBeUndefined();
+  });
+
+  it('normalizes a missing or partial node-origin offset', () => {
+    const withoutOffset = normalizeIncomingConnection({
+      ...structuredClone(DEFAULT_INCOMING_CONNECTION),
+      originOffset: undefined,
+    });
+    const partialOffset = normalizeIncomingConnection({
+      ...structuredClone(DEFAULT_INCOMING_CONNECTION),
+      originOffset: {x: 12, y: Number.NaN, z: -4},
+    });
+
+    expect(withoutOffset.originOffset).toBeUndefined();
+    expect(partialOffset.originOffset).toEqual({x: 12, y: 0, z: -4});
   });
 
   it('rejects a second incoming link to the same node', () => {

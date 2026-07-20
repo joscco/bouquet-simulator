@@ -267,6 +267,16 @@ export class FlowerEditorInspectorComponent {
     }));
   }
 
+  updateIncomingOriginOffset(key: 'x' | 'y' | 'z', value: number): void {
+    this.updateIncoming((incoming) => ({
+      ...incoming,
+      originOffset: {
+        ...(incoming.originOffset ?? {x: 0, y: 0, z: 0}),
+        [key]: Number(value),
+      },
+    }));
+  }
+
   updateIncomingSpreadRange(
     key: 'deviation' | 'revolution' | 'roll',
     value: NumberRange,

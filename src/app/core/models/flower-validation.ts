@@ -176,6 +176,7 @@ export function validateFlowerDefinition(
       const connection = effectiveConnection(definition, legacyConnection);
       const spread = connection.spread!;
       const direction = connection.direction!;
+      const originOffset = connection.originOffset ?? {x: 0, y: 0, z: 0};
       if (spread.randomness < 0 || spread.randomness > 1) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Zufallsverteilung.`});
       }
@@ -194,6 +195,13 @@ export function validateFlowerDefinition(
         || !['spread', 'main'].includes(spread.orientation)
       ) {
         issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Streuung.`});
+      }
+      if (
+        !Number.isFinite(originOffset.x)
+        || !Number.isFinite(originOffset.y)
+        || !Number.isFinite(originOffset.z)
+      ) {
+        issues.push({severity: 'error', message: `„${node.id}“ hat eine ungültige Ursprungsabweichung.`});
       }
       if (!ids.has(connection.childId)) {
         issues.push({

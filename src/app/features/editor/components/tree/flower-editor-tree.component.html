@@ -33,10 +33,8 @@
       role="treeitem"
       [attr.aria-label]="loop.name + ', ' + loop.label"
       [attr.aria-selected]="selectedNodeId() === loop.id"
-      (pointerdown)="startCompactNodeInteraction($event, loop.id)"
+      (pointerdown)="selectCompactNode($event, loop.id)"
       (pointerup)="finishConnection($event, loop.id)"
-      (pointerenter)="setCompactNodeHovered(loop.id, true)"
-      (pointerleave)="setCompactNodeHovered(loop.id, false)"
       (keydown.enter)="selectNodeFromKeyboard($event, loop.id)"
       (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, loop.id)"
     >
@@ -55,23 +53,14 @@
         [attr.x]="loop.x + 8"
         [attr.y]="loop.y + 8"
         [attr.width]="loop.width - 16"
-        height="36"
+        height="28"
         rx="10"
         fill="#fffbeb"
         stroke="#fde68a"
         stroke-width="1"
         class="pointer-events-none"
       />
-      <text [attr.x]="loop.x + 16" [attr.y]="loop.y + 23" class="pointer-events-none fill-amber-900 text-[9px] font-bold">↻ {{ loop.name }}</text>
-      <text [attr.x]="loop.x + 16" [attr.y]="loop.y + 37" class="pointer-events-none fill-amber-600 text-[7px] font-black">{{ loop.label }} · WIEDERHOLUNG</text>
-      @if (showCompactNodeTooltip(loop.id)) {
-        <g class="pointer-events-none" [attr.transform]="'translate(' + (loop.x + loop.width / 2) + ' ' + (loop.y + loop.height - 14) + ')'" opacity="0">
-          <animate attributeName="opacity" from="0" to="1" dur="140ms" fill="freeze" />
-          <animateTransform attributeName="transform" type="translate" from="0 3" to="0 0" dur="140ms" fill="freeze" additive="sum" />
-          <rect [attr.x]="-loop.tooltipWidth / 2" y="-12" [attr.width]="loop.tooltipWidth" height="24" rx="8" fill="#ffffff" fill-opacity=".96" stroke="#f59e0b" stroke-width="1" />
-          <text y="3.5" class="fill-amber-900 text-[10px] font-bold [text-anchor:middle]">{{ loop.name }}</text>
-        </g>
-      }
+      <text [attr.x]="loop.x + 16" [attr.y]="loop.y + 26" class="pointer-events-none fill-amber-900 text-[9px] font-bold">{{ loop.label }} ↻ {{ loop.compactName }}</text>
       <title>{{ loop.name }} · {{ loop.label }}</title>
     </g>
   }
@@ -120,44 +109,64 @@
   @for (node of compactGraph().nodes; track node.id) {
     @if (!node.loop) {
     <g
-      class="pointer-events-auto cursor-crosshair outline-none"
+      class="pointer-events-auto cursor-pointer outline-none"
       [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
       [attr.opacity]="isActiveNode(node.id) ? 1 : 0.58"
       tabindex="0"
       role="treeitem"
       [attr.aria-label]="node.name"
       [attr.aria-selected]="selectedNodeId() === node.id"
-      (pointerdown)="startCompactNodeInteraction($event, node.id)"
+      (pointerdown)="selectCompactNode($event, node.id)"
       (pointerup)="finishConnection($event, node.id)"
-      (pointerenter)="setCompactNodeHovered(node.id, true)"
-      (pointerleave)="setCompactNodeHovered(node.id, false)"
       (keydown.enter)="selectNodeFromKeyboard($event, node.id)"
       (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, node.id)"
       (dblclick)="node.componentDefinitionId && openComponent($event, node.componentDefinitionId)"
     >
-      <circle r="34" fill="transparent" />
-      @if (node.root) {
-        <circle r="20" fill="none" stroke="#047857" stroke-width="2" opacity=".6" />
-      }
-      @if (isSubtreeNodeSelected(node.id)) {
-        <circle r="18.5" fill="none" stroke="#14b8a6" stroke-width="3" />
-      }
-      @if (selectedNodeId() === node.id) {
-        <circle r="22" fill="none" stroke="#047857" stroke-width="2.5" />
-      }
-      @if (!node.root) {
-        <line x1="0" y1="0" [attr.x2]="node.compactInputPoint.x - node.x" [attr.y2]="node.compactInputPoint.y - node.y" stroke="#a8a29e" stroke-width="1.5" class="pointer-events-none" />
-      }
-      @for (port of node.compactOutputPoints; track $index) {
-        <line x1="0" y1="0" [attr.x2]="port.x - node.x" [attr.y2]="port.y - node.y" stroke="#57534e" stroke-width="1.5" class="pointer-events-none" />
-      }
-      <circle
-        [attr.r]="selectedNodeId() === node.id ? 15 : 13"
-        [attr.fill]="selectedNodeId() === node.id ? '#065f46' : node.component ? '#4f46e5' : '#78716c'"
-        [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : '#ffffff'"
-        [attr.stroke-width]="isSubtreeAnchor(node.id) ? 3 : 2"
-        class="transition-[r,fill]"
+      <rect
+        [attr.x]="-node.compactWidth / 2"
+        [attr.y]="-node.compactHeight / 2"
+        [attr.width]="node.compactWidth"
+        [attr.height]="node.compactHeight"
+        rx="11"
+        [attr.fill]="selectedNodeId() === node.id ? '#ecfdf5' : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
+        [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#14b8a6' : selectedNodeId() === node.id ? '#047857' : node.component ? '#818cf8' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
+        [attr.stroke-width]="isSubtreeAnchor(node.id) ? 4 : isSubtreeNodeSelected(node.id) ? 3.5 : selectedNodeId() === node.id ? 3 : 2"
+        class="drop-shadow-sm transition-[fill,stroke,stroke-width]"
       />
+      <rect
+        [attr.x]="-node.compactWidth / 2 + 7"
+        [attr.y]="-node.compactHeight / 2 + 8"
+        width="4"
+        [attr.height]="node.compactHeight - 16"
+        rx="2"
+        [attr.fill]="node.component ? '#6366f1' : node.hasGraphic ? '#059669' : '#a8a29e'"
+        class="pointer-events-none"
+      />
+      <text
+        [attr.x]="-node.compactWidth / 2 + 17"
+        y="-2"
+        class="pointer-events-none fill-stone-800 text-[10px] font-bold"
+      >{{ node.compactLabel }}</text>
+      <text
+        [attr.x]="-node.compactWidth / 2 + 17"
+        y="12"
+        class="pointer-events-none fill-stone-400 text-[7px] font-black tracking-[.08em]"
+      >{{ node.root && node.compactType !== 'START' ? 'START · ' : '' }}{{ node.compactType }}</text>
+      @if (node.componentDefinitionId; as definitionId) {
+        <g
+          class="cursor-pointer outline-none"
+          [attr.transform]="'translate(' + (node.compactWidth / 2 - 14) + ' ' + (-node.compactHeight / 2 + 14) + ')'"
+          tabindex="0"
+          role="link"
+          (pointerdown)="openComponent($event, definitionId)"
+          (keydown.enter)="openComponent($event, definitionId)"
+          (keydown.space)="openComponent($event, definitionId)"
+        >
+          <rect x="-10" y="-10" width="20" height="20" rx="6" fill="#ffffff" stroke="#c7d2fe" stroke-width="1" />
+          <path d="M-4 4 4-4M0-4h4v4" fill="none" stroke="#4338ca" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+          <title>Quelldefinition öffnen</title>
+        </g>
+      }
       @if (!node.root) {
         <circle
           [attr.cx]="node.compactInputPoint.x - node.x"
@@ -180,24 +189,6 @@
             <text [attr.x]="port.x - node.x" [attr.y]="port.y - node.y + 2.5" class="pointer-events-none fill-white text-[6px] font-black [text-anchor:middle]">{{ port.label }}</text>
           }
           <title>{{ port.name || 'Ausgang ' + ($index + 1) }}</title>
-        </g>
-      }
-      @if (showCompactNodeTooltip(node.id)) {
-        <g class="pointer-events-none" transform="translate(0 -50)" opacity="0">
-          <animate attributeName="opacity" from="0" to="1" dur="140ms" fill="freeze" />
-          <animateTransform attributeName="transform" type="translate" from="0 3" to="0 0" dur="140ms" fill="freeze" additive="sum" />
-          <rect
-            [attr.x]="-node.compactTooltipWidth / 2"
-            y="-12"
-            [attr.width]="node.compactTooltipWidth"
-            height="24"
-            rx="8"
-            fill="#ffffff"
-            fill-opacity=".96"
-            stroke="#d6d3d1"
-            stroke-width="1"
-          />
-          <text y="3.5" class="fill-stone-700 text-[10px] font-bold [text-anchor:middle]">{{ node.name }}</text>
         </g>
       }
       <title>{{ node.name }}</title>
@@ -234,4 +225,5 @@
       }
     </g>
   }
+
 </svg>

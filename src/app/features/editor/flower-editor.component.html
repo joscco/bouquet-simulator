@@ -7,7 +7,7 @@
     <div
       class="relative h-full min-h-0 w-full overflow-hidden rounded-lg bg-stone-50"
     >
-      <div class="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5 shadow-sm backdrop-blur">
+      <div class="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5">
         <button app-button variant="icon"
           [matTooltip]="'editor.editSelection' | transloco"
           [attr.aria-label]="'editor.editSelection' | transloco"
@@ -21,7 +21,7 @@
         <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
       </div>
 
-      <div class="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5 shadow-sm backdrop-blur">
+      <div class="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5">
         <button app-button variant="icon" [matTooltip]="'editor.zoomOut' | transloco" [attr.aria-label]="'editor.zoomOut' | transloco" (click)="zoomGraphView(0.8)"><mat-icon>zoom_out</mat-icon></button>
         <button app-button variant="icon" [matTooltip]="'editor.zoomIn' | transloco" [attr.aria-label]="'editor.zoomIn' | transloco" (click)="zoomGraphView(1.25)"><mat-icon>zoom_in</mat-icon></button>
         <button

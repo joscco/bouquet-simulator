@@ -621,14 +621,31 @@ export function generateFlowerTree(
     const evenLengthUnit = decorrelatedEvenUnit(repeatIndex, repeatCount);
     const lengthUnit = lerp(evenLengthUnit, random(), randomness);
     const length = rangeValue(connection.length, lengthUnit);
+    const originOffset = connection.originOffset ?? {x: 0, y: 0, z: 0};
+    const originBaseFrame = directionFrame(
+      direction,
+      mainFrame.tangent,
+      mainFrame.bitangent,
+    );
+    const originTangent = directionInPlane(
+      originBaseFrame.tangent,
+      originBaseFrame.bitangent,
+      roll,
+    );
+    const originDelta = vectorFromLocalFrame(
+      direction,
+      originTangent,
+      cross(direction, originTangent),
+      originOffset,
+    );
     const offset = offsets[id] ?? {x: 0, y: 0};
     const node: FlowerTreeNode = {
       id,
       templateId,
       parentId: parent.id,
-      x: parent.x + positionDirection.x * length + offset.x,
-      y: parent.y - positionDirection.y * length + offset.y,
-      z: parent.z + positionDirection.z * length,
+      x: parent.x + positionDirection.x * length + originDelta.x + offset.x,
+      y: parent.y - positionDirection.y * length - originDelta.y + offset.y,
+      z: parent.z + positionDirection.z * length + originDelta.z,
       angle,
       azimuth,
       attachmentAzimuth: aroundParent,
@@ -744,6 +761,19 @@ function directionFromLocalFrame(
     y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
     z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
   });
+}
+
+function vectorFromLocalFrame(
+  axis: {x: number; y: number; z: number},
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  local: {x: number; y: number; z: number},
+): {x: number; y: number; z: number} {
+  return {
+    x: tangent.x * local.x + axis.x * local.y + bitangent.x * local.z,
+    y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
+    z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
+  };
 }
 
 function coversFullSphere(deviation: NumberRange, revolution: NumberRange): boolean {

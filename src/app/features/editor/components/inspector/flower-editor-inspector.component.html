@@ -20,6 +20,21 @@
 
           <section class="space-y-2 border-t border-stone-200 pt-3">
             <div>
+              <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.originOffset' | transloco }}</div>
+              <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.originOffsetHelp' | transloco }}</p>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <app-numeric-field label="X" unit="px" [value]="incoming.originOffset?.x ?? 0"
+                (valueChange)="updateIncomingOriginOffset('x', $event)" />
+              <app-numeric-field label="Y" unit="px" [value]="incoming.originOffset?.y ?? 0"
+                (valueChange)="updateIncomingOriginOffset('y', $event)" />
+              <app-numeric-field label="Z" unit="px" [value]="incoming.originOffset?.z ?? 0"
+                (valueChange)="updateIncomingOriginOffset('z', $event)" />
+            </div>
+          </section>
+
+          <section class="space-y-2 border-t border-stone-200 pt-3">
+            <div>
               <div class="text-[11px] font-bold text-stone-700">{{ 'inspector.mainDirection' | transloco }}</div>
               <p class="mb-0 mt-0.5 text-[10px] leading-relaxed text-stone-400">{{ 'inspector.mainDirectionHelp' | transloco }}</p>
             </div>
