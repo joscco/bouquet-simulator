@@ -202,7 +202,7 @@ describe('procedural flower tree generator', () => {
     expect(movedLeaf.y - baseLeaf.y).toBeCloseTo(-15);
   });
 
-  it('applies the configured local origin offset to a node and its descendants', () => {
+  it('applies an origin offset along the shared main direction to a node and its descendants', () => {
     const baseDefinition = branchDefinition();
     const shiftedDefinition = branchDefinition();
     shiftedDefinition.nodes[0]!.connections[0]!.originOffset = {x: 0, y: 7, z: 0};
@@ -216,6 +216,53 @@ describe('procedural flower tree generator', () => {
 
     expect(shiftedBranch.y - baseBranch.y).toBeCloseTo(-7);
     expect(shiftedLeaf.y - baseLeaf.y).toBeCloseTo(-7);
+  });
+
+  it('translates a complete spread without changing its shape or descendant layout', () => {
+    const baseDefinition = radialDefinition({randomness: 0});
+    baseDefinition.nodes.find((node) => node.id === 'branch')!.connections = [connection('leaf')];
+    baseDefinition.nodes.push(node('leaf', []));
+    const shiftedDefinition = structuredClone(baseDefinition);
+    shiftedDefinition.nodes[0]!.connections[0]!.originOffset = {x: 0, y: 7, z: 0};
+
+    const baseTree = generateFlowerTree(baseDefinition, 0.31);
+    const shiftedTree = generateFlowerTree(shiftedDefinition, 0.31);
+    const shiftedById = new Map(shiftedTree.nodes.map((treeNode) => [treeNode.id, treeNode]));
+
+    for (const baseNode of baseTree.nodes.filter((treeNode) => treeNode.id !== baseTree.rootId)) {
+      const shiftedNode = shiftedById.get(baseNode.id)!;
+      expect(shiftedNode.x - baseNode.x).toBeCloseTo(0);
+      expect(shiftedNode.y - baseNode.y).toBeCloseTo(-7);
+      expect(shiftedNode.z - baseNode.z).toBeCloseTo(0);
+      expect(shiftedNode.angle).toBeCloseTo(baseNode.angle);
+      expect(shiftedNode.azimuth).toBeCloseTo(baseNode.azimuth);
+    }
+
+    const baseBranches = baseTree.nodes.filter((treeNode) => treeNode.templateId === 'branch');
+    const shiftedBranches = shiftedTree.nodes.filter((treeNode) => treeNode.templateId === 'branch');
+    for (let first = 0; first < baseBranches.length; first++) {
+      for (let second = first + 1; second < baseBranches.length; second++) {
+        expect(nodeDistance(shiftedBranches[first]!, shiftedBranches[second]!))
+          .toBeCloseTo(nodeDistance(baseBranches[first]!, baseBranches[second]!));
+      }
+    }
+  });
+
+  it('applies a loop origin offset once to the complete repeated structure', () => {
+    const baseDefinition = oneNodeLoopDefinition({min: 3, max: 3});
+    const shiftedDefinition = structuredClone(baseDefinition);
+    shiftedDefinition.nodes[0]!.connections[0]!.originOffset = {x: 0, y: -6, z: 0};
+
+    const baseTree = generateFlowerTree(baseDefinition, 0.31);
+    const shiftedTree = generateFlowerTree(shiftedDefinition, 0.31);
+    const shiftedById = new Map(shiftedTree.nodes.map((treeNode) => [treeNode.id, treeNode]));
+
+    for (const baseNode of baseTree.nodes.filter((treeNode) => treeNode.id !== baseTree.rootId)) {
+      const shiftedNode = shiftedById.get(baseNode.id)!;
+      expect(shiftedNode.x - baseNode.x).toBeCloseTo(0);
+      expect(shiftedNode.y - baseNode.y).toBeCloseTo(6);
+      expect(shiftedNode.z - baseNode.z).toBeCloseTo(0);
+    }
   });
 
   it('is deterministic for a given definition and seed', () => {
@@ -550,6 +597,27 @@ describe('procedural flower tree generator', () => {
     expect(Math.abs(rotated.x)).toBeGreaterThan(9);
     expect(Math.abs(rotated.z)).toBeLessThan(0.001);
   });
+
+  it('uses an internal node main direction for its Y offset inside a reused component', () => {
+    const definition = componentDefinition();
+    const component = definition.nodes.find((node) => node.id === 'component')!.component!;
+    const internal = component.nodes!.find((node) => node.id === 'inner-root')!.connections[0]!;
+    internal.length = {min: 0, max: 0};
+    internal.direction = {x: 90, y: 0, z: 0};
+    internal.spread = {
+      deviation: {min: 0, max: 0}, revolution: {min: 0, max: 0}, roll: {min: 0, max: 0},
+      randomness: 0, orientation: 'spread',
+    };
+    internal.originOffset = {x: 0, y: 10, z: 0};
+
+    const tree = generateFlowerTree(definition, 0.31);
+    const root = tree.nodes.find((node) => node.templateId === 'component::inner-root')!;
+    const output = tree.nodes.find((node) => node.templateId === 'component::inner-out')!;
+
+    expect(Math.abs(output.x - root.x)).toBeCloseTo(10);
+    expect(output.y - root.y).toBeCloseTo(0);
+    expect(output.z - root.z).toBeCloseTo(0);
+  });
 });
 
 function node(id: string, connections: FlowerNodeConnection[]): FlowerNodeDefinition {
@@ -570,6 +638,13 @@ function connection(childId: string): FlowerNodeConnection {
     angle: {min: 0, max: 0},
     randomness: 0,
   };
+}
+
+function nodeDistance(
+  first: {x: number; y: number; z: number},
+  second: {x: number; y: number; z: number},
+): number {
+  return Math.hypot(first.x - second.x, first.y - second.y, first.z - second.z);
 }
 
 function branchDefinition(): FlowerDefinition {

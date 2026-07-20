@@ -295,11 +295,12 @@ export function generateFlowerTree(
     const repeat = randomInteger(loop.repeat, random);
     let attachment = parent;
     const startEdge = graphLoopStartEdge(graph, loopTemplate, entryEdge);
+    const continuedStartEdge = edgeWithoutOriginOffset(startEdge);
     for (let iteration = 0; iteration < repeat && nodes.length < MAX_GENERATED_NODES; iteration++) {
       let current = addNode(
         attachment,
         loop.startNodeId,
-        startEdge,
+        iteration === 0 ? startEdge : continuedStartEdge,
         iteration,
         repeat,
       );
@@ -366,6 +367,7 @@ export function generateFlowerTree(
     const repeat = randomInteger(loop.repeat, random);
     let attachments = [parent];
     const startEdge = graphLoopStartEdge(graph, loopTemplate, entryEdge);
+    const continuedStartEdge = edgeWithoutOriginOffset(startEdge);
     for (let iteration = 0; iteration < repeat && nodes.length < MAX_GENERATED_NODES; iteration++) {
       const nextAttachments: FlowerTreeNode[] = [];
       for (const attachment of attachments) {
@@ -375,7 +377,7 @@ export function generateFlowerTree(
           const endpoints = expandLoop(
             attachment,
             startTemplate,
-            startEdge,
+            iteration === 0 ? startEdge : continuedStartEdge,
             new Set([...ancestors, loop.startNodeId]),
             expansionDepth + 1,
             memberIds,
@@ -389,7 +391,7 @@ export function generateFlowerTree(
           const root = addNode(
             attachment,
             loop.startNodeId,
-            startEdge,
+            iteration === 0 ? startEdge : continuedStartEdge,
             iteration,
             repeat,
           );
@@ -478,6 +480,14 @@ export function generateFlowerTree(
 
   function uniqueTreeNodes(candidates: FlowerTreeNode[]): FlowerTreeNode[] {
     return [...new Map(candidates.map((node) => [node.id, node])).values()];
+  }
+
+  function edgeWithoutOriginOffset(edge: FlowerGraphEdge): FlowerGraphEdge {
+    if (!edge.connection.originOffset) return edge;
+    return {
+      ...edge,
+      connection: {...edge.connection, originOffset: undefined},
+    };
   }
 
   function memberOutputNodeIds(memberIds: Set<string>): string[] {
@@ -622,20 +632,15 @@ export function generateFlowerTree(
     const lengthUnit = lerp(evenLengthUnit, random(), randomness);
     const length = rangeValue(connection.length, lengthUnit);
     const originOffset = connection.originOffset ?? {x: 0, y: 0, z: 0};
-    const originBaseFrame = directionFrame(
-      direction,
+    const originTangent = directionInPlane(
       mainFrame.tangent,
       mainFrame.bitangent,
-    );
-    const originTangent = directionInPlane(
-      originBaseFrame.tangent,
-      originBaseFrame.bitangent,
-      roll,
+      main.y * Math.PI / 180,
     );
     const originDelta = vectorFromLocalFrame(
-      direction,
+      mainDirection,
       originTangent,
-      cross(direction, originTangent),
+      cross(mainDirection, originTangent),
       originOffset,
     );
     const offset = offsets[id] ?? {x: 0, y: 0};
@@ -643,6 +648,9 @@ export function generateFlowerTree(
       id,
       templateId,
       parentId: parent.id,
+      // The offset uses the connection's shared main-direction frame. It
+      // follows a rotated component, while the individual spread directions
+      // cannot pull repeated outgrowths into different translations.
       x: parent.x + positionDirection.x * length + originDelta.x + offset.x,
       y: parent.y - positionDirection.y * length - originDelta.y + offset.y,
       z: parent.z + positionDirection.z * length + originDelta.z,
@@ -664,6 +672,19 @@ export function generateFlowerTree(
     });
     return node;
   }
+}
+
+function vectorFromLocalFrame(
+  axis: {x: number; y: number; z: number},
+  tangent: {x: number; y: number; z: number},
+  bitangent: {x: number; y: number; z: number},
+  local: {x: number; y: number; z: number},
+): {x: number; y: number; z: number} {
+  return {
+    x: tangent.x * local.x + axis.x * local.y + bitangent.x * local.z,
+    y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
+    z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
+  };
 }
 
 function directionInPlane(
@@ -761,19 +782,6 @@ function directionFromLocalFrame(
     y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
     z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
   });
-}
-
-function vectorFromLocalFrame(
-  axis: {x: number; y: number; z: number},
-  tangent: {x: number; y: number; z: number},
-  bitangent: {x: number; y: number; z: number},
-  local: {x: number; y: number; z: number},
-): {x: number; y: number; z: number} {
-  return {
-    x: tangent.x * local.x + axis.x * local.y + bitangent.x * local.z,
-    y: tangent.y * local.x + axis.y * local.y + bitangent.y * local.z,
-    z: tangent.z * local.x + axis.z * local.y + bitangent.z * local.z,
-  };
 }
 
 function coversFullSphere(deviation: NumberRange, revolution: NumberRange): boolean {

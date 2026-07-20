@@ -2083,12 +2083,17 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         },
         "incoming": {
           "repeat": {
-            "min": 1,
-            "max": 1
+            "min": 32,
+            "max": 32
           },
           "length": {
-            "min": 50,
-            "max": 50
+            "min": 62.5,
+            "max": 62.5
+          },
+          "originOffset": {
+            "x": 0,
+            "y": -56.2,
+            "z": 0
           },
           "direction": {
             "x": 0,
@@ -2098,7 +2103,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "spread": {
             "deviation": {
               "min": 0,
-              "max": 0
+              "max": 13.4
             },
             "revolution": {
               "min": -180,
@@ -2113,9 +2118,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#426f50",
-            "width": 3,
-            "startWidth": 3,
-            "endWidth": 3,
+            "width": 0,
+            "startWidth": 0,
+            "endWidth": 0,
             "bend": 0,
             "curve": 0,
             "bendRotation": {

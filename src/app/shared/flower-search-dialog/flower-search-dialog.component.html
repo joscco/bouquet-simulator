@@ -1,12 +1,12 @@
-<div class="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-stone-950/35 p-3 pb-3 pt-[4.75rem] backdrop-blur-sm" role="presentation" (click)="close.emit()">
+<div class="fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-stone-950/35 p-2 pb-2 pt-[4.5rem] backdrop-blur-sm sm:p-3 sm:pb-3 sm:pt-[4.75rem]" role="presentation" (click)="close.emit()">
   <section
-    class="flex h-[min(42rem,calc(100dvh-5.5rem))] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl"
+    class="flex h-[min(42rem,calc(100dvh-5rem))] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl sm:h-[min(42rem,calc(100dvh-5.5rem))] sm:rounded-3xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="flower-search-title"
     (click)="$event.stopPropagation()"
   >
-    <header class="flex shrink-0 items-center gap-3 border-b border-stone-200 p-4">
+    <header class="flex shrink-0 items-center gap-3 border-b border-stone-200 p-3 sm:p-4">
       <h2 id="flower-search-title" class="m-0 min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-stone-900">{{ title() }}</h2>
       @if (definitionActions()) {
         <div class="flex shrink-0 items-center gap-1 border-r border-stone-200 pr-2">
@@ -37,10 +37,30 @@
       </button>
     </header>
 
-    <label class="relative mx-4 mt-4 block shrink-0">
+    @if (primaryActionLabel()) {
+      <button
+        data-primary-action
+        class="group mx-3 mt-3 flex min-h-14 shrink-0 cursor-pointer items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-2.5 text-left transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 sm:mx-4"
+        type="button"
+        (click)="primaryAction.emit()"
+      >
+        <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-900 text-white">
+          <mat-icon class="size-5! text-[20px]! leading-5!">{{ primaryActionIcon() }}</mat-icon>
+        </span>
+        <span class="min-w-0 flex-1">
+          <strong class="block truncate text-sm font-semibold text-emerald-950">{{ primaryActionLabel() }}</strong>
+          @if (primaryActionDescription()) {
+            <span class="mt-0.5 block text-[10px] leading-snug text-emerald-800/70">{{ primaryActionDescription() }}</span>
+          }
+        </span>
+        <mat-icon class="size-5! shrink-0 text-[20px]! leading-5! text-emerald-700 transition-transform group-hover:translate-x-0.5">arrow_forward</mat-icon>
+      </button>
+    }
+
+    <label class="relative mx-3 mt-3 block shrink-0 sm:mx-4 sm:mt-4">
       <mat-icon class="pointer-events-none absolute left-3 top-1/2 size-5! -translate-y-1/2 text-[20px]! leading-5! text-stone-400">search</mat-icon>
       <input
-        class="h-11 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-3 text-sm text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+        class="h-11 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-3 text-sm text-stone-800 outline-none transition pointer-coarse:text-base focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
         type="search"
         autofocus
         [attr.aria-label]="placeholder()"
@@ -53,7 +73,7 @@
 
     <div class="min-h-0 flex-1 overflow-hidden py-3 pr-1">
     <div
-      class="grid h-full auto-rows-max grid-cols-2 content-start items-start gap-3 overflow-y-auto px-4 pb-1 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-400 [&::-webkit-scrollbar-track]:my-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 sm:grid-cols-3 md:grid-cols-4"
+      class="grid h-full auto-rows-max grid-cols-2 content-start items-start gap-2 overflow-y-auto px-3 pb-1 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-400 [&::-webkit-scrollbar-track]:my-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 sm:grid-cols-3 sm:gap-3 sm:px-4 md:grid-cols-4"
       role="listbox"
     >
       @for (entry of filteredEntries(); track entry.id) {

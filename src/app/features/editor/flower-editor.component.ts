@@ -66,11 +66,9 @@ import {FlowerEditorPreviewComponent} from './components/preview/flower-editor-p
 import {FlowerEditorInspectorComponent} from './components/inspector/flower-editor-inspector.component';
 import {
   FlowerComponentCatalogEntry,
-  catalogEntryType,
   definitionFromComponent,
   definitionOutputNodeIds,
   definitionWithEditorState,
-  normalizeSearch,
 } from './domain/flower-editor-definition';
 import {
   resolveFlowerEditorForest,
@@ -148,7 +146,6 @@ function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right
   providers: [EditorNotifications, FlowerEditorPersistence],
 })
 export class FlowerEditorComponent implements OnDestroy {
-  readonly catalogEntryType = catalogEntryType;
   readonly store = inject(BouquetStore);
   private readonly notifications = inject(EditorNotifications);
   private readonly persistence = inject(FlowerEditorPersistence);
@@ -199,7 +196,6 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly nodeSectionExpanded = signal(true);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
-  readonly componentSearch = signal('');
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
@@ -226,15 +222,13 @@ export class FlowerEditorComponent implements OnDestroy {
         definition,
       }];
     }));
+  readonly componentSearchEntries = computed<FlowerSearchEntry[]>(() => {
+    const componentKeys = new Set(this.componentCatalog().map((entry) => entry.key));
+    return this.catalogSearchEntries().filter((entry) => componentKeys.has(entry.id));
+  });
   readonly canDeleteSelectedCatalogEntry = computed(() => {
     const entry = this.selectedCatalogEntry();
     return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
-  });
-  readonly filteredComponentCatalog = computed(() => {
-    const query = normalizeSearch(this.componentSearch());
-    if (!query) return this.componentCatalog();
-    return this.componentCatalog().filter((entry) =>
-      normalizeSearch(`${entry.tree.name} ${this.catalogEntryType(entry)} ${entry.source}`).includes(query));
   });
   readonly graphPositions = signal<Record<string, Point>>(
     structuredClone(this.draft().editor?.nodePositions ?? {}),
@@ -513,17 +507,17 @@ export class FlowerEditorComponent implements OnDestroy {
 
   toggleAddMenu(): void {
     this.addMenuOpen.update((open) => !open);
-    if (!this.addMenuOpen()) this.componentSearch.set('');
   }
 
-  insertComponentFromAddMenu(entry: FlowerComponentCatalogEntry): void {
+  insertComponentFromAddMenu(entryKey: string): void {
+    const entry = this.componentCatalog().find((candidate) => candidate.key === entryKey);
+    if (!entry) return;
     if (entry.source === 'definition') {
       this.insertDefinitionReference(entry.tree.id);
     } else {
       this.insertSavedTree(entry.tree);
     }
     this.addMenuOpen.set(false);
-    this.componentSearch.set('');
   }
 
   addLoop(): void {

@@ -23,6 +23,7 @@ export class FlowerEditorPreviewComponent {
   readonly viewportInsets = input({left: 0, right: 0, top: 0, bottom: 0});
   readonly zoom = signal(1);
   readonly viewOffset = signal<Point>({x: 0, y: 0});
+  readonly recenterKey = signal(0);
   readonly seed = signal(0.42);
   readonly rotation = signal(0);
   readonly pitch = signal(0);
@@ -65,5 +66,6 @@ export class FlowerEditorPreviewComponent {
     this.pitch.set(0);
     this.rotation.set(0);
     this.zoom.set(1);
+    this.recenterKey.update((key) => key + 1);
   }
 }

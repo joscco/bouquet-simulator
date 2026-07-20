@@ -90,6 +90,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly selectedId = signal<string | null>(null);
   readonly bouquetPitch = signal(0);
   readonly zoom = signal(1);
+  readonly recenterKey = signal(0);
   readonly viewOffset = signal({x: 0, y: 0});
   readonly videoExporting = signal(false);
   readonly videoExportProgress = signal(0);
@@ -250,6 +251,7 @@ export class BouquetSimulatorComponent implements OnDestroy {
   resetView(): void {
     this.resetTransientView();
     this.store.setRotation(0);
+    this.recenterKey.update((key) => key + 1);
   }
 
   removeFlower(instanceId: string): void {

@@ -1,5 +1,5 @@
 import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
-import {clamp} from '../../core/utils/numbers';
+import {clamp, formatNumericInputValue} from '../../core/utils/numbers';
 import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.directive';
 
 @Component({
@@ -10,6 +10,7 @@ import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.d
   templateUrl: './numeric-field.component.html',
 })
 export class NumericFieldComponent {
+  readonly formatInputValue = formatNumericInputValue;
   readonly label = input.required<string>();
   readonly value = input.required<number>();
   readonly minimum = input<number | undefined>(undefined);

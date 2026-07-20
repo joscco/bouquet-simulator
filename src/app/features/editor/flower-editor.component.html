@@ -50,58 +50,6 @@
         </span>
       }
 
-      @if (addMenuOpen()) {
-        <section class="absolute bottom-1.5 left-[46px] top-1.5 z-40 w-[min(340px,calc(100%-52px))] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
-              <div class="text-[9px] text-stone-400">Leer starten oder vorhandene Komponente einfügen.</div>
-            </div>
-            <button app-button variant="icon" matTooltip="Menü schließen" aria-label="Menü schließen" (click)="addMenuOpen.set(false)">
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
-          <button app-button variant="icon-text" tone="primary" class="mb-3 w-full" (click)="addNode()">
-            <mat-icon>fiber_manual_record</mat-icon>
-            Neuer Basisknoten
-          </button>
-
-          <div class="border-t border-stone-200 pt-3">
-            <label class="block text-[9px] font-bold uppercase tracking-wider text-stone-400">
-              Vorhandene Komponente
-              <input
-                class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 mt-1 w-full"
-                type="search"
-                placeholder="Komponente suchen"
-                [ngModel]="componentSearch()"
-                (ngModelChange)="componentSearch.set($event)"
-              >
-            </label>
-            <div class="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
-              @for (entry of filteredComponentCatalog(); track entry.key) {
-                <button
-                  class="flex w-full items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2 py-2 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
-                  type="button"
-                  (click)="insertComponentFromAddMenu(entry)"
-                >
-                  <span class="min-w-0 flex-1">
-                    <span class="block truncate text-xs font-bold text-stone-800">{{ entry.tree.name }}</span>
-                    <span class="block text-[9px] text-stone-400">
-                      {{ catalogEntryType(entry) }} · {{ entry.tree.nodes.length }} Knoten
-                    </span>
-                  </span>
-                  <mat-icon class="text-stone-400">add</mat-icon>
-                </button>
-              } @empty {
-                <div class="rounded-xl border border-dashed border-stone-300 px-3 py-5 text-center text-[10px] text-stone-400">
-                  Keine Komponenten gefunden.
-                </div>
-              }
-            </div>
-          </div>
-        </section>
-      }
-
       @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
         <section class="absolute bottom-1.5 left-[46px] top-1.5 z-40 w-[min(360px,calc(100%-52px))] overflow-y-auto rounded-xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-2 flex items-start gap-3">
@@ -192,6 +140,15 @@
           <button app-button variant="icon" [matTooltip]="'editor.search' | transloco" [attr.aria-label]="'editor.search' | transloco" (click)="catalogSearchOpen.set(true)">
             <mat-icon>search</mat-icon>
           </button>
+          @if (isDevelopment) {
+            <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
+          }
+          <button app-button variant="icon" tone="primary" class="relative" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()">
+            <mat-icon>save</mat-icon>
+            @if (hasUnsavedChanges()) {
+              <span class="absolute right-0.5 top-0.5 size-2 rounded-full border border-white bg-amber-400" aria-hidden="true"></span>
+            }
+          </button>
           <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
         </header>
         <div class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
@@ -255,16 +212,6 @@
                 <span class="mx-1 h-6 w-px bg-stone-200"></span>
                 <button app-button variant="icon" [matTooltip]="'editor.export' | transloco" [attr.aria-label]="'editor.export' | transloco" (click)="exportFlower()"><mat-icon>download</mat-icon></button>
                 <button app-button variant="icon" [matTooltip]="'editor.exportModel' | transloco" [attr.aria-label]="'editor.exportModel' | transloco" [disabled]="modelExporting()" (click)="exportCurrentFlowerModel()"><mat-icon>{{ modelExporting() ? 'progress_activity' : 'view_in_ar' }}</mat-icon></button>
-                <span class="flex-1"></span>
-                @if (isDevelopment) {
-                  <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
-                }
-                <button app-button variant="icon" tone="primary" class="relative" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()">
-                  <mat-icon>save</mat-icon>
-                  @if (hasUnsavedChanges()) {
-                    <span class="absolute right-0.5 top-0.5 size-2 rounded-full border border-white bg-amber-400" aria-hidden="true"></span>
-                  }
-                </button>
               </div>
             </div>
             </app-editor-disclosure>
@@ -331,6 +278,20 @@
   </div>
 
   <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
+
+  @if (addMenuOpen()) {
+    <app-flower-search-dialog
+      [entries]="componentSearchEntries()"
+      [title]="'editor.addNodeTitle' | transloco"
+      [placeholder]="'editor.searchComponents' | transloco"
+      [primaryActionLabel]="'editor.newBaseNode' | transloco"
+      [primaryActionDescription]="'editor.newBaseNodeHelp' | transloco"
+      primaryActionIcon="fiber_manual_record"
+      (primaryAction)="addNode()"
+      (entrySelect)="insertComponentFromAddMenu($event)"
+      (close)="addMenuOpen.set(false)"
+    />
+  }
 
   @if (catalogSearchOpen()) {
     <app-flower-search-dialog

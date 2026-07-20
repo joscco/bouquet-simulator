@@ -132,7 +132,7 @@ export interface FlowerNodeSpreadSettings {
 export interface FlowerNodeIncomingConnection {
   repeat: NumberRange;
   length: NumberRange;
-  /** Lokaler X/Y/Z-Versatz des gesamten Knotenursprungs nach seiner Platzierung. */
+  /** X/Y/Z-Translation im gemeinsamen Hauptrichtungsrahmen inklusive aller Nachfolger. */
   originOffset?: {x: number; y: number; z: number};
   direction?: FlowerNodeMainDirection;
   spread?: FlowerNodeSpreadSettings;

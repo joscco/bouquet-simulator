@@ -18,7 +18,7 @@
     <input
       appDragNumberInput
       #numberInput
-      class="h-9 w-full min-w-0 appearance-none rounded-lg border border-stone-300 bg-white px-[7px] text-[11px] font-medium leading-none text-stone-800 outline-none transition-[border-color,box-shadow] focus-visible:border-emerald-950 focus-visible:ring-3 focus-visible:ring-emerald-950/10 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
+      class="h-9 w-full min-w-0 appearance-none rounded-lg border border-stone-300 bg-white px-[7px] text-[11px] font-medium leading-none text-stone-800 outline-none transition-[border-color,box-shadow] pointer-coarse:text-base focus-visible:border-emerald-950 focus-visible:ring-3 focus-visible:ring-emerald-950/10 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
       type="number"
       inputmode="decimal"
       autocomplete="off"
@@ -26,7 +26,7 @@
       [min]="minimum()"
       [max]="maximum()"
       [step]="step()"
-      [value]="value()"
+      [value]="formatInputValue(value())"
       [dragValue]="value()"
       [dragMinimum]="minimum()"
       [dragMaximum]="maximum()"

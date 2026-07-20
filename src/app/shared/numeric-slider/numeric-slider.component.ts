@@ -1,5 +1,5 @@
 import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
-import {clamp} from '../../core/utils/numbers';
+import {clamp, formatNumericInputValue} from '../../core/utils/numbers';
 import {SliderTrackComponent} from '../slider-track/slider-track.component';
 import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.directive';
 
@@ -11,6 +11,7 @@ import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.d
   templateUrl: './numeric-slider.component.html',
 })
 export class NumericSliderComponent {
+  readonly formatInputValue = formatNumericInputValue;
   private static nextId = 0;
 
   readonly label = input.required<string>();

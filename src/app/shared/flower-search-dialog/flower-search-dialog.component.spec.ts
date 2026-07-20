@@ -39,6 +39,21 @@ describe('FlowerSearchDialogComponent', () => {
     expect(create).toHaveBeenCalledOnce();
     expect(load).toHaveBeenCalledOnce();
   });
+
+  it('renders an optional primary action independently from search results', () => {
+    const fixture = createFixture();
+    const action = vi.fn();
+    fixture.componentInstance.primaryAction.subscribe(action);
+    fixture.componentRef.setInput('primaryActionLabel', 'Neuer Basisknoten');
+    fixture.componentRef.setInput('primaryActionDescription', 'Leer starten');
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement = fixture.nativeElement.querySelector('[data-primary-action]');
+    expect(button.textContent).toContain('Neuer Basisknoten');
+    button.click();
+
+    expect(action).toHaveBeenCalledOnce();
+  });
 });
 
 function createFixture() {

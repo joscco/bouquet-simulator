@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import {NumberRange} from '../../core/models/flower.models';
-import {clamp, roundToStep} from '../../core/utils/numbers';
+import {clamp, formatNumericInputValue, roundToStep} from '../../core/utils/numbers';
 import {boundedRange, expandedRange, sortedRange} from './number-range';
 import {SliderHandle, SliderTrackComponent} from '../slider-track/slider-track.component';
 import {TranslocoPipe} from '@jsverse/transloco';
@@ -22,6 +22,7 @@ import {DragNumberInputDirective} from '../drag-number-input/drag-number-input.d
   templateUrl: './interval-slider.component.html',
 })
 export class IntervalSliderComponent {
+  readonly formatInputValue = formatNumericInputValue;
   readonly label = input.required<string>();
   readonly value = input.required<NumberRange>();
   readonly minimum = input.required<number>();

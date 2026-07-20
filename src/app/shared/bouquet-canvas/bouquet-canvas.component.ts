@@ -88,6 +88,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   readonly zoom = input(1);
   readonly zoomEnabled = input(false);
   readonly fitToContent = input(false);
+  /** Explicitly requests a fresh fit without making every geometry edit recenter the preview. */
+  readonly recenterKey = input(0);
   readonly viewportInsets = input<{left: number; right: number; top: number; bottom: number}>({
     left: 0,
     right: 0,
@@ -145,6 +147,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private lastVaseId: string | null = null;
   private lastVaseMaterialId: VaseMaterialId | null = null;
   private lastGeometrySignature: string | null = null;
+  private lastRecenterKey: number | null = null;
   private backgroundDrag: {
     pointerId: number;
     x: number;
@@ -174,6 +177,7 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const overlappingIdsSignature = [...this.overlappingIds()].sort().join('|');
       const snapshotKey = this.snapshotKey();
       const thumbnailMode = this.thumbnailMode();
+      const recenterKey = this.recenterKey();
       const highlightedNodeIdsSignature = [...this.highlightedNodeIds()].sort().join('|');
       const highlightedConnection = this.highlightedConnection();
       const vaseEnabled = this.vaseEnabled();
@@ -195,8 +199,9 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
         ].join(':'))
         .join('|');
       const flowerRenderSignature = this.renderSignatureFor(state.flowers);
-      const shouldRecenter = definitions !== this.lastDefinitions
-        || state.flowers.length !== this.lastFlowerCount
+      const recenterRequested = this.lastRecenterKey !== null
+        && recenterKey !== this.lastRecenterKey;
+      const shouldRecenter = state.flowers.length !== this.lastFlowerCount
         || geometrySignature !== this.lastGeometrySignature
         || vaseEnabled !== this.lastVaseEnabled
         || vaseId !== this.lastVaseId
@@ -223,12 +228,13 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastVaseId = vaseId;
       this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
+      this.lastRecenterKey = recenterKey;
       this.scene.background = thumbnailMode ? null : new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
       this.applySceneLighting(backgroundMode);
       this.sceneEffects.configure(state.sceneEffects, backgroundMode);
       this.syncEffectsAnimation();
-      if (structureChanged) {
-        this.recenterOnNextRebuild ||= shouldRecenter;
+      if (structureChanged || recenterRequested) {
+        this.recenterOnNextRebuild ||= shouldRecenter || recenterRequested;
         this.requestRebuild();
       }
       if (snapshotKey !== this.emittedSnapshotKey) this.requestRender();

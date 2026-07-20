@@ -9,7 +9,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "/previews/peony-blossom.png"
   },
   "daisy": {
-    "key": "png-v1:8vvrp7:daisy",
+    "key": "png-v1:sldi0k:daisy",
     "url": "/previews/daisy.png"
   },
   "lilac": {
@@ -21,7 +21,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "/previews/neue-blume.png"
   },
   "daisy-blossom": {
-    "key": "png-v1:11cx0dc:daisy-blossom",
+    "key": "png-v1:1o01flz:daisy-blossom",
     "url": "/previews/daisy-blossom.png"
   },
   "neue-blume-2": {
