@@ -78,7 +78,7 @@
     "vases": {"classic": "Classic", "tulip": "Tulip", "cylinder": "Cylinder", "bowl": "Bowl", "bud": "Bud vase", "bottle": "Bottle", "amphora": "Amphora", "ribbed": "Ribbed", "faceted": "Faceted"},
     "materials": {"clay": "Clay", "stoneware": "Stoneware", "concrete": "Concrete", "glass": "Glass"},
     "lighting": {"night": "Night", "twilight": "Twilight", "day": "Day"},
-    "effects": {"sparkles": "Sparkles", "glowPoints": "Glow points", "uplight": "Uplight"},
+    "effects": {"sparkles": "Sparkles", "glowPoints": "Glow points", "uplight": "Uplight", "vignette": "Vignette"},
     "formats": {"square": "Square", "portrait": "Story", "landscape": "Landscape"}
   }
 }

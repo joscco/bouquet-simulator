@@ -307,6 +307,7 @@ export interface BouquetSceneEffects {
   sparkles: boolean;
   glowPoints: boolean;
   uplight: boolean;
+  vignette: boolean;
 }
 
 export interface BouquetState {

@@ -86,12 +86,18 @@ describe('bouquet flower placement', () => {
     store.setSceneEffect('sparkles', true);
     store.setSceneEffect('glowPoints', true);
     store.setSceneEffect('uplight', true);
+    store.setSceneEffect('vignette', false);
     const restored = new BouquetStore();
     restored.importProject(structuredClone(store.exportProject()));
 
     expect(restored.state().lightLevel).toBe(50);
     expect(restored.state().backgroundMode).toBe('light');
-    expect(restored.state().sceneEffects).toEqual({sparkles: true, glowPoints: true, uplight: true});
+    expect(restored.state().sceneEffects).toEqual({
+      sparkles: true,
+      glowPoints: true,
+      uplight: true,
+      vignette: false,
+    });
   });
 
   it('migrates bouquets without scene settings to the light background without effects', () => {
@@ -124,7 +130,12 @@ describe('bouquet flower placement', () => {
     legacy['sceneEffects'] = {fireflies: false, glitter: true};
 
     expect(store.restoreBouquet(legacy)).toBe(true);
-    expect(store.state().sceneEffects).toEqual({sparkles: true, glowPoints: true, uplight: false});
+    expect(store.state().sceneEffects).toEqual({
+      sparkles: true,
+      glowPoints: true,
+      uplight: false,
+      vignette: true,
+    });
   });
 
   it('copies a flower instance including instance-level settings', () => {

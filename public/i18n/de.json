@@ -78,7 +78,7 @@
     "vases": {"classic": "Klassisch", "tulip": "Tulpe", "cylinder": "Zylinder", "bowl": "Schale", "bud": "Soliflore", "bottle": "Flasche", "amphora": "Amphore", "ribbed": "Gerippt", "faceted": "Facettiert"},
     "materials": {"clay": "Ton", "stoneware": "Steinzeug", "concrete": "Beton", "glass": "Glas"},
     "lighting": {"night": "Nacht", "twilight": "Dämmerung", "day": "Tag"},
-    "effects": {"sparkles": "Lichterglanz", "glowPoints": "Lichtpunkte", "uplight": "Licht von unten"},
+    "effects": {"sparkles": "Lichterglanz", "glowPoints": "Lichtpunkte", "uplight": "Licht von unten", "vignette": "Vignette"},
     "formats": {"square": "Quadrat", "portrait": "Story", "landscape": "Querformat"}
   }
 }

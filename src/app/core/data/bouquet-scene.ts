@@ -7,6 +7,7 @@ export const DEFAULT_BOUQUET_SCENE_EFFECTS: BouquetSceneEffects = {
   sparkles: false,
   glowPoints: false,
   uplight: false,
+  vignette: true,
 };
 
 export const BOUQUET_SCENE_EFFECT_OPTIONS: ReadonlyArray<{
@@ -17,6 +18,7 @@ export const BOUQUET_SCENE_EFFECT_OPTIONS: ReadonlyArray<{
   {id: 'sparkles', name: 'Lichterglanz', symbol: 'auto_awesome'},
   {id: 'glowPoints', name: 'Lichtpunkte', symbol: 'flare'},
   {id: 'uplight', name: 'Licht von unten', symbol: 'vertical_align_top'},
+  {id: 'vignette', name: 'Vignette', symbol: 'vignette'},
 ];
 
 export function isBouquetBackgroundMode(value: unknown): value is BouquetBackgroundMode {
@@ -69,6 +71,9 @@ export function normalizedBouquetSceneEffects(
     sparkles: legacySparkles,
     glowPoints: value?.glowPoints === true || legacyCombinedEffect,
     uplight: value?.uplight === true,
+    // The background was vignetted before this became a selectable effect.
+    // Keeping it enabled for omitted values preserves existing projects.
+    vignette: value?.vignette !== false,
   };
 }
 

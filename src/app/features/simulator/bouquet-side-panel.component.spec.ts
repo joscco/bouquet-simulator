@@ -58,7 +58,7 @@ function createFixture() {
     videoExportProgress: 0,
     modelExporting: false,
     lightLevel: 100,
-    sceneEffects: {sparkles: false, glowPoints: false, uplight: false},
+    sceneEffects: {sparkles: false, glowPoints: false, uplight: false, vignette: true},
     videoFormat: {id: 'square', name: 'Quadrat', ratio: '1:1', width: 1080, height: 1080},
   };
   for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);

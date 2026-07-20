@@ -207,7 +207,7 @@ export class BouquetStore {
   }
 
   setSceneEffect(effectId: BouquetSceneEffectId, enabled: boolean): void {
-    if (!['sparkles', 'glowPoints', 'uplight'].includes(effectId)) return;
+    if (!['sparkles', 'glowPoints', 'uplight', 'vignette'].includes(effectId)) return;
     this.updateActiveBouquetState((state) => ({
       ...state,
       sceneEffects: {

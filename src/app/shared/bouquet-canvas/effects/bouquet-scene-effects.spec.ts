@@ -7,8 +7,8 @@ import {
   sparkleBrightness,
 } from './bouquet-scene-effects';
 
-const ALL_EFFECTS = {sparkles: true, glowPoints: true, uplight: true};
-const SPARKLES_ONLY = {sparkles: true, glowPoints: false, uplight: false};
+const ALL_EFFECTS = {sparkles: true, glowPoints: true, uplight: true, vignette: true};
+const SPARKLES_ONLY = {sparkles: true, glowPoints: false, uplight: false, vignette: false};
 const BOUNDS = new Box3(new Vector3(-50, -100, -30), new Vector3(70, 140, 40));
 
 describe('BouquetSceneEffectsRenderer', () => {
@@ -66,10 +66,10 @@ describe('BouquetSceneEffectsRenderer', () => {
 
   it('derives animation from the active runtime', () => {
     const renderer = new BouquetSceneEffectsRenderer();
-    renderer.configure({sparkles: false, glowPoints: false, uplight: true}, 'light');
+    renderer.configure({sparkles: false, glowPoints: false, uplight: true, vignette: false}, 'light');
     expect(renderer.animated).toBe(false);
 
-    renderer.configure({sparkles: false, glowPoints: true, uplight: true}, 'light');
+    renderer.configure({sparkles: false, glowPoints: true, uplight: true, vignette: false}, 'light');
     expect(renderer.animated).toBe(true);
 
     renderer.dispose();
@@ -95,7 +95,7 @@ describe('BouquetSceneEffectsRenderer', () => {
   it('keeps glow lights synchronized with their particles', () => {
     const renderer = new BouquetSceneEffectsRenderer();
     renderer.setBounds(BOUNDS);
-    renderer.configure({sparkles: false, glowPoints: true, uplight: false}, 'dark');
+    renderer.configure({sparkles: false, glowPoints: true, uplight: false, vignette: false}, 'dark');
     renderer.updatePhase(0.43);
 
     const points = firstPoints(renderer);

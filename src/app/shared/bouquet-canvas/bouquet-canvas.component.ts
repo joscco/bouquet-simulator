@@ -57,12 +57,14 @@ import {
 } from './bouquet-canvas-view-controller';
 import {
   bouquetBackgroundModeForLightLevel,
+  normalizedBouquetSceneEffects,
   normalizedBouquetLightLevel,
 } from '../../core/data/bouquet-scene';
 import {recordBouquetTurntable} from './recording/bouquet-turntable-recorder';
 import {
   applyBouquetSceneLighting,
   bouquetSceneLightingObjects,
+  bouquetVignetteRadius,
   createBouquetSceneBackground,
   createBouquetRenderer,
   createBouquetSceneLighting,
@@ -171,6 +173,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private lastSceneBackgroundLevel: number | null = null;
   private lastSceneBackgroundTransparent: boolean | null = null;
   private lastSceneBackgroundAnchor: {x: number; y: number} | null = null;
+  private lastSceneBackgroundRadius: number | null = null;
+  private lastSceneBackgroundVignette: boolean | null = null;
 
   constructor() {
     this.bouquet.add(this.bouquetContent, this.sceneEffects.group);
@@ -368,23 +372,33 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     lightLevel: number,
     transparent: boolean,
     anchor: {x: number; y: number},
+    radius: number,
+    vignette: boolean,
   ): void {
     const anchorUnchanged = this.lastSceneBackgroundAnchor !== null
       && Math.abs(anchor.x - this.lastSceneBackgroundAnchor.x) < 0.005
       && Math.abs(anchor.y - this.lastSceneBackgroundAnchor.y) < 0.005;
+    const radiusUnchanged = this.lastSceneBackgroundRadius !== null
+      && Math.abs(radius - this.lastSceneBackgroundRadius) < 0.005;
     if (
       lightLevel === this.lastSceneBackgroundLevel
       && transparent === this.lastSceneBackgroundTransparent
       && anchorUnchanged
+      && radiusUnchanged
+      && vignette === this.lastSceneBackgroundVignette
     ) return;
     this.sceneBackgroundTexture?.dispose();
     this.sceneBackgroundTexture = null;
-    const background = transparent ? null : createBouquetSceneBackground(lightLevel, anchor);
+    const background = transparent
+      ? null
+      : createBouquetSceneBackground(lightLevel, anchor, radius, vignette);
     this.scene.background = background;
     if (background instanceof Texture) this.sceneBackgroundTexture = background;
     this.lastSceneBackgroundLevel = lightLevel;
     this.lastSceneBackgroundTransparent = transparent;
     this.lastSceneBackgroundAnchor = anchor;
+    this.lastSceneBackgroundRadius = radius;
+    this.lastSceneBackgroundVignette = vignette;
   }
 
   private requestRebuild(): void {
@@ -459,22 +473,49 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.state().lightLevel,
       this.state().backgroundMode,
     );
+    const backgroundFrame = this.bouquetBackgroundFrame();
     this.updateSceneBackground(
       lightLevel,
       this.thumbnailMode(),
-      this.bouquetBackgroundAnchor(),
+      backgroundFrame.anchor,
+      backgroundFrame.radius,
+      normalizedBouquetSceneEffects(this.state().sceneEffects).vignette,
     );
   }
 
-  private bouquetBackgroundAnchor(): {x: number; y: number} {
-    if (this.recordingViewport) return {x: 0.5, y: 0.5};
+  private bouquetBackgroundFrame(): {anchor: {x: number; y: number}; radius: number} {
     this.bouquet.updateMatrixWorld(true);
     const bounds = new Box3().setFromObject(this.bouquetContent);
-    if (bounds.isEmpty()) return {x: 0.5, y: 0.5};
+    if (bounds.isEmpty()) return {anchor: {x: 0.5, y: 0.5}, radius: 0.6};
     const projectedCenter = bounds.getCenter(new Vector3()).project(this.camera);
+    const projectedPoint = new Vector3();
+    let minimumX = Number.POSITIVE_INFINITY;
+    let maximumX = Number.NEGATIVE_INFINITY;
+    let minimumY = Number.POSITIVE_INFINITY;
+    let maximumY = Number.NEGATIVE_INFINITY;
+    for (const x of [bounds.min.x, bounds.max.x]) {
+      for (const y of [bounds.min.y, bounds.max.y]) {
+        for (const z of [bounds.min.z, bounds.max.z]) {
+          projectedPoint.set(x, y, z).project(this.camera);
+          minimumX = Math.min(minimumX, projectedPoint.x);
+          maximumX = Math.max(maximumX, projectedPoint.x);
+          minimumY = Math.min(minimumY, projectedPoint.y);
+          maximumY = Math.max(maximumY, projectedPoint.y);
+        }
+      }
+    }
+    const projectedSpan = Math.max(
+      (maximumX - minimumX) / 2,
+      (maximumY - minimumY) / 2,
+    );
     return {
-      x: clamp((projectedCenter.x + 1) / 2, 0, 1),
-      y: clamp((1 - projectedCenter.y) / 2, 0, 1),
+      anchor: this.recordingViewport
+        ? {x: 0.5, y: 0.5}
+        : {
+            x: clamp((projectedCenter.x + 1) / 2, 0, 1),
+            y: clamp((1 - projectedCenter.y) / 2, 0, 1),
+          },
+      radius: bouquetVignetteRadius(projectedSpan),
     };
   }
 

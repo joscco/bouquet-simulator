@@ -60,7 +60,7 @@ describe('bouquetFlowerRenderSignature', () => {
       schemaVersion: 2,
       rotation: 0,
       backgroundMode: 'light',
-      sceneEffects: {sparkles: false, glowPoints: false, uplight: false},
+      sceneEffects: {sparkles: false, glowPoints: false, uplight: false, vignette: false},
       flowers: [FLOWER],
     };
     const initial = bouquetFlowerRenderSignature(state.flowers);
@@ -68,7 +68,7 @@ describe('bouquetFlowerRenderSignature', () => {
       {...state, rotation: Math.PI},
       {...state, backgroundMode: 'dark'},
       {...state, lightLevel: 50},
-      {...state, sceneEffects: {sparkles: true, glowPoints: true, uplight: true}},
+      {...state, sceneEffects: {sparkles: true, glowPoints: true, uplight: true, vignette: true}},
     ];
 
     for (const changedState of presentationOnlyChanges) {

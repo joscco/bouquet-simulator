@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {Color} from 'three';
 import {
   applyBouquetSceneLighting,
+  bouquetVignetteRadius,
   createBouquetSceneBackground,
   createBouquetSceneLighting,
 } from './bouquet-scene-runtime';
@@ -34,5 +35,19 @@ describe('bouquet scene lighting', () => {
     expect(background).toBeInstanceOf(Color);
     if (!(background instanceof Color)) throw new Error('Expected the non-canvas color fallback.');
     expect(background.getHexString()).toBe('ef7f45');
+  });
+
+  it('uses a completely flat mood color when the vignette is disabled', () => {
+    const background = createBouquetSceneBackground(50, {x: 0.5, y: 0.5}, 0.6, false);
+
+    expect(background).toBeInstanceOf(Color);
+    if (!(background instanceof Color)) throw new Error('Expected a flat background color.');
+    expect(background.getHexString()).toBe('ef7f45');
+  });
+
+  it('scales the vignette with the visible bouquet size', () => {
+    expect(bouquetVignetteRadius(0.4)).toBeCloseTo(0.4);
+    expect(bouquetVignetteRadius(0.8)).toBeCloseTo(0.6);
+    expect(bouquetVignetteRadius(1.2)).toBeCloseTo(0.8);
   });
 });

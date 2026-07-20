@@ -77,7 +77,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isBouquetSceneEffects(value: unknown): boolean {
   if (!isRecord(value)) return false;
-  return ['sparkles', 'glowPoints', 'uplight', 'fireflies', 'glitter'].every((effect) =>
+  return ['sparkles', 'glowPoints', 'uplight', 'vignette', 'fireflies', 'glitter'].every((effect) =>
     value[effect] === undefined || typeof value[effect] === 'boolean');
 }
 

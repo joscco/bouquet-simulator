@@ -160,9 +160,12 @@ export function bouquetSceneLightingObjects(lighting: BouquetSceneLighting): Obj
 export function createBouquetSceneBackground(
   lightLevel: number,
   anchor: {x: number; y: number} = {x: 0.5, y: 0.45},
+  vignetteRadius = 0.6,
+  vignetteEnabled = true,
 ): Color | CanvasTexture {
   const level = normalizedBouquetLightLevel(lightLevel);
   const base = new Color(bouquetBackgroundColor(level));
+  if (!vignetteEnabled) return base;
   if (typeof document === 'undefined' || typeof CanvasRenderingContext2D === 'undefined') {
     return base;
   }
@@ -173,13 +176,15 @@ export function createBouquetSceneBackground(
   if (!context) return base;
 
   const auraStrength = moodValue(level, 0.14, 0.09, 0.045);
-  const vignetteStrength = moodValue(level, 0.07, 0.045, 0.025);
+  // The responsive radius and eased falloff allow a stronger frame without
+  // producing the former fixed circular edge.
+  const vignetteStrength = moodValue(level, 0.09, 0.11, 0.16);
   const auraTint = moodColor(level, '#6077b8', '#ffd08a', '#ffffff');
   const center = base.clone().lerp(auraTint, auraStrength);
   const edge = base.clone().multiplyScalar(1 - vignetteStrength);
   const anchorX = clamp(anchor.x, 0, 1) * canvas.width;
   const anchorY = clamp(anchor.y, 0, 1) * canvas.height;
-  const auraRadius = Math.max(canvas.width, canvas.height) * 0.72;
+  const auraRadius = Math.max(canvas.width, canvas.height) * clamp(vignetteRadius, 0.3, 1.2);
   const aura = context.createRadialGradient(
     anchorX,
     anchorY,
@@ -189,14 +194,28 @@ export function createBouquetSceneBackground(
     auraRadius,
   );
   aura.addColorStop(0, center.getStyle());
-  aura.addColorStop(0.48, base.getStyle());
-  aura.addColorStop(1, edge.getStyle());
+  aura.addColorStop(0.25, center.clone().lerp(base, 0.72).getStyle());
+  aura.addColorStop(0.4, base.getStyle());
+  // Approximate a smoothstep curve with several stops. Its flat start and end
+  // avoid the visible circular seam produced by a single linear color stop.
+  for (let step = 1; step <= 6; step += 1) {
+    const unit = step / 6;
+    const smoothUnit = unit * unit * (3 - 2 * unit);
+    aura.addColorStop(
+      0.4 + unit * 0.6,
+      base.clone().lerp(edge, smoothUnit).getStyle(),
+    );
+  }
   context.fillStyle = aura;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
+}
+
+export function bouquetVignetteRadius(projectedBouquetSpan: number): number {
+  return clamp(0.2 + Math.max(0, projectedBouquetSpan) * 0.5, 0.36, 1.15);
 }
 
 export function applyBouquetSceneLighting(
