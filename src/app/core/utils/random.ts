@@ -1,10 +1,6 @@
 import {NumberRange} from '../models/flower.models';
 import {clamp} from './numbers';
 
-export function randomRange(range: NumberRange, random: () => number): number {
-  return rangeValue(range, random());
-}
-
 export function rangeValue(range: NumberRange, unit: number): number {
   const minimum = Math.min(Number(range.min) || 0, Number(range.max) || 0);
   const maximum = Math.max(Number(range.min) || 0, Number(range.max) || 0);

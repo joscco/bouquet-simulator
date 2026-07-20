@@ -37,15 +37,6 @@ export function nestedGraphNodeIds(
   return result;
 }
 
-export function centerOfGraphPositions(positions: Record<string, Point>): Point {
-  const points = Object.values(positions);
-  if (!points.length) return {x: 500, y: 500};
-  return {
-    x: (Math.min(...points.map((point) => point.x)) + Math.max(...points.map((point) => point.x))) / 2,
-    y: (Math.min(...points.map((point) => point.y)) + Math.max(...points.map((point) => point.y))) / 2,
-  };
-}
-
 export function graphPointerDistance(points: ReadonlyMap<number, Point>): number {
   const [first, second] = [...points.values()];
   return Math.hypot(second!.x - first!.x, second!.y - first!.y);

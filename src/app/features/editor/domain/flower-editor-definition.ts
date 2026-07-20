@@ -16,14 +16,6 @@ export interface FlowerComponentCatalogEntry {
   tree: FlowerSubtreeDefinition;
 }
 
-export function catalogEntryType(entry: FlowerComponentCatalogEntry): string {
-  if (entry.source === 'saved') return 'Extrahierte Komponente';
-  if (entry.availableInBouquet && entry.availableAsComponent) return 'Blume + Komponente';
-  if (entry.availableInBouquet) return 'Blume';
-  if (entry.availableAsComponent) return 'Komponente';
-  return 'Nur im Katalog';
-}
-
 export function componentOutputCount(tree: FlowerNodeComponent): number {
   const nodes = tree.nodes ?? [];
   const ids = new Set(nodes.map((node) => node.id));

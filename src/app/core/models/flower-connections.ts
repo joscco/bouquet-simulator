@@ -115,10 +115,6 @@ export function normalizeConnectionReferences(definition: FlowerDefinition): Flo
   };
 }
 
-export function withoutChildId(connection: FlowerNodeConnection): FlowerNodeIncomingConnection {
-  return incomingFromConnection(connection);
-}
-
 export function nodeIncomingOrDefault(node: FlowerNodeDefinition): FlowerNodeIncomingConnection {
   return normalizeIncomingConnection(node.incoming ?? DEFAULT_INCOMING_CONNECTION);
 }

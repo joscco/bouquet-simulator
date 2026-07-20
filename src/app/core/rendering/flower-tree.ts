@@ -502,15 +502,6 @@ export function generateFlowerTree(
     return [...memberIds].filter((id) => !internalParents.has(id));
   }
 
-  function descendantOf(node: FlowerTreeNode, rootId: string): boolean {
-    let current: FlowerTreeNode | undefined = node;
-    while (current) {
-      if (current.id === rootId) return true;
-      current = current.parentId ? nodes.find((candidate) => candidate.id === current!.parentId) : undefined;
-    }
-    return false;
-  }
-
   function findPath(
     startNodeId: string,
     endNodeId: string,

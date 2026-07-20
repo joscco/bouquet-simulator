@@ -78,7 +78,6 @@ function createNaturalStemCurve(
   endTangent?: Vector3,
 ): Curve<Vector3> {
   const direction = end.clone().sub(start);
-  const length = Math.max(0.01, direction.length());
   const tangent = direction.clone().normalize();
   const axis = Math.abs(tangent.dot(new Vector3(0, 0, 1))) > 0.94
     ? new Vector3(1, 0, 0)

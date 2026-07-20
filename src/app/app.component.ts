@@ -46,7 +46,6 @@ export class AppComponent {
   private async generateDefaultFlowerPreviews(): Promise<number> {
     const previews = await this.renderDefaultFlowerPreviews();
     const writerModule = await import('./shared/flower-thumbnail/default-flower-preview-writer');
-    const generatorModule = await import('./shared/flower-thumbnail/flower-thumbnail-generator.service');
     const defaultsModule = await import('./core/data/default-flowers');
     const definitions = new Map(defaultsModule.DEFAULT_FLOWERS.map((definition) => [definition.id, definition]));
     for (const preview of previews) {

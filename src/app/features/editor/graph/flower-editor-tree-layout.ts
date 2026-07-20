@@ -1,7 +1,7 @@
 import {FlowerDefinition} from '../../../core/models/flower.models';
 import {effectiveConnection} from '../../../core/models/flower-connections';
 import {createGraphLayout} from './flower-editor-graph-layout';
-import {GraphNode, Point} from './flower-editor-graph-types';
+import {Point} from './flower-editor-graph-types';
 import {loopMemberIds} from './flower-editor-loop-layout';
 import {graphDepths, measureSubtree, placeSubtree} from './flower-editor-tree-geometry';
 
