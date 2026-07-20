@@ -1,0 +1,1 @@
+export const FLOWER_THUMBNAIL_SIZE = 512;

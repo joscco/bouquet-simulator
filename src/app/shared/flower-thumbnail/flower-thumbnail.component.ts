@@ -16,6 +16,7 @@ import {BouquetCanvasComponent} from '../bouquet-canvas/bouquet-canvas.component
 import {FlowerThumbnailCache} from './flower-thumbnail-cache.service';
 import {FlowerThumbnailRenderQueue} from './flower-thumbnail-render-queue.service';
 import {flowerDefinitionWithPreviewAnchor} from './flower-thumbnail-definition';
+import {FLOWER_THUMBNAIL_SIZE} from './flower-thumbnail-settings';
 
 let nextThumbnailRequestId = 0;
 
@@ -27,6 +28,7 @@ let nextThumbnailRequestId = 0;
   templateUrl: './flower-thumbnail.component.html',
 })
 export class FlowerThumbnailComponent implements AfterViewInit, OnDestroy {
+  readonly thumbnailSize = FLOWER_THUMBNAIL_SIZE;
   readonly definition = input.required<FlowerDefinition>();
   readonly cache = inject(FlowerThumbnailCache);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);

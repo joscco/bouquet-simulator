@@ -1,8 +1,11 @@
-<section class="overflow-clip rounded-xl border border-stone-300/90 bg-white/75">
+<section
+  class="overflow-clip rounded-xl border border-stone-300/80"
+  [class]="glass() ? 'bg-white/42' : 'bg-white/75'"
+>
   <button
     class="flex min-h-11 w-full cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-left text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600 motion-reduce:transition-none"
     type="button"
-    [class.bg-stone-50/80]="expanded()"
+    [class]="expanded() ? (glass() ? 'bg-white/38' : 'bg-stone-50/80') : ''"
     [class.text-stone-800]="expanded()"
     [attr.aria-expanded]="expanded()"
     (click)="toggle()"

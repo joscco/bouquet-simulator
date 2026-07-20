@@ -1,6 +1,6 @@
 import {FlowerDefinition} from '../../core/models/flower.models';
 
-const KEY_VERSION = 'png-v1';
+const KEY_VERSION = 'png-v2';
 
 export function flowerThumbnailKey(definition: FlowerDefinition): string {
   return `${KEY_VERSION}:${hashString(JSON.stringify(definition))}:${encodeURIComponent(definition.id)}`;

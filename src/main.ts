@@ -7,28 +7,39 @@ import {provideTransloco} from '@jsverse/transloco';
 import {AppComponent} from './app/app.component';
 import {TranslocoHttpLoader} from './app/transloco-loader';
 
-bootstrapApplication(AppComponent, {
-  providers: [
-    provideHttpClient(),
-    provideTransloco({
-      config: {
-        availableLangs: ['de', 'en'],
-        defaultLang: 'de',
-        fallbackLang: 'de',
-        reRenderOnLangChange: true,
-        prodMode: !isDevMode(),
+async function startApplication(): Promise<void> {
+  if (typeof document !== 'undefined' && document.fonts) {
+    await Promise.race([
+      document.fonts.load('400 24px "Material Symbols Outlined"'),
+      new Promise<void>((resolve) => setTimeout(resolve, 2500)),
+    ]);
+  }
+
+  await bootstrapApplication(AppComponent, {
+    providers: [
+      provideHttpClient(),
+      provideTransloco({
+        config: {
+          availableLangs: ['de', 'en'],
+          defaultLang: 'de',
+          fallbackLang: 'de',
+          reRenderOnLangChange: true,
+          prodMode: !isDevMode(),
+        },
+        loader: TranslocoHttpLoader,
+      }),
+      provideAppInitializer(() => {
+        inject(MatIconRegistry).setDefaultFontSetClass(
+          'material-symbols-outlined',
+          'mat-ligature-font',
+        );
+      }),
+      {
+        provide: MAT_SNACK_BAR_DEFAULT_OPTIONS,
+        useValue: {duration: 3200, horizontalPosition: 'center', verticalPosition: 'top'},
       },
-      loader: TranslocoHttpLoader,
-    }),
-    provideAppInitializer(() => {
-      inject(MatIconRegistry).setDefaultFontSetClass(
-        'material-symbols-outlined',
-        'mat-ligature-font',
-      );
-    }),
-    {
-      provide: MAT_SNACK_BAR_DEFAULT_OPTIONS,
-      useValue: {duration: 3200, horizontalPosition: 'center', verticalPosition: 'top'},
-    },
-  ],
-}).catch((error: unknown) => console.error(error));
+    ],
+  });
+}
+
+startApplication().catch((error: unknown) => console.error(error));

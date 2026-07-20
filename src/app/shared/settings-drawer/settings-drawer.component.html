@@ -11,7 +11,8 @@
     [attr.data-open]="open()"
   >
     <section
-      class="absolute inset-0 z-[2] overflow-hidden rounded-tr-[18px] border-r border-t border-stone-200/90 bg-white transition-[border-color,box-shadow] duration-150 data-[resize-active=true]:border-emerald-500 data-[resize-active=true]:shadow-[inset_-2px_0_0_rgb(5_150_105/80%)] portrait:rounded-t-[18px] portrait:border-r-0 portrait:data-[resize-active=true]:shadow-[inset_0_2px_0_rgb(5_150_105/80%)]"
+      class="absolute inset-0 z-[2] overflow-hidden rounded-tr-[18px] border-r border-t border-stone-200/90 transition-[border-color,box-shadow] duration-150 data-[resize-active=true]:border-emerald-500 data-[resize-active=true]:shadow-[inset_-2px_0_0_rgb(5_150_105/80%)] portrait:rounded-t-[18px] portrait:border-r-0 portrait:data-[resize-active=true]:shadow-[inset_0_2px_0_rgb(5_150_105/80%)]"
+      [class]="glass() ? 'bg-white/78 backdrop-blur-2xl' : 'bg-white'"
       [class.pointer-events-auto]="open()"
       [class.pointer-events-none]="!open()"
       [attr.data-resize-active]="resizeHovered() || resizing()"
@@ -43,7 +44,8 @@
     ></div>
 
     <button
-      class="pointer-events-auto absolute left-[calc(100%-1px)] top-1/2 z-[5] grid h-[78px] w-[42px] -translate-y-1/2 cursor-pointer place-items-center rounded-r-[18px] border border-l-0 border-stone-200/90 bg-white text-emerald-900 before:pointer-events-none before:absolute before:-inset-y-px before:-left-1 before:w-[5px] before:bg-white before:content-[''] hover:text-emerald-950 portrait:bottom-[calc(100%-1px)] portrait:left-1/2 portrait:top-auto portrait:h-[42px] portrait:w-[78px] portrait:-translate-x-1/2 portrait:translate-y-0 portrait:rounded-b-none portrait:rounded-t-[18px] portrait:border-b-0 portrait:border-l portrait:before:-inset-x-px portrait:before:inset-y-auto portrait:before:-bottom-1 portrait:before:h-[5px] portrait:before:w-auto"
+      class="pointer-events-auto absolute left-[calc(100%-1px)] top-1/2 z-[5] grid h-[78px] w-[42px] -translate-y-1/2 cursor-pointer place-items-center rounded-r-[18px] border border-l-0 border-stone-200/90 text-emerald-900 hover:text-emerald-950 portrait:bottom-[calc(100%-1px)] portrait:left-1/2 portrait:top-auto portrait:h-[42px] portrait:w-[78px] portrait:-translate-x-1/2 portrait:translate-y-0 portrait:rounded-b-none portrait:rounded-t-[18px] portrait:border-b-0 portrait:border-l"
+      [class]="glass() ? 'bg-white shadow-sm' : 'bg-white'"
       type="button"
       [attr.aria-label]="toggleLabel()"
       [attr.aria-expanded]="open()"

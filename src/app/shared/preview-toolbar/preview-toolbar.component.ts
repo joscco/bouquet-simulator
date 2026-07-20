@@ -11,6 +11,7 @@ import {TranslocoPipe} from '@jsverse/transloco';
 })
 export class PreviewToolbarComponent {
   readonly disabled = input(false);
+  readonly glass = input(false);
   readonly centerView = output<void>();
   readonly regeneratePreview = output<void>();
 }

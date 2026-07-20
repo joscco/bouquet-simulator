@@ -1,4 +1,9 @@
-<div class="absolute right-3 top-16 z-20 flex gap-1 rounded-[10px] border border-stone-200 bg-white/90 p-1 shadow-sm backdrop-blur-xl" role="toolbar" [attr.aria-label]="'editor.preview' | transloco">
+<div
+  class="absolute right-3 top-16 z-20 flex gap-1 rounded-[10px] border border-stone-200/80 p-1 shadow-sm backdrop-blur-xl"
+  [class]="glass() ? 'bg-white/62' : 'bg-white/90'"
+  role="toolbar"
+  [attr.aria-label]="'editor.preview' | transloco"
+>
   <button class="grid size-[34px] cursor-pointer place-items-center rounded-[7px] border border-transparent bg-transparent text-stone-600 transition-colors hover:bg-stone-100 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600 disabled:cursor-default disabled:opacity-40" type="button" [disabled]="disabled()" [attr.aria-label]="'editor.centerView' | transloco" [attr.title]="'editor.centerView' | transloco" (click)="centerView.emit()">
     <mat-icon class="size-5! text-[20px]! leading-5!">center_focus_strong</mat-icon>
   </button>

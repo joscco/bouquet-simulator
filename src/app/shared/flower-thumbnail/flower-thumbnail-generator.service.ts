@@ -8,8 +8,8 @@ import {
 import {BouquetState, FlowerDefinition} from '../../core/models/flower.models';
 import {BouquetCanvasComponent} from '../bouquet-canvas/bouquet-canvas.component';
 import {flowerDefinitionWithPreviewAnchor} from './flower-thumbnail-definition';
+import {FLOWER_THUMBNAIL_SIZE} from './flower-thumbnail-settings';
 
-const THUMBNAIL_SIZE = 320;
 const GENERATION_TIMEOUT_MS = 15_000;
 
 @Injectable({providedIn: 'root'})
@@ -31,8 +31,8 @@ export class FlowerThumbnailGenerator {
       'position:fixed',
       'left:-10000px',
       'top:0',
-      `width:${THUMBNAIL_SIZE}px`,
-      `height:${THUMBNAIL_SIZE}px`,
+      `width:${FLOWER_THUMBNAIL_SIZE}px`,
+      `height:${FLOWER_THUMBNAIL_SIZE}px`,
       'pointer-events:none',
       'opacity:0',
     ].join(';');
@@ -64,7 +64,7 @@ export class FlowerThumbnailGenerator {
     componentRef.setInput('definitions', [previewDefinition]);
     componentRef.setInput('fitToContent', true);
     componentRef.setInput('thumbnailMode', true);
-    componentRef.setInput('snapshotSize', THUMBNAIL_SIZE);
+    componentRef.setInput('snapshotSize', FLOWER_THUMBNAIL_SIZE);
     componentRef.setInput('snapshotKey', snapshotKey);
 
     return new Promise<Blob>((resolve, reject) => {

@@ -18,6 +18,7 @@ export class EditorDisclosureComponent {
   readonly description = input('');
   readonly icon = input('');
   readonly badge = input('');
+  readonly glass = input(false);
   readonly expanded = model(false);
 
   toggle(): void {

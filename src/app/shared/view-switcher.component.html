@@ -1,11 +1,13 @@
 <header class="pointer-events-none fixed inset-x-0 top-0 z-[120] h-16">
   <div
-    class="pointer-events-auto absolute left-3 top-3 grid h-9 w-20 grid-cols-2 items-center overflow-hidden rounded-xl border border-white/70 bg-white/82 p-1 shadow-lg shadow-stone-900/10 backdrop-blur-xl"
+    class="pointer-events-auto absolute left-3 top-3 grid h-9 w-20 grid-cols-2 items-center overflow-hidden rounded-xl border p-1 shadow-lg shadow-stone-900/10 backdrop-blur-xl"
+    [class]="activeView() === 'bouquet' ? 'border-white/55 bg-white/62' : 'border-white/70 bg-white/82'"
     role="group"
     [attr.aria-label]="'language.label' | transloco"
   >
     <span
-      class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-emerald-950 shadow-sm motion-reduce:transition-none"
+      class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-sm motion-reduce:transition-none"
+      [class]="activeView() === 'bouquet' ? 'bg-emerald-950/88' : 'bg-emerald-950'"
       [class.translate-x-full]="activeLanguage() === 'en'"
       [class.transition-transform]="languageSwitchAnimated()"
       [class.duration-200]="languageSwitchAnimated()"
@@ -20,9 +22,15 @@
       (click)="selectLanguage('en')" (keydown.arrowleft)="$event.preventDefault(); selectLanguage('de'); germanLanguageButton.focus()">EN</button>
   </div>
 
-  <div class="pointer-events-auto absolute right-3 top-3 grid h-9 w-[200px] grid-cols-2 items-center overflow-hidden rounded-xl border border-white/70 bg-white/82 p-1 shadow-lg shadow-stone-900/10 backdrop-blur-xl" role="tablist" [attr.aria-label]="'views.label' | transloco">
+  <div
+    class="pointer-events-auto absolute right-3 top-3 grid h-9 w-[200px] grid-cols-2 items-center overflow-hidden rounded-xl border p-1 shadow-lg shadow-stone-900/10 backdrop-blur-xl"
+    [class]="activeView() === 'bouquet' ? 'border-white/55 bg-white/62' : 'border-white/70 bg-white/82'"
+    role="tablist"
+    [attr.aria-label]="'views.label' | transloco"
+  >
     <span
-      class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg bg-emerald-950 shadow-sm motion-reduce:transition-none"
+      class="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-lg shadow-sm motion-reduce:transition-none"
+      [class]="activeView() === 'bouquet' ? 'bg-emerald-950/88' : 'bg-emerald-950'"
       [class.translate-x-full]="activeView() === 'components'"
       [class.transition-transform]="viewSwitchAnimated()"
       [class.duration-200]="viewSwitchAnimated()"

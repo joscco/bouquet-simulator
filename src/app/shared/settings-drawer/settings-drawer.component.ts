@@ -23,6 +23,7 @@ export class SettingsDrawerComponent implements AfterViewInit, OnDestroy {
   readonly toggleLabel = input.required<string>();
   readonly busy = input(false);
   readonly disabled = input(false);
+  readonly glass = input(false);
   readonly extentRatio = input(0.5);
   readonly resizeLabel = input('Resize settings');
   readonly resizeHint = input('Drag to resize · Double-click to reset');

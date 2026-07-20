@@ -172,8 +172,8 @@ export function createBouquetSceneBackground(
   const context = canvas.getContext('2d');
   if (!context) return base;
 
-  const auraStrength = moodValue(level, 0.1, 0.06, 0.03);
-  const vignetteStrength = moodValue(level, 0.04, 0.025, 0.012);
+  const auraStrength = moodValue(level, 0.14, 0.09, 0.045);
+  const vignetteStrength = moodValue(level, 0.07, 0.045, 0.025);
   const auraTint = moodColor(level, '#6077b8', '#ffd08a', '#ffffff');
   const center = base.clone().lerp(auraTint, auraStrength);
   const edge = base.clone().multiplyScalar(1 - vignetteStrength);
@@ -189,7 +189,7 @@ export function createBouquetSceneBackground(
     auraRadius,
   );
   aura.addColorStop(0, center.getStyle());
-  aura.addColorStop(0.52, base.getStyle());
+  aura.addColorStop(0.48, base.getStyle());
   aura.addColorStop(1, edge.getStyle());
   context.fillStyle = aura;
   context.fillRect(0, 0, canvas.width, canvas.height);

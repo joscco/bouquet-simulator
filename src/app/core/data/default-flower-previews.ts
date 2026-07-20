@@ -1,71 +1,71 @@
 // Wird zusammen mit den Default-PNGs vom lokalen Defaults-Server erzeugt.
 export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url: string}>> = {
   "peony": {
-    "key": "png-v1:7e6c9j:peony",
+    "key": "png-v2:7e6c9j:peony",
     "url": "/previews/peony.png"
   },
   "peony-blossom": {
-    "key": "png-v1:1juin4u:peony-blossom",
+    "key": "png-v2:1juin4u:peony-blossom",
     "url": "/previews/peony-blossom.png"
   },
   "daisy": {
-    "key": "png-v1:sldi0k:daisy",
+    "key": "png-v2:n7cmu6:daisy",
     "url": "/previews/daisy.png"
   },
   "lilac": {
-    "key": "png-v1:le1z49:lilac",
+    "key": "png-v2:le1z49:lilac",
     "url": "/previews/lilac.png"
   },
   "neue-blume": {
-    "key": "png-v1:hvz4fh:neue-blume",
+    "key": "png-v2:hvz4fh:neue-blume",
     "url": "/previews/neue-blume.png"
   },
   "daisy-blossom": {
-    "key": "png-v1:1o01flz:daisy-blossom",
+    "key": "png-v2:1o01flz:daisy-blossom",
     "url": "/previews/daisy-blossom.png"
   },
   "neue-blume-2": {
-    "key": "png-v1:2fy0ut:neue-blume-2",
+    "key": "png-v2:2fy0ut:neue-blume-2",
     "url": "/previews/neue-blume-2.png"
   },
   "neue-blume-4": {
-    "key": "png-v1:vg1w46:neue-blume-4",
+    "key": "png-v2:vg1w46:neue-blume-4",
     "url": "/previews/neue-blume-4.png"
   },
   "dornenstaengel": {
-    "key": "png-v1:1adnjym:dornenstaengel",
+    "key": "png-v2:1adnjym:dornenstaengel",
     "url": "/previews/dornenstaengel.png"
   },
   "neue-blume-5": {
-    "key": "png-v1:nql87a:neue-blume-5",
+    "key": "png-v2:nql87a:neue-blume-5",
     "url": "/previews/neue-blume-5.png"
   },
   "neue-blume-3": {
-    "key": "png-v1:gd35ng:neue-blume-3",
+    "key": "png-v2:gd35ng:neue-blume-3",
     "url": "/previews/neue-blume-3.png"
   },
   "sunflower": {
-    "key": "png-v1:z7xcoi:sunflower",
+    "key": "png-v2:z7xcoi:sunflower",
     "url": "/previews/sunflower.png"
   },
   "tulip": {
-    "key": "png-v1:1povbxi:tulip",
+    "key": "png-v2:1povbxi:tulip",
     "url": "/previews/tulip.png"
   },
   "lavender": {
-    "key": "png-v1:j268vf:lavender",
+    "key": "png-v2:j268vf:lavender",
     "url": "/previews/lavender.png"
   },
   "sonnenblumenbluete": {
-    "key": "png-v1:8dan0o:sonnenblumenbluete",
+    "key": "png-v2:8dan0o:sonnenblumenbluete",
     "url": "/previews/sonnenblumenbluete.png"
   },
   "neue-blume-8": {
-    "key": "png-v1:11avxlr:neue-blume-8",
+    "key": "png-v2:11avxlr:neue-blume-8",
     "url": "/previews/neue-blume-8.png"
   },
   "small-daisy": {
-    "key": "png-v1:3nx9i2:small-daisy",
+    "key": "png-v2:3nx9i2:small-daisy",
     "url": "/previews/small-daisy.png"
   }
 };
