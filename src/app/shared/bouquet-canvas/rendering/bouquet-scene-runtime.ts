@@ -1,5 +1,6 @@
 import {
   ACESFilmicToneMapping,
+  CanvasTexture,
   Color,
   DirectionalLight,
   HemisphereLight,
@@ -13,7 +14,7 @@ import {
   bouquetToneMappingExposure,
   normalizedBouquetLightLevel,
 } from '../../../core/data/bouquet-scene';
-import {lerp} from '../../../core/utils/numbers';
+import {clamp, lerp} from '../../../core/utils/numbers';
 
 interface BouquetLightingPreset {
   hemisphereSky: string;
@@ -35,13 +36,13 @@ const NIGHT_LIGHTING: BouquetLightingPreset = {
   hemisphereGround: '#03050b',
   hemisphereIntensity: 0.9,
   keyColor: '#c1d9ff',
-  keyIntensity: 3.65,
+  keyIntensity: 3.83,
   keyPosition: [-340, 500, 120],
   fillColor: '#534798',
-  fillIntensity: 0.95,
+  fillIntensity: 1.05,
   fillPosition: [300, 110, -300],
   rimColor: '#a882ff',
-  rimIntensity: 1.8,
+  rimIntensity: 2.07,
   rimPosition: [260, 340, -380],
 };
 const BLUE_HOUR_LIGHTING: BouquetLightingPreset = {
@@ -49,13 +50,13 @@ const BLUE_HOUR_LIGHTING: BouquetLightingPreset = {
   hemisphereGround: '#130d2b',
   hemisphereIntensity: 1,
   keyColor: '#ff78ad',
-  keyIntensity: 4.2,
+  keyIntensity: 4.41,
   keyPosition: [-430, 260, 220],
   fillColor: '#566cff',
-  fillIntensity: 1.25,
+  fillIntensity: 1.35,
   fillPosition: [330, 130, -320],
   rimColor: '#bd63ff',
-  rimIntensity: 2.4,
+  rimIntensity: 2.76,
   rimPosition: [300, 320, -410],
 };
 const TWILIGHT_LIGHTING: BouquetLightingPreset = {
@@ -63,13 +64,13 @@ const TWILIGHT_LIGHTING: BouquetLightingPreset = {
   hemisphereGround: '#3b2031',
   hemisphereIntensity: 1.05,
   keyColor: '#ff963f',
-  keyIntensity: 4.8,
+  keyIntensity: 5.04,
   keyPosition: [-520, 125, 300],
   fillColor: '#8f60bb',
-  fillIntensity: 1.2,
+  fillIntensity: 1.3,
   fillPosition: [350, 170, -260],
   rimColor: '#ff507d',
-  rimIntensity: 2.25,
+  rimIntensity: 2.59,
   rimPosition: [360, 220, -420],
 };
 const GOLDEN_HOUR_LIGHTING: BouquetLightingPreset = {
@@ -77,13 +78,13 @@ const GOLDEN_HOUR_LIGHTING: BouquetLightingPreset = {
   hemisphereGround: '#563328',
   hemisphereIntensity: 1.25,
   keyColor: '#ffc85b',
-  keyIntensity: 4.2,
+  keyIntensity: 4.41,
   keyPosition: [-430, 230, 340],
   fillColor: '#9a7fe0',
-  fillIntensity: 0.95,
+  fillIntensity: 1.05,
   fillPosition: [350, 170, -120],
   rimColor: '#ff7865',
-  rimIntensity: 1.5,
+  rimIntensity: 1.73,
   rimPosition: [330, 250, -380],
 };
 const DAY_LIGHTING: BouquetLightingPreset = {
@@ -91,13 +92,13 @@ const DAY_LIGHTING: BouquetLightingPreset = {
   hemisphereGround: '#52645d',
   hemisphereIntensity: 1.45,
   keyColor: '#fff1d6',
-  keyIntensity: 2.75,
+  keyIntensity: 2.89,
   keyPosition: [-240, 420, 360],
   fillColor: '#dbeafe',
   fillIntensity: 0.85,
   fillPosition: [340, 180, 280],
   rimColor: '#fff1cf',
-  rimIntensity: 0.3,
+  rimIntensity: 0.35,
   rimPosition: [280, 300, -320],
 };
 
@@ -156,8 +157,46 @@ export function bouquetSceneLightingObjects(lighting: BouquetSceneLighting): Obj
   return [lighting.hemisphere, lighting.key, lighting.key.target, lighting.fill, lighting.rim];
 }
 
-export function createBouquetSceneBackground(lightLevel: number): Color {
-  return new Color(bouquetBackgroundColor(lightLevel));
+export function createBouquetSceneBackground(
+  lightLevel: number,
+  anchor: {x: number; y: number} = {x: 0.5, y: 0.45},
+): Color | CanvasTexture {
+  const level = normalizedBouquetLightLevel(lightLevel);
+  const base = new Color(bouquetBackgroundColor(level));
+  if (typeof document === 'undefined' || typeof CanvasRenderingContext2D === 'undefined') {
+    return base;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 384;
+  const context = canvas.getContext('2d');
+  if (!context) return base;
+
+  const auraStrength = moodValue(level, 0.1, 0.06, 0.03);
+  const vignetteStrength = moodValue(level, 0.04, 0.025, 0.012);
+  const auraTint = moodColor(level, '#6077b8', '#ffd08a', '#ffffff');
+  const center = base.clone().lerp(auraTint, auraStrength);
+  const edge = base.clone().multiplyScalar(1 - vignetteStrength);
+  const anchorX = clamp(anchor.x, 0, 1) * canvas.width;
+  const anchorY = clamp(anchor.y, 0, 1) * canvas.height;
+  const auraRadius = Math.max(canvas.width, canvas.height) * 0.72;
+  const aura = context.createRadialGradient(
+    anchorX,
+    anchorY,
+    0,
+    anchorX,
+    anchorY,
+    auraRadius,
+  );
+  aura.addColorStop(0, center.getStyle());
+  aura.addColorStop(0.52, base.getStyle());
+  aura.addColorStop(1, edge.getStyle());
+  context.fillStyle = aura;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
 }
 
 export function applyBouquetSceneLighting(
@@ -189,6 +228,18 @@ function lightingSegment(
   if (level <= 50) return [BLUE_HOUR_LIGHTING, TWILIGHT_LIGHTING, (level - 25) / 25];
   if (level <= 75) return [TWILIGHT_LIGHTING, GOLDEN_HOUR_LIGHTING, (level - 50) / 25];
   return [GOLDEN_HOUR_LIGHTING, DAY_LIGHTING, (level - 75) / 25];
+}
+
+function moodValue(level: number, night: number, twilight: number, day: number): number {
+  return level <= 50
+    ? lerp(night, twilight, level / 50)
+    : lerp(twilight, day, (level - 50) / 50);
+}
+
+function moodColor(level: number, night: string, twilight: string, day: string): Color {
+  return level <= 50
+    ? mixedColor(night, twilight, level / 50)
+    : mixedColor(twilight, day, (level - 50) / 50);
 }
 
 function mixedColor(from: string, to: string, unit: number): Color {

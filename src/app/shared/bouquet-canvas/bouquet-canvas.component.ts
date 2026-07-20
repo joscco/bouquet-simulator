@@ -18,6 +18,7 @@ import {
   Quaternion,
   Raycaster,
   Scene,
+  Texture,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -166,8 +167,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private emittedSnapshotKey: string | null = null;
   private recordingViewport: {width: number; height: number} | null = null;
   private effectsAnimationFrame: number | null = null;
+  private sceneBackgroundTexture: Texture | null = null;
   private lastSceneBackgroundLevel: number | null = null;
   private lastSceneBackgroundTransparent: boolean | null = null;
+  private lastSceneBackgroundAnchor: {x: number; y: number} | null = null;
 
   constructor() {
     this.bouquet.add(this.bouquetContent, this.sceneEffects.group);
@@ -231,7 +234,6 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
       this.lastRecenterKey = recenterKey;
-      this.updateSceneBackground(lightLevel, thumbnailMode);
       this.applySceneLighting(lightLevel);
       this.sceneEffects.configure(state.sceneEffects, backgroundMode);
       this.syncEffectsAnimation();
@@ -293,6 +295,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     }
     disposeGroupChildren(this.bouquetContent);
     this.sceneEffects.dispose();
+    this.sceneBackgroundTexture?.dispose();
+    this.sceneBackgroundTexture = null;
     renderer?.dispose();
     renderer?.forceContextLoss();
     renderer?.domElement.remove();
@@ -360,14 +364,27 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     applyBouquetSceneLighting(this.sceneLighting, lightLevel, this.renderer);
   }
 
-  private updateSceneBackground(lightLevel: number, transparent: boolean): void {
+  private updateSceneBackground(
+    lightLevel: number,
+    transparent: boolean,
+    anchor: {x: number; y: number},
+  ): void {
+    const anchorUnchanged = this.lastSceneBackgroundAnchor !== null
+      && Math.abs(anchor.x - this.lastSceneBackgroundAnchor.x) < 0.005
+      && Math.abs(anchor.y - this.lastSceneBackgroundAnchor.y) < 0.005;
     if (
       lightLevel === this.lastSceneBackgroundLevel
       && transparent === this.lastSceneBackgroundTransparent
+      && anchorUnchanged
     ) return;
-    this.scene.background = transparent ? null : createBouquetSceneBackground(lightLevel);
+    this.sceneBackgroundTexture?.dispose();
+    this.sceneBackgroundTexture = null;
+    const background = transparent ? null : createBouquetSceneBackground(lightLevel, anchor);
+    this.scene.background = background;
+    if (background instanceof Texture) this.sceneBackgroundTexture = background;
     this.lastSceneBackgroundLevel = lightLevel;
     this.lastSceneBackgroundTransparent = transparent;
+    this.lastSceneBackgroundAnchor = anchor;
   }
 
   private requestRebuild(): void {
@@ -438,6 +455,27 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private resizeCamera(): void {
     if (!this.renderer) return;
     this.viewController.resizeCamera(this.viewConfiguration());
+    const lightLevel = normalizedBouquetLightLevel(
+      this.state().lightLevel,
+      this.state().backgroundMode,
+    );
+    this.updateSceneBackground(
+      lightLevel,
+      this.thumbnailMode(),
+      this.bouquetBackgroundAnchor(),
+    );
+  }
+
+  private bouquetBackgroundAnchor(): {x: number; y: number} {
+    if (this.recordingViewport) return {x: 0.5, y: 0.5};
+    this.bouquet.updateMatrixWorld(true);
+    const bounds = new Box3().setFromObject(this.bouquetContent);
+    if (bounds.isEmpty()) return {x: 0.5, y: 0.5};
+    const projectedCenter = bounds.getCenter(new Vector3()).project(this.camera);
+    return {
+      x: clamp((projectedCenter.x + 1) / 2, 0, 1),
+      y: clamp((1 - projectedCenter.y) / 2, 0, 1),
+    };
   }
 
   private effectiveZoom(userZoom = this.zoom()): number {

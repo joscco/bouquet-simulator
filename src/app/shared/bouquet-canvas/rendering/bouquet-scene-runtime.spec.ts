@@ -20,18 +20,19 @@ describe('bouquet scene lighting', () => {
 
     applyBouquetSceneLighting(lighting, 50, null);
     expect(lighting.key.color.getHexString()).not.toBe(nightColor);
-    expect(lighting.key.intensity).toBeCloseTo(4.8);
-    expect(lighting.rim.intensity).toBeCloseTo(2.25);
+    expect(lighting.key.intensity).toBeCloseTo(5.04);
+    expect(lighting.rim.intensity).toBeCloseTo(2.59);
 
     applyBouquetSceneLighting(lighting, 100, null);
     expect(lighting.hemisphere.intensity).toBeCloseTo(1.45);
-    expect(lighting.key.intensity).toBeCloseTo(2.75);
+    expect(lighting.key.intensity).toBeCloseTo(2.89);
   });
 
-  it('uses a flat background color without a gradient texture', () => {
+  it('falls back to the mood base color when canvas textures are unavailable', () => {
     const background = createBouquetSceneBackground(50);
 
     expect(background).toBeInstanceOf(Color);
+    if (!(background instanceof Color)) throw new Error('Expected the non-canvas color fallback.');
     expect(background.getHexString()).toBe('ef7f45');
   });
 });
