@@ -5,9 +5,9 @@
   <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden">
     <ng-template #graphContent>
     <div
-      class="relative h-full min-h-0 w-full overflow-hidden bg-[#f7f6f2]"
+      class="relative h-full min-h-0 w-full overflow-hidden rounded-lg bg-stone-50"
     >
-      <div class="absolute left-2 top-2 z-30 flex flex-col items-center gap-1 rounded-[10px] border border-stone-200 bg-white/90! p-1 shadow-lg backdrop-blur">
+      <div class="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5 shadow-sm backdrop-blur">
         <button app-button variant="icon"
           [matTooltip]="'editor.editSelection' | transloco"
           [attr.aria-label]="'editor.editSelection' | transloco"
@@ -18,9 +18,30 @@
         </button>
         <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
         <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
-        <span class="my-1 h-px w-6 bg-stone-200"></span>
-        <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>account_tree</mat-icon></button>
         <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
+      </div>
+
+      <div class="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5 shadow-sm backdrop-blur">
+        <button app-button variant="icon" [matTooltip]="'editor.zoomOut' | transloco" [attr.aria-label]="'editor.zoomOut' | transloco" (click)="zoomGraphView(0.8)"><mat-icon>zoom_out</mat-icon></button>
+        <button app-button variant="icon" [matTooltip]="'editor.zoomIn' | transloco" [attr.aria-label]="'editor.zoomIn' | transloco" (click)="zoomGraphView(1.25)"><mat-icon>zoom_in</mat-icon></button>
+        <button
+          app-button
+          variant="icon"
+          [matTooltip]="'editor.centerView' | transloco"
+          [attr.aria-label]="'editor.centerView' | transloco"
+          (click)="resetGraphView()"
+        >
+          <mat-icon>center_focus_strong</mat-icon>
+        </button>
+        <button
+          app-button
+          variant="icon"
+          [matTooltip]="(graphLayoutDirection() === 'vertical' ? 'editor.layoutHorizontal' : 'editor.layoutVertical') | transloco"
+          [attr.aria-label]="(graphLayoutDirection() === 'vertical' ? 'editor.layoutHorizontal' : 'editor.layoutVertical') | transloco"
+          (click)="toggleGraphLayoutDirection()"
+        >
+          <mat-icon>{{ graphLayoutDirection() === 'vertical' ? 'swap_horiz' : 'swap_vert' }}</mat-icon>
+        </button>
       </div>
 
       @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
@@ -30,7 +51,7 @@
       }
 
       @if (addMenuOpen()) {
-        <section class="absolute left-[58px] top-2 z-40 max-h-[calc(100%-1rem)] w-[min(380px,calc(100%-4.125rem))] overflow-y-auto rounded-2xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute bottom-1.5 left-[46px] top-1.5 z-40 w-[min(340px,calc(100%-52px))] overflow-y-auto rounded-xl border border-stone-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-3 flex items-center justify-between gap-2">
             <div>
               <div class="text-xs font-bold text-stone-800">Knoten hinzufügen</div>
@@ -82,7 +103,7 @@
       }
 
       @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
-        <section class="absolute left-[58px] top-2 z-40 max-h-[calc(100%-1rem)] w-[min(390px,calc(100%-4.125rem))] overflow-y-auto rounded-2xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+        <section class="absolute bottom-1.5 left-[46px] top-1.5 z-40 w-[min(360px,calc(100%-52px))] overflow-y-auto rounded-xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div class="mb-2 flex items-start gap-3">
             <div class="min-w-0 flex-1">
               <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
@@ -124,6 +145,7 @@
         [activeNodeIds]="activeTreeNodeIds()"
         [subtreeAnchorIds]="subtreeAnchorIds()"
         [subtreeNodeIds]="subtreeNodeIds()"
+        [compactLayoutDirection]="graphLayoutDirection()"
         (definitionChange)="applyDefinitionChange($event)"
         (positionsChange)="graphPositions.set($event)"
         (nodeSelection)="selectNodeFromTree($event)"
@@ -149,7 +171,11 @@
         [open]="editorPanelOpen()"
         panelId="flower-editor-inspector-sheet"
         [toggleLabel]="'editor.properties' | transloco"
+        [extentRatio]="editorPanelExtentRatio()"
+        [resizeLabel]="'common.resizeSettings' | transloco"
+        [resizeHint]="'common.resizeSettingsHint' | transloco"
         (toggle)="toggleEditorPanel()"
+        (extentRatioChange)="setEditorPanelExtentRatio($event)"
       >
       <div class="flex h-full flex-col overflow-hidden bg-white">
         <header class="relative flex min-h-14 shrink-0 items-center gap-2 border-b border-stone-200/80 bg-white px-3 py-2 portrait:px-3 portrait:pb-2 portrait:pt-2.5">
@@ -247,10 +273,46 @@
             </app-editor-disclosure>
           </section>
 
+          <section
+            class="sticky top-0 z-30 border-b border-stone-200 bg-white p-3 shadow-sm"
+          >
+            <app-editor-disclosure
+              [title]="'editor.graph' | transloco"
+              [description]="selectedNodeName()"
+              icon="account_tree"
+              [badge]="draft().nodes.length + ' ' + ('inspector.nodes' | transloco)"
+              [expanded]="graphSectionExpanded()"
+              (expandedChange)="setGraphSectionExpanded($event)"
+            >
+              @if (selectedNode(); as node) {
+                <div class="mb-2 flex min-w-0 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/90 p-1.5">
+                  <input
+                    class="h-8 min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-2 text-xs font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-white focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+                    [ngModel]="node.name"
+                    [attr.aria-label]="'inspector.nodeName' | transloco"
+                    (ngModelChange)="updateSelectedNodeName($event)"
+                  >
+                  @if (multiNodeSelection()) {
+                    <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
+                      {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
+                    </span>
+                  }
+                  <button app-button variant="icon" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
+                  @if (!multiNodeSelection() && selectedIncoming()) {
+                    <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco" (click)="removeSelectedIncomingConnection()"><mat-icon>link_off</mat-icon></button>
+                  }
+                  <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
+                </div>
+              }
+              <div class="h-[clamp(180px,26dvh,250px)] min-h-0 overflow-hidden rounded-xl border border-stone-200 portrait:h-[clamp(150px,19dvh,185px)]">
+                <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
+              </div>
+            </app-editor-disclosure>
+          </section>
+
           <div class="p-3">
             <app-editor-disclosure
               [title]="'inspector.selectedNode' | transloco"
-              [description]="selectedNodeName()"
               icon="account_tree"
               [badge]="subtreeNodeIds().size > 1 ? subtreeNodeIds().size + ' ' + ('inspector.nodes' | transloco) : ''"
               [expanded]="nodeSectionExpanded()"
@@ -259,13 +321,9 @@
               <app-flower-editor-inspector
                 class="-mx-2.5 -mb-3"
                 [definition]="draft()"
-                [positions]="graphPositions()"
                 [selectedNodeId]="selectedNodeId()"
                 [selectedNodeIds]="subtreeNodeIds()"
                 (definitionChange)="applyDefinitionChange($event)"
-                (positionsChange)="graphPositions.set($event)"
-                (nodeSelection)="selectNode($event)"
-                (message)="showInspectorMessage($event)"
               />
             </app-editor-disclosure>
           </div>
@@ -274,62 +332,6 @@
       </app-settings-drawer>
     </aside>
   </div>
-
-  @if (graphSectionExpanded()) {
-    <section
-      id="flower-editor-graph-window"
-      class="fixed z-[80] flex min-h-0 flex-col overflow-hidden rounded-2xl border border-stone-300 bg-white shadow-[0_24px_64px_rgb(28_25_23/28%)]"
-      [style.left.px]="graphWindowRect().x"
-      [style.top.px]="graphWindowRect().y"
-      [style.width.px]="graphWindowRect().width"
-      [style.height.px]="graphWindowRect().height"
-      role="dialog"
-      aria-modal="false"
-      [attr.aria-label]="('editor.graph' | transloco) + ': ' + draft().name"
-    >
-      <header
-        class="flex h-11 shrink-0 touch-none cursor-move items-center gap-2 border-b border-stone-200 bg-white/95 px-3 backdrop-blur select-none"
-        (pointerdown)="startGraphWindowGesture($event, 'move')"
-      >
-        <svg class="size-4 shrink-0 fill-none stroke-stone-400 stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 6h8M8 12h8M8 18h8"/>
-        </svg>
-        <div class="min-w-0 flex-1">
-          <div class="text-[9px] font-bold uppercase tracking-wider text-stone-400">{{ 'editor.graph' | transloco }}</div>
-          <div class="truncate text-xs font-semibold leading-tight text-stone-800">{{ draft().name }}</div>
-        </div>
-        <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (pointerdown)="$event.stopPropagation()" (click)="closeGraphWindow()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </header>
-      <div class="min-h-0 flex-1">
-        <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
-      </div>
-      <button
-        class="absolute bottom-0 right-0 z-50 grid size-8 touch-none cursor-nwse-resize place-items-center rounded-tl-xl border-0 bg-white/85 text-stone-400 backdrop-blur transition-colors hover:bg-white hover:text-emerald-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-700"
-        type="button"
-        aria-label="Aufbau-Fenster skalieren"
-        (pointerdown)="startGraphWindowGesture($event, 'resize')"
-      >
-        <svg class="size-4 fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 20 20" aria-hidden="true">
-          <path d="m7 17 10-10M12 17l5-5"/>
-        </svg>
-      </button>
-    </section>
-  } @else {
-    <button
-      class="fixed z-[80] grid size-[40px] touch-none cursor-move select-none place-items-center rounded-xl border border-stone-300 bg-white/95 text-stone-600 backdrop-blur transition-[background-color,color,box-shadow] hover:bg-white hover:text-emerald-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
-      type="button"
-      [style.left.px]="graphLauncherPosition().x"
-      [style.top.px]="graphLauncherPosition().y"
-      [attr.aria-label]="'editor.graph' | transloco"
-      aria-controls="flower-editor-graph-window"
-      (pointerdown)="startGraphLauncherGesture($event)"
-      (click)="openGraphWindowFromLauncher()"
-    >
-      <mat-icon class="size-7! text-[28px]! leading-7!" aria-hidden="true">graph_1</mat-icon>
-    </button>
-  }
 
   <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
 

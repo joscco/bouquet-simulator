@@ -4,14 +4,17 @@
   [attr.inert]="disabled() ? '' : null"
 >
   <div
-    class="pointer-events-none absolute bottom-0 left-0 top-16 z-[45] w-[50vw] max-w-[100vw] -translate-x-full translate-y-0 drop-shadow-[12px_0_28px_rgb(28_25_23/14%)] will-change-transform data-[open=true]:translate-x-0 portrait:inset-x-0 portrait:top-auto portrait:h-[50dvh] portrait:w-full portrait:translate-x-0 portrait:translate-y-full portrait:drop-shadow-[0_-12px_28px_rgb(28_25_23/14%)] portrait:data-[open=true]:translate-y-0"
+    class="pointer-events-none absolute bottom-0 left-0 top-16 z-[45] w-[var(--settings-drawer-width)] max-w-[100vw] -translate-x-full translate-y-0 drop-shadow-[12px_0_28px_rgb(28_25_23/14%)] will-change-transform data-[open=true]:translate-x-0 portrait:inset-x-0 portrait:top-auto portrait:h-[var(--settings-drawer-height)] portrait:w-full portrait:translate-x-0 portrait:translate-y-full portrait:drop-shadow-[0_-12px_28px_rgb(28_25_23/14%)] portrait:data-[open=true]:translate-y-0"
     [class]="transitionsReady() ? 'transition-transform duration-[320ms] ease-[ease]' : 'transition-none'"
+    [style.--settings-drawer-width]="extentRatio() * 100 + 'vw'"
+    [style.--settings-drawer-height]="extentRatio() * 100 + 'dvh'"
     [attr.data-open]="open()"
   >
     <section
-      class="absolute inset-0 z-[2] overflow-hidden rounded-tr-[18px] border-r border-t border-stone-200/90 bg-white portrait:rounded-t-[18px] portrait:border-r-0"
+      class="absolute inset-0 z-[2] overflow-hidden rounded-tr-[18px] border-r border-t border-stone-200/90 bg-white transition-[border-color,box-shadow] duration-150 data-[resize-active=true]:border-emerald-500 data-[resize-active=true]:shadow-[inset_-2px_0_0_rgb(5_150_105/80%)] portrait:rounded-t-[18px] portrait:border-r-0 portrait:data-[resize-active=true]:shadow-[inset_0_2px_0_rgb(5_150_105/80%)]"
       [class.pointer-events-auto]="open()"
       [class.pointer-events-none]="!open()"
+      [attr.data-resize-active]="resizeHovered() || resizing()"
       [id]="panelId()"
       [attr.aria-hidden]="!open()"
       [attr.inert]="open() ? null : ''"
@@ -19,8 +22,28 @@
       <ng-content />
     </section>
 
+    <div
+      class="absolute bottom-0 right-[-7px] top-0 z-[4] w-[14px] touch-none cursor-ew-resize focus-visible:outline-none portrait:bottom-auto portrait:inset-x-0 portrait:top-[-7px] portrait:h-[14px] portrait:w-auto portrait:cursor-ns-resize"
+      [style.pointer-events]="open() ? 'auto' : 'none'"
+      role="separator"
+      tabindex="0"
+      [attr.aria-label]="resizeLabel()"
+      [attr.aria-orientation]="resizeAriaOrientation()"
+      [attr.aria-valuenow]="extentRatio() * 100"
+      aria-valuemin="28"
+      aria-valuemax="82"
+      [title]="resizeHint()"
+      (pointerenter)="resizeHovered.set(true)"
+      (pointerleave)="resizeHovered.set(false)"
+      (focus)="resizeHovered.set(true)"
+      (blur)="resizeHovered.set(false)"
+      (pointerdown)="startResize($event)"
+      (keydown)="resizeWithKeyboard($event)"
+      (dblclick)="resetExtent()"
+    ></div>
+
     <button
-      class="pointer-events-auto absolute left-[calc(100%-1px)] top-1/2 z-[1] grid h-[78px] w-[42px] -translate-y-1/2 cursor-pointer place-items-center rounded-r-[18px] border border-l-0 border-stone-200/90 bg-white text-emerald-900 before:pointer-events-none before:absolute before:-inset-y-px before:-left-1 before:w-[5px] before:bg-white before:content-[''] hover:text-emerald-950 portrait:bottom-[calc(100%-1px)] portrait:left-1/2 portrait:top-auto portrait:h-[42px] portrait:w-[78px] portrait:-translate-x-1/2 portrait:translate-y-0 portrait:rounded-b-none portrait:rounded-t-[18px] portrait:border-b-0 portrait:border-l portrait:before:-inset-x-px portrait:before:inset-y-auto portrait:before:-bottom-1 portrait:before:h-[5px] portrait:before:w-auto"
+      class="pointer-events-auto absolute left-[calc(100%-1px)] top-1/2 z-[5] grid h-[78px] w-[42px] -translate-y-1/2 cursor-pointer place-items-center rounded-r-[18px] border border-l-0 border-stone-200/90 bg-white text-emerald-900 before:pointer-events-none before:absolute before:-inset-y-px before:-left-1 before:w-[5px] before:bg-white before:content-[''] hover:text-emerald-950 portrait:bottom-[calc(100%-1px)] portrait:left-1/2 portrait:top-auto portrait:h-[42px] portrait:w-[78px] portrait:-translate-x-1/2 portrait:translate-y-0 portrait:rounded-b-none portrait:rounded-t-[18px] portrait:border-b-0 portrait:border-l portrait:before:-inset-x-px portrait:before:inset-y-auto portrait:before:-bottom-1 portrait:before:h-[5px] portrait:before:w-auto"
       type="button"
       [attr.aria-label]="toggleLabel()"
       [attr.aria-expanded]="open()"

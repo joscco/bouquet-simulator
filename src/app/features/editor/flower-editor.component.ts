@@ -53,6 +53,11 @@ import {
 import {AppButtonComponent} from '../../shared/app-button/app-button.component';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {createFlowerLoop} from './domain/flower-editor-loop-creation';
+import {pruneDisconnectedLoopMembers} from './domain/flower-editor-loops';
+import {
+  duplicateFlowerEditorNode,
+  removeFlowerEditorNode,
+} from './domain/flower-editor-node-updates';
 import {
   FlowerEditorTreeComponent,
   FlowerEditorTreeMessage,
@@ -109,29 +114,6 @@ interface EditorHistorySnapshot {
   signature: string;
 }
 
-interface GraphWindowRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface GraphWindowGesture {
-  mode: 'move' | 'resize';
-  pointerId: number;
-  startX: number;
-  startY: number;
-  rect: GraphWindowRect;
-}
-
-interface GraphLauncherGesture {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  position: Point;
-  moved: boolean;
-}
-
 const MAX_UNDO_STEPS = 30;
 const HISTORY_GROUP_WINDOW_MS = 350;
 
@@ -141,64 +123,6 @@ function previewLayoutFrame(insets: {left: number; right: number; top: number; b
 
 function previewInsetsFromFrame(frame: PreviewLayoutFrame): {left: number; right: number; top: number; bottom: number} {
   return {left: frame.left, right: frame.right, top: frame.top, bottom: frame.bottom};
-}
-
-function defaultGraphWindowRect(viewport: {width: number; height: number}): GraphWindowRect {
-  const portrait = viewport.height >= viewport.width;
-  const width = portrait
-    ? Math.max(240, viewport.width - 24)
-    : Math.min(720, Math.max(360, viewport.width * 0.58));
-  const height = portrait
-    ? Math.min(460, Math.max(300, viewport.height * 0.38))
-    : Math.min(560, Math.max(360, viewport.height * 0.68));
-  return constrainGraphWindowRect({
-    x: portrait ? 12 : viewport.width - width - 20,
-    y: 76,
-    width,
-    height,
-  }, viewport);
-}
-
-function constrainGraphWindowRect(
-  rect: GraphWindowRect,
-  viewport: {width: number; height: number},
-): GraphWindowRect {
-  const margin = 8;
-  const maximumWidth = Math.max(180, viewport.width - margin * 2);
-  const maximumHeight = Math.max(160, viewport.height - margin * 2);
-  const minimumWidth = Math.min(220, maximumWidth);
-  const minimumHeight = Math.min(190, maximumHeight);
-  const width = bounded(rect.width, minimumWidth, maximumWidth);
-  const height = bounded(rect.height, minimumHeight, maximumHeight);
-  return {
-    x: bounded(rect.x, margin, Math.max(margin, viewport.width - width - margin)),
-    y: bounded(rect.y, margin, Math.max(margin, viewport.height - height - margin)),
-    width,
-    height,
-  };
-}
-
-function defaultGraphLauncherPosition(
-  viewport: {width: number; height: number},
-  windowRect: GraphWindowRect,
-): Point {
-  return constrainGraphLauncherPosition({x: windowRect.x, y: windowRect.y}, viewport);
-}
-
-function constrainGraphLauncherPosition(
-  position: Point,
-  viewport: {width: number; height: number},
-): Point {
-  const margin = 8;
-  const size = 52;
-  return {
-    x: bounded(position.x, margin, Math.max(margin, viewport.width - size - margin)),
-    y: bounded(position.y, margin, Math.max(margin, viewport.height - size - margin)),
-  };
-}
-
-function bounded(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }
 
 @Component({
@@ -241,16 +165,12 @@ export class FlowerEditorComponent implements OnDestroy {
   private readonly persistedDefinitionId = signal(this.draft().id);
   readonly pendingTransition = signal<EditorTransition | null>(null);
   readonly editorPanelOpen = signal(false);
-  readonly graphSectionExpanded = signal(false);
+  readonly landscapePanelExtentRatio = signal(0.5);
+  readonly portraitPanelExtentRatio = signal(0.5);
   readonly viewportSize = signal({
     width: typeof window === 'undefined' ? 1280 : window.innerWidth,
     height: typeof window === 'undefined' ? 720 : window.innerHeight,
   });
-  readonly graphWindowRect = signal(defaultGraphWindowRect(this.viewportSize()));
-  readonly graphLauncherPosition = signal(defaultGraphLauncherPosition(
-    this.viewportSize(),
-    this.graphWindowRect(),
-  ));
   readonly portraitLayout = computed(() => {
     const viewport = this.viewportSize();
     return viewport.height >= viewport.width;
@@ -258,22 +178,24 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly editorPanelExtent = computed(() => {
     const viewport = this.viewportSize();
     return this.portraitLayout()
-      ? viewport.height * 0.5
-      : viewport.width * 0.5;
+      ? viewport.height * this.portraitPanelExtentRatio()
+      : viewport.width * this.landscapePanelExtentRatio();
   });
+  readonly editorPanelExtentRatio = computed(() => this.portraitLayout()
+    ? this.portraitPanelExtentRatio()
+    : this.landscapePanelExtentRatio());
   readonly targetPreviewInsets = computed(() => {
     if (!this.editorPanelOpen()) return {left: 0, right: 0, top: 0, bottom: 0};
     return this.portraitLayout()
       ? {left: 0, right: 0, top: 0, bottom: this.editorPanelExtent()}
       : {left: this.editorPanelExtent(), right: 0, top: 0, bottom: 0};
   });
-  readonly previewInsets = signal({left: 0, right: 0, top: 0, bottom: 0});
+  readonly previewInsets = signal(this.targetPreviewInsets());
   private readonly previewLayoutAnimator = new PreviewLayoutAnimator();
-  private graphWindowGesture: GraphWindowGesture | null = null;
-  private graphLauncherGesture: GraphLauncherGesture | null = null;
-  private suppressGraphLauncherClick = false;
   readonly catalogSearchOpen = signal(false);
   readonly generalSectionExpanded = signal(false);
+  readonly graphSectionExpanded = signal(false);
+  readonly graphLayoutDirection = signal<'vertical' | 'horizontal'>('horizontal');
   readonly nodeSectionExpanded = signal(true);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
@@ -333,6 +255,9 @@ export class FlowerEditorComponent implements OnDestroy {
   });
   readonly selectedIncoming = computed(() =>
     incomingConnectionReference(this.draft(), this.selectedNodeId()));
+  readonly selectedNode = computed(() =>
+    this.draft().nodes.find((node) => node.id === this.selectedNodeId()) ?? null);
+  readonly multiNodeSelection = computed(() => this.subtreeNodeIds().size > 1);
   readonly selectedNodeName = computed(() =>
     this.draft().nodes.find((node) => node.id === this.selectedNodeId())?.name
       ?? this.transloco.translate('editor.properties'));
@@ -379,11 +304,6 @@ export class FlowerEditorComponent implements OnDestroy {
 
   @HostListener('document:keydown.escape', ['$event'])
   closePortraitOverlayOnEscape(event: Event): void {
-    if (this.graphSectionExpanded()) {
-      event.preventDefault();
-      this.closeGraphWindow();
-      return;
-    }
     if (!this.editorPanelOpen()) return;
     event.preventDefault();
     this.closePortraitOverlays();
@@ -393,49 +313,6 @@ export class FlowerEditorComponent implements OnDestroy {
   updateViewportSize(): void {
     const viewport = {width: window.innerWidth, height: window.innerHeight};
     this.viewportSize.set(viewport);
-    this.graphWindowRect.update((rect) => constrainGraphWindowRect(rect, viewport));
-    this.graphLauncherPosition.update((position) =>
-      constrainGraphLauncherPosition(position, viewport));
-  }
-
-  @HostListener('document:pointermove', ['$event'])
-  moveGraphWindow(event: PointerEvent): void {
-    const launcherGesture = this.graphLauncherGesture;
-    if (launcherGesture && event.pointerId === launcherGesture.pointerId) {
-      event.preventDefault();
-      const deltaX = event.clientX - launcherGesture.startX;
-      const deltaY = event.clientY - launcherGesture.startY;
-      if (Math.hypot(deltaX, deltaY) > 4) launcherGesture.moved = true;
-      this.graphLauncherPosition.set(constrainGraphLauncherPosition({
-        x: launcherGesture.position.x + deltaX,
-        y: launcherGesture.position.y + deltaY,
-      }, this.viewportSize()));
-      return;
-    }
-    const gesture = this.graphWindowGesture;
-    if (!gesture || event.pointerId !== gesture.pointerId) return;
-    event.preventDefault();
-    const deltaX = event.clientX - gesture.startX;
-    const deltaY = event.clientY - gesture.startY;
-    const next = gesture.mode === 'move'
-      ? {...gesture.rect, x: gesture.rect.x + deltaX, y: gesture.rect.y + deltaY}
-      : {...gesture.rect, width: gesture.rect.width + deltaX, height: gesture.rect.height + deltaY};
-    this.graphWindowRect.set(constrainGraphWindowRect(next, this.viewportSize()));
-  }
-
-  @HostListener('document:pointerup', ['$event'])
-  @HostListener('document:pointercancel', ['$event'])
-  finishGraphWindowGesture(event: PointerEvent): void {
-    if (event.pointerId === this.graphLauncherGesture?.pointerId) {
-      const suppressClick = event.type === 'pointerup' && this.graphLauncherGesture.moved;
-      this.suppressGraphLauncherClick = suppressClick;
-      if (suppressClick) {
-        setTimeout(() => this.suppressGraphLauncherClick = false);
-      }
-      this.graphLauncherGesture = null;
-      return;
-    }
-    if (event.pointerId === this.graphWindowGesture?.pointerId) this.graphWindowGesture = null;
   }
 
   createNewDefinition(): void {
@@ -474,6 +351,63 @@ export class FlowerEditorComponent implements OnDestroy {
     this.selectedNodeId.set(id);
     this.subtreeAnchorIds.set(new Set());
     this.subtreeActionsOpen.set(false);
+  }
+
+  updateSelectedNodeName(value: string): void {
+    const selectedIds = this.subtreeNodeIds().size
+      ? this.subtreeNodeIds()
+      : new Set([this.selectedNodeId()]);
+    this.applyDefinitionChange({
+      ...this.draft(),
+      nodes: this.draft().nodes.map((node) => selectedIds.has(node.id)
+        ? {...node, name: value}
+        : node),
+    });
+  }
+
+  duplicateSelectedNode(): void {
+    const update = duplicateFlowerEditorNode(
+      this.draft(),
+      this.graphPositions(),
+      this.selectedNodeId(),
+    );
+    if (!update) return;
+    this.applyDefinitionChange(update.definition);
+    this.graphPositions.set(update.positions);
+    this.selectNode(update.selectedNodeId);
+  }
+
+  removeSelectedNode(): void {
+    const update = removeFlowerEditorNode(
+      this.draft(),
+      this.graphPositions(),
+      this.selectedNodeId(),
+    );
+    this.applyDefinitionChange(update.definition);
+    this.graphPositions.set(update.positions);
+    this.selectNode(update.selectedNodeId);
+  }
+
+  removeSelectedIncomingConnection(): void {
+    const incoming = this.selectedIncoming();
+    if (!incoming || this.multiNodeSelection()) return;
+    const positions = new Map(createGraphLayout(this.draft(), this.graphPositions()).nodes
+      .map((node) => [node.id, {x: node.x, y: node.y}]));
+    const disconnected: FlowerDefinition = {
+      ...this.draft(),
+      nodes: this.draft().nodes.map((node) => node.id === incoming.sourceId
+        ? {...node, connections: node.connections.filter((_, index) => index !== incoming.index)}
+        : node),
+    };
+    const membership = pruneDisconnectedLoopMembers(disconnected);
+    this.applyDefinitionChange(membership.definition);
+    if (!membership.removedNodeIds.length) return;
+    this.graphPositions.set({
+      ...this.graphPositions(),
+      ...Object.fromEntries(membership.removedNodeIds
+        .filter((id) => positions.has(id))
+        .map((id) => [id, positions.get(id)!])),
+    });
   }
 
   applyDefinitionChange(definition: FlowerDefinition): void {
@@ -622,10 +556,6 @@ export class FlowerEditorComponent implements OnDestroy {
     else this.notify(message.text);
   }
 
-  showInspectorMessage(message: string): void {
-    this.notify(message);
-  }
-
   exportSelectedSubtree(): void {
     const selection = this.subtreeSelection();
     if (!selection) {
@@ -760,61 +690,35 @@ export class FlowerEditorComponent implements OnDestroy {
     this.editorPanelOpen.update((open) => !open);
   }
 
-  openGraphWindowFromLauncher(): void {
-    if (this.suppressGraphLauncherClick) {
-      this.suppressGraphLauncherClick = false;
-      return;
-    }
-    const position = this.graphLauncherPosition();
-    this.graphWindowRect.update((rect) => constrainGraphWindowRect({
-      ...rect,
-      x: position.x,
-      y: position.y,
-    }, this.viewportSize()));
-    this.graphSectionExpanded.set(true);
+  setNodeSectionExpanded(expanded: boolean): void {
+    this.nodeSectionExpanded.set(expanded);
   }
 
-  closeGraphWindow(): void {
-    this.graphWindowGesture = null;
-    const rect = this.graphWindowRect();
-    this.graphLauncherPosition.set(constrainGraphLauncherPosition(
-      {x: rect.x, y: rect.y},
-      this.viewportSize(),
-    ));
-    this.graphSectionExpanded.set(false);
+  setGraphSectionExpanded(expanded: boolean): void {
+    this.graphSectionExpanded.set(expanded);
+    if (expanded) return;
     this.addMenuOpen.set(false);
     this.subtreeActionsOpen.set(false);
   }
 
-  startGraphWindowGesture(event: PointerEvent, mode: 'move' | 'resize'): void {
-    if (event.button !== 0 && event.pointerType !== 'touch') return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.graphWindowGesture = {
-      mode,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      rect: this.graphWindowRect(),
-    };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+  toggleGraphLayoutDirection(): void {
+    this.graphLayoutDirection.update((direction) =>
+      direction === 'vertical' ? 'horizontal' : 'vertical');
+    this.graphTree?.resetCompactView();
   }
 
-  startGraphLauncherGesture(event: PointerEvent): void {
-    if (event.button !== 0 && event.pointerType !== 'touch') return;
-    this.suppressGraphLauncherClick = false;
-    this.graphLauncherGesture = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      position: this.graphLauncherPosition(),
-      moved: false,
-    };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+  resetGraphView(): void {
+    this.graphTree?.resetCompactView();
   }
 
-  setNodeSectionExpanded(expanded: boolean): void {
-    this.nodeSectionExpanded.set(expanded);
+  zoomGraphView(factor: number): void {
+    this.graphTree?.zoomCompactView(factor);
+  }
+
+  setEditorPanelExtentRatio(ratio: number): void {
+    if (this.portraitLayout()) this.portraitPanelExtentRatio.set(ratio);
+    else this.landscapePanelExtentRatio.set(ratio);
+    this.previewInsets.set(this.targetPreviewInsets());
   }
 
   closePortraitOverlays(): void {

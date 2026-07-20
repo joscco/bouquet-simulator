@@ -1,11 +1,10 @@
 {
   "language": {"label": "Language", "de": "German", "en": "English", "switchToGerman": "Switch to German", "switchToEnglish": "Switch to English"},
   "views": {"label": "Switch editor", "bouquet": "Bouquet", "components": "Component"},
-  "common": {"close": "Close", "confirm": "Confirm", "search": "Search …", "emptySearch": "No matching flower found", "fixed": "Fixed", "interval": "Range", "inputMode": "input mode"},
+  "common": {"close": "Close", "confirm": "Confirm", "search": "Search …", "emptySearch": "No matching flower found", "fixed": "Fixed", "interval": "Range", "inputMode": "input mode", "resizeSettings": "Resize settings", "resizeSettingsHint": "Drag to resize · Double-click to reset"},
   "picker": {"title": "Choose flower", "search": "Search flowers …", "nodes": "nodes"},
   "bouquet": {
     "name": "Bouquet name",
-    "interactionHint": "Drag: rotate · Wheel/trackpad: zoom",
     "delete": "Delete bouquet",
     "shuffle": "Shuffle",
     "shuffleHint": "Rearrange flowers",
@@ -54,10 +53,10 @@
   },
   "editor": {
     "tabsLabel": "Choose editor area", "graph": "Structure", "preview": "Preview", "properties": "Properties",
-    "editSelection": "Edit selection as component", "addNode": "Add node or component", "addLoop": "Add repetition", "autoLayout": "Arrange graph automatically", "multiSelect": "Shift + click: multi-select", "selected": "selected",
+    "editSelection": "Edit selection as component", "addNode": "Add node or component", "addLoop": "Add repetition", "autoLayout": "Arrange graph automatically", "layoutHorizontal": "Arrange structure horizontally", "layoutVertical": "Arrange structure vertically", "multiSelect": "Shift + click: multi-select", "selected": "selected",
     "sidebarTitle": "Edit definition", "search": "Search flower or component …", "noResult": "No matching entry",
     "new": "Create new definition", "duplicate": "Duplicate current definition", "delete": "Delete entire entry", "load": "Load definition", "export": "Export definition", "defaults": "Write catalog to developer defaults", "save": "Save definitions",
-    "centerView": "Center view", "regenerate": "Generate new preview", "exportModel": "Export flower as GLB", "undo": "Undo last change", "expandWorkspace": "More editing space", "focusPreview": "Enlarge preview", "unsavedTitle": "Unsaved changes", "unsavedMessage": "Do you want to save your changes to “{{name}}” before switching?", "cancelSwitch": "Cancel", "discardChanges": "Discard", "saveAndContinue": "Save and switch", "baseDirection": "Base direction", "mainDirection": "Main direction", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
+    "centerView": "Center view", "zoomIn": "Zoom in", "zoomOut": "Zoom out", "regenerate": "Generate new preview", "exportModel": "Export flower as GLB", "undo": "Undo last change", "expandWorkspace": "More editing space", "focusPreview": "Enlarge preview", "unsavedTitle": "Unsaved changes", "unsavedMessage": "Do you want to save your changes to “{{name}}” before switching?", "cancelSwitch": "Cancel", "discardChanges": "Discard", "saveAndContinue": "Save and switch", "baseDirection": "Base direction", "mainDirection": "Main direction", "wideScreenRequired": "The component editor needs a wider window. Only the flower preview is shown right now."
   },
   "inspector": {
     "definition": "Definition", "general": "General information", "definitionScope": "Definition scope", "actions": "Actions", "nodes": "nodes", "name": "Name", "flowerId": "Flower ID", "inBouquet": "In bouquet", "asComponent": "As component", "outputs": "Component connection points", "noOutputs": "No open end nodes",

@@ -73,6 +73,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly backgroundMode = input.required<BouquetBackgroundMode>();
   readonly sceneEffects = input.required<BouquetSceneEffects>();
   readonly videoFormat = input.required<BouquetVideoFormat>();
+  readonly settingsExtentRatio = input(0.5);
 
   readonly expandedDisclosure = signal<DisclosureSection | null>(null);
   readonly resetConfirmationPending = signal(false);
@@ -96,6 +97,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly backgroundModeChange = output<BouquetBackgroundMode>();
   readonly sceneEffectChange = output<{effectId: BouquetSceneEffectId; enabled: boolean}>();
   readonly videoFormatChange = output<BouquetVideoFormatId>();
+  readonly settingsExtentRatioChange = output<number>();
 
   private resetConfirmationTimer: ReturnType<typeof setTimeout> | null = null;
 

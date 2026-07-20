@@ -52,6 +52,7 @@
     [backgroundMode]="backgroundMode()"
     [sceneEffects]="sceneEffects()"
     [videoFormat]="videoFormat()"
+    [settingsExtentRatio]="settingsExtentRatio()"
     (pickerOpen)="pickerOpen.set(true)"
     (bouquetReset)="resetBouquet()"
     (selectionChange)="selectedId.set($event)"
@@ -71,6 +72,7 @@
     (backgroundModeChange)="store.setBackgroundMode($event)"
     (sceneEffectChange)="setSceneEffect($event)"
     (videoFormatChange)="videoFormatId.set($event)"
+    (settingsExtentRatioChange)="setSettingsExtentRatio($event)"
   />
 </section>
 

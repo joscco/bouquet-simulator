@@ -899,7 +899,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       }
     },
     "availableInBouquet": true,
-    "availableAsComponent": true
+    "availableAsComponent": true,
+    "outputNodeIds": []
   },
   {
     "schemaVersion": 2,
@@ -5510,5 +5511,328 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         }
       }
     }
+  },
+  {
+    "schemaVersion": 2,
+    "id": "small-daisy",
+    "name": "Gänseblümchenblüte",
+    "catalogRole": "flower",
+    "availableInBouquet": false,
+    "availableAsComponent": true,
+    "rootNodeId": "base",
+    "stem": {
+      "color": "#426f50",
+      "highlightColor": "#82a878",
+      "width": 8,
+      "taper": 1,
+      "bend": 0,
+      "curve": 14
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "Basis",
+        "draggable": false,
+        "graphic": null,
+        "connections": [
+          {
+            "childId": "node-2"
+          },
+          {
+            "childId": "node-3"
+          },
+          {
+            "childId": "node-4"
+          }
+        ]
+      },
+      {
+        "id": "node-2",
+        "name": "Petal",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#ebebeb",
+          "width": 50,
+          "height": 72.60000000000001,
+          "depth": 2,
+          "twist": 0,
+          "ribCount": 0,
+          "ribDepth": 0,
+          "leafEdge": {
+            "serrationCount": 7,
+            "serrationDepth": 0,
+            "serrationSharpness": 70,
+            "edgeCurvature": 0
+          },
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": -90,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": -90,
+            "max": -90
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          },
+          "bendMain": -23.7,
+          "bendMainProfile": {
+            "base": -12.5,
+            "tip": 39.3
+          },
+          "bendCross": -18.5
+        },
+        "incoming": {
+          "repeat": {
+            "min": 9,
+            "max": 9
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "direction": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "spread": {
+            "deviation": {
+              "min": 50.6,
+              "max": 64.6
+            },
+            "revolution": {
+              "min": -180,
+              "max": 180
+            },
+            "roll": {
+              "min": 0,
+              "max": 0
+            },
+            "randomness": 0.039,
+            "orientation": "spread"
+          },
+          "stem": {
+            "color": "#426f50",
+            "width": 3,
+            "startWidth": 3,
+            "endWidth": 3,
+            "bend": 0,
+            "curve": 0,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-3",
+        "name": "Dots",
+        "draggable": false,
+        "graphic": {
+          "primitive": "sphere",
+          "color": "#c2a042",
+          "width": 8,
+          "height": 8,
+          "depth": 8,
+          "twist": 0,
+          "ribCount": 0,
+          "ribDepth": 0,
+          "leafEdge": {
+            "serrationCount": 7,
+            "serrationDepth": 0,
+            "serrationSharpness": 70,
+            "edgeCurvature": 0
+          },
+          "offset": {
+            "x": 0,
+            "y": 2,
+            "z": 0
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 0,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 0,
+            "max": 0
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 27,
+            "max": 27
+          },
+          "length": {
+            "min": 16.9,
+            "max": 16.9
+          },
+          "direction": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "spread": {
+            "deviation": {
+              "min": 0,
+              "max": 52.6
+            },
+            "revolution": {
+              "min": -180,
+              "max": 180
+            },
+            "roll": {
+              "min": 51.5,
+              "max": 51.5
+            },
+            "randomness": 0.066,
+            "orientation": "spread"
+          },
+          "stem": {
+            "color": "#d6ed2c",
+            "width": 3,
+            "startWidth": 3,
+            "endWidth": 2,
+            "bend": 21.5,
+            "curve": 0,
+            "bendRotation": {
+              "min": 45.7,
+              "max": 45.7
+            }
+          }
+        },
+        "connections": []
+      },
+      {
+        "id": "node-4",
+        "name": "Untere Blätter",
+        "draggable": false,
+        "graphic": {
+          "primitive": "leaf-pointed",
+          "color": "#5b8d53",
+          "width": 20,
+          "height": 40,
+          "depth": 2,
+          "twist": 0,
+          "ribCount": 0,
+          "ribDepth": 0,
+          "leafEdge": {
+            "serrationCount": 7,
+            "serrationDepth": 0,
+            "serrationSharpness": 70,
+            "edgeCurvature": 0
+          },
+          "offset": {
+            "x": 0,
+            "y": -0.9,
+            "z": -2.6
+          },
+          "orientation": "toward-parent",
+          "rotationBase": 90.1,
+          "rotationSpread": 0,
+          "rotation": {
+            "min": 90.1,
+            "max": 90.1
+          },
+          "start": {
+            "x": 0.5,
+            "y": 0.9
+          },
+          "end": {
+            "x": 0.5,
+            "y": 0.1
+          },
+          "bendMain": -6.1,
+          "bendMainProfile": {
+            "base": 4.2,
+            "tip": -37.6
+          }
+        },
+        "incoming": {
+          "repeat": {
+            "min": 8,
+            "max": 8
+          },
+          "length": {
+            "min": 0,
+            "max": 0
+          },
+          "direction": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "spread": {
+            "deviation": {
+              "min": 65.7,
+              "max": 65.7
+            },
+            "revolution": {
+              "min": -180,
+              "max": 180
+            },
+            "roll": {
+              "min": 0,
+              "max": 0
+            },
+            "randomness": 0.099,
+            "orientation": "spread"
+          },
+          "stem": {
+            "color": "#426f50",
+            "width": 3,
+            "startWidth": 3,
+            "endWidth": 3,
+            "bend": 0,
+            "curve": 0,
+            "bendRotation": {
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "connections": []
+      }
+    ],
+    "editor": {
+      "nodePositions": {
+        "base": {
+          "x": 500,
+          "y": 247
+        },
+        "node-2": {
+          "x": 374,
+          "y": 99
+        },
+        "node-3": {
+          "x": 581.5932895611486,
+          "y": 83.42194612955132
+        },
+        "node-4": {
+          "x": 830,
+          "y": 99
+        }
+      }
+    },
+    "outputNodeIds": []
   }
 ];

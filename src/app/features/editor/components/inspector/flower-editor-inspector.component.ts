@@ -32,8 +32,7 @@ import {NumericSliderComponent} from '../../../../shared/numeric-slider/numeric-
 import {EditorDisclosureComponent} from '../../../../shared/editor-disclosure/editor-disclosure.component';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {AppButtonComponent} from '../../../../shared/app-button/app-button.component';
-import {Point, createGraphLayout} from '../../graph/flower-editor-graph';
-import {loopOutputNodeIds, pruneDisconnectedLoopMembers} from '../../domain/flower-editor-loops';
+import {loopOutputNodeIds} from '../../domain/flower-editor-loops';
 import {
   GRAPHIC_PATTERN_OPTIONS,
   graphicPatternLabel,
@@ -64,10 +63,6 @@ import {
   withIncomingStemBendRotation,
   withIncomingStemProperty,
 } from '../../domain/flower-editor-incoming-stem';
-import {
-  duplicateFlowerEditorNode,
-  removeFlowerEditorNode,
-} from '../../domain/flower-editor-node-updates';
 import {GraphicLeafEdgeEditorComponent} from './graphic-leaf-edge-editor.component';
 
 @Component({
@@ -93,14 +88,10 @@ import {GraphicLeafEdgeEditorComponent} from './graphic-leaf-edge-editor.compone
 export class FlowerEditorInspectorComponent {
   readonly maximumGraphicBend = MAX_GRAPHIC_BEND;
   readonly definition = input.required<FlowerDefinition>();
-  readonly positions = input.required<Record<string, Point>>();
   readonly selectedNodeId = input.required<string>();
   readonly selectedNodeIds = input<ReadonlySet<string>>(new Set());
 
   readonly definitionChange = output<FlowerDefinition>();
-  readonly positionsChange = output<Record<string, Point>>();
-  readonly nodeSelection = output<string>();
-  readonly message = output<string>();
 
   readonly connectionSectionExpanded = signal(true);
   readonly loopSectionExpanded = signal(true);
@@ -161,25 +152,6 @@ export class FlowerEditorInspectorComponent {
     const node = this.selectedNode();
     return node ? nodeIncomingOrDefault(node) : structuredClone(DEFAULT_INCOMING_CONNECTION);
   });
-
-  duplicateSelectedNode(): void {
-    const update = duplicateFlowerEditorNode(this.definition(), this.positions(), this.selectedNodeId());
-    if (!update) return;
-    this.definitionChange.emit(update.definition);
-    this.positionsChange.emit(update.positions);
-    this.nodeSelection.emit(update.selectedNodeId);
-  }
-
-  removeSelectedNode(): void {
-    const update = removeFlowerEditorNode(this.definition(), this.positions(), this.selectedNodeId());
-    this.definitionChange.emit(update.definition);
-    this.positionsChange.emit(update.positions);
-    this.nodeSelection.emit(update.selectedNodeId);
-  }
-
-  updateNodeName(value: string): void {
-    this.updateSelectedNode((node) => ({...node, name: value}));
-  }
 
   setHasGraphic(value: boolean): void {
     this.updateSelectedNode((node) => withGraphicEnabled(node, value));
@@ -391,29 +363,6 @@ export class FlowerEditorInspectorComponent {
   updateIncomingStemBendRotation(bendRotation: NumberRange): void {
     this.updateIncoming((incoming) =>
       withIncomingStemBendRotation(this.definition(), incoming, bendRotation));
-  }
-
-  removeIncomingConnection(): void {
-    const incoming = this.selectedIncoming();
-    if (!incoming) return;
-    const positions = new Map(createGraphLayout(this.definition(), this.positions()).nodes
-      .map((node) => [node.id, {x: node.x, y: node.y}]));
-    const disconnected: FlowerDefinition = {
-      ...this.definition(),
-      nodes: this.definition().nodes.map((node) => node.id === incoming.sourceId
-        ? {...node, connections: node.connections.filter((_, index) => index !== incoming.index)}
-        : node),
-    };
-    const membership = pruneDisconnectedLoopMembers(disconnected);
-    this.definitionChange.emit(membership.definition);
-    if (membership.removedNodeIds.length) {
-      this.positionsChange.emit({
-        ...this.positions(),
-        ...Object.fromEntries(membership.removedNodeIds
-          .filter((id) => positions.has(id))
-          .map((id) => [id, positions.get(id)!])),
-      });
-    }
   }
 
   private updateSelectedNode(update: (node: FlowerNodeDefinition) => FlowerNodeDefinition): void {

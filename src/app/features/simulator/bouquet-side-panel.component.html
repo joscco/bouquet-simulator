@@ -4,11 +4,15 @@
   [toggleLabel]="(menuOpen() ? 'bouquet.menuClose' : 'bouquet.menuOpen') | transloco"
   [busy]="videoExporting() || modelExporting()"
   [disabled]="videoExporting()"
+  [extentRatio]="settingsExtentRatio()"
+  [resizeLabel]="'common.resizeSettings' | transloco"
+  [resizeHint]="'common.resizeSettingsHint' | transloco"
   (toggle)="menuToggle.emit()"
+  (extentRatioChange)="settingsExtentRatioChange.emit($event)"
 >
   <div class="h-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
     <div class="min-h-full p-4 pb-16">
-      <div class="mb-4 flex items-center gap-2">
+      <div class="sticky top-0 z-30 -mx-4 -mt-4 mb-4 flex items-center gap-2 border-b border-stone-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
         <div class="min-w-0 flex-1">
           <input
             class="h-6 w-full truncate border-0 bg-transparent p-0 text-sm font-semibold text-stone-800 outline-none focus:text-emerald-900"
@@ -18,7 +22,6 @@
             (change)="bouquetNameChange.emit($any($event.target).value)"
             (blur)="bouquetNameChange.emit($any($event.target).value)"
           >
-          <div class="text-[10px] text-stone-400">{{ 'bouquet.interactionHint' | transloco }}</div>
         </div>
         <button app-button variant="icon" [tone]="resetConfirmationPending() ? 'danger' : 'neutral'"
           [matTooltip]="(resetConfirmationPending() ? 'bouquet.resetConfirmHint' : 'bouquet.resetHint') | transloco"

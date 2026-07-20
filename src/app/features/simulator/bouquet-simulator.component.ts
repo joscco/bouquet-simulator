@@ -85,6 +85,8 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly vaseMaterialOptions = VASE_MATERIAL_OPTIONS;
   readonly pickerOpen = signal(false);
   readonly menuOpen = signal(false);
+  readonly landscapeSettingsExtentRatio = signal(0.5);
+  readonly portraitSettingsExtentRatio = signal(0.5);
   readonly selectedId = signal<string | null>(null);
   readonly bouquetPitch = signal(0);
   readonly zoom = signal(1);
@@ -105,8 +107,13 @@ export class BouquetSimulatorComponent implements OnDestroy {
   });
   readonly settingsPanelExtent = computed(() => {
     const viewport = this.viewportSize();
-    return this.portraitLayout() ? viewport.height * 0.5 : viewport.width * 0.5;
+    return this.portraitLayout()
+      ? viewport.height * this.portraitSettingsExtentRatio()
+      : viewport.width * this.landscapeSettingsExtentRatio();
   });
+  readonly settingsExtentRatio = computed(() => this.portraitLayout()
+    ? this.portraitSettingsExtentRatio()
+    : this.landscapeSettingsExtentRatio());
   readonly targetPreviewInsets = computed(() => {
     if (!this.menuOpen()) return {left: 0, right: 0, top: 0, bottom: 0};
     return this.portraitLayout()
@@ -175,6 +182,12 @@ export class BouquetSimulatorComponent implements OnDestroy {
     const open = !this.menuOpen();
     this.menuOpen.set(open);
     this.animateMenuLayout();
+  }
+
+  setSettingsExtentRatio(ratio: number): void {
+    if (this.portraitLayout()) this.portraitSettingsExtentRatio.set(ratio);
+    else this.landscapeSettingsExtentRatio.set(ratio);
+    this.previewInsets.set(this.targetPreviewInsets());
   }
 
   ngOnDestroy(): void {
