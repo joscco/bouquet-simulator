@@ -8,9 +8,11 @@ import {
   output,
   signal,
 } from '@angular/core';
+import {MatIconModule} from '@angular/material/icon';
 
 @Component({
   selector: 'app-settings-drawer',
+  imports: [MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './settings-drawer.component.html',
   host: {'class': 'contents'},

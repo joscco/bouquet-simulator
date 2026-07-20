@@ -190,10 +190,7 @@
             <div class="px-1.5 text-[9px] font-medium text-stone-400">{{ draft().nodes.length }} {{ 'inspector.nodes' | transloco }}</div>
           </div>
           <button app-button variant="icon" [matTooltip]="'editor.search' | transloco" [attr.aria-label]="'editor.search' | transloco" (click)="catalogSearchOpen.set(true)">
-            <svg class="size-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="10.75" cy="10.75" r="6.25"/>
-              <path d="m15.4 15.4 4.1 4.1" stroke-linecap="round"/>
-            </svg>
+            <mat-icon>search</mat-icon>
           </button>
           <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
         </header>

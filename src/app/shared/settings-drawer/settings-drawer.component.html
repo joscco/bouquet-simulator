@@ -50,12 +50,12 @@
       [attr.aria-controls]="panelId()"
       (click)="toggle.emit()"
     >
-      <svg class="size-[22px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round] transition-transform duration-[320ms] motion-reduce:transition-none portrait:hidden" [class.rotate-180]="open()" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m9 5 7 7-7 7"/>
-      </svg>
-      <svg class="hidden size-[22px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round] transition-transform duration-[320ms] motion-reduce:transition-none portrait:block" [class.rotate-180]="open()" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m5 15 7-7 7 7"/>
-      </svg>
+      <span class="grid size-[22px] place-items-center transition-transform duration-[320ms] motion-reduce:transition-none portrait:hidden" [class.rotate-180]="open()" aria-hidden="true">
+        <mat-icon class="size-[22px]! text-[22px]! leading-[22px]!">chevron_right</mat-icon>
+      </span>
+      <span class="hidden size-[22px] place-items-center transition-transform duration-[320ms] motion-reduce:transition-none portrait:grid" [class.rotate-180]="open()" aria-hidden="true">
+        <mat-icon class="size-[22px]! text-[22px]! leading-[22px]!">expand_less</mat-icon>
+      </span>
     </button>
   </div>
 </aside>

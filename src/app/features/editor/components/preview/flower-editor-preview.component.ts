@@ -6,10 +6,11 @@ import {Point} from '../../graph/flower-editor-graph';
 import {clamp} from '../../../../core/utils/numbers';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {PreviewToolbarComponent} from '../../../../shared/preview-toolbar/preview-toolbar.component';
+import {MatIconModule} from '@angular/material/icon';
 
 @Component({
   selector: 'app-flower-editor-preview',
-  imports: [BouquetCanvasComponent, PreviewToolbarComponent, TranslocoPipe],
+  imports: [BouquetCanvasComponent, MatIconModule, PreviewToolbarComponent, TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-editor-preview.component.html',
   host: {'class': 'contents'},

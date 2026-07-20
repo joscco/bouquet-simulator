@@ -1,4 +1,5 @@
 import {ChangeDetectionStrategy, Component, computed, input, output, signal} from '@angular/core';
+import {MatIconModule} from '@angular/material/icon';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {FlowerDefinition} from '../../core/models/flower.models';
 import {FlowerThumbnailComponent} from '../flower-thumbnail/flower-thumbnail.component';
@@ -16,7 +17,7 @@ interface HighlightSegment {
 
 @Component({
   selector: 'app-flower-search-dialog',
-  imports: [FlowerThumbnailComponent, TranslocoPipe],
+  imports: [FlowerThumbnailComponent, MatIconModule, TranslocoPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './flower-search-dialog.component.html',
 })

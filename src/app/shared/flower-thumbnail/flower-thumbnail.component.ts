@@ -11,6 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import {BouquetState, FlowerDefinition} from '../../core/models/flower.models';
+import {MatIconModule} from '@angular/material/icon';
 import {BouquetCanvasComponent} from '../bouquet-canvas/bouquet-canvas.component';
 import {FlowerThumbnailCache} from './flower-thumbnail-cache.service';
 import {FlowerThumbnailRenderQueue} from './flower-thumbnail-render-queue.service';
@@ -20,7 +21,7 @@ let nextThumbnailRequestId = 0;
 
 @Component({
   selector: 'app-flower-thumbnail',
-  imports: [BouquetCanvasComponent],
+  imports: [BouquetCanvasComponent, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {'class': 'block h-full w-full'},
   templateUrl: './flower-thumbnail.component.html',

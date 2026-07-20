@@ -18,7 +18,7 @@
             [title]="'editor.new' | transloco"
             (click)="createDefinition.emit()"
           >
-            <svg class="size-[19px] fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <mat-icon class="size-[19px]! text-[19px]! leading-[19px]!">add</mat-icon>
           </button>
           <button
             data-definition-action="load"
@@ -28,19 +28,17 @@
             [title]="'editor.load' | transloco"
             (click)="loadDefinition.emit()"
           >
-            <svg class="size-[19px] fill-none stroke-current stroke-2 [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+            <mat-icon class="size-[19px]! text-[19px]! leading-[19px]!">upload_file</mat-icon>
           </button>
         </div>
       }
       <button class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-600" type="button" [attr.aria-label]="'common.close' | transloco" (click)="close.emit()">
-        <svg class="size-5 fill-none stroke-current stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        <mat-icon class="size-5! text-[20px]! leading-5!">close</mat-icon>
       </button>
     </header>
 
     <label class="relative mx-4 mt-4 block shrink-0">
-      <svg class="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 fill-none stroke-stone-400 stroke-2 [stroke-linecap:round]" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="10.75" cy="10.75" r="6.25"/><path d="m15.4 15.4 4.1 4.1"/>
-      </svg>
+      <mat-icon class="pointer-events-none absolute left-3 top-1/2 size-5! -translate-y-1/2 text-[20px]! leading-5! text-stone-400">search</mat-icon>
       <input
         class="h-11 w-full rounded-xl border border-stone-300 bg-stone-50 pl-10 pr-3 text-sm text-stone-800 outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
         type="search"
