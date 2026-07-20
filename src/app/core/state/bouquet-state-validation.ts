@@ -23,6 +23,7 @@ export function isBouquetState(value: unknown): value is BouquetState {
   if (!isRecord(value) || value['schemaVersion'] !== 2 || !isFiniteNumber(value['rotation'])) return false;
   if (value['vaseId'] !== undefined && !isVaseId(value['vaseId'])) return false;
   if (value['vaseMaterialId'] !== undefined && !isVaseMaterialId(value['vaseMaterialId'])) return false;
+  if (value['lightLevel'] !== undefined && !isFiniteNumber(value['lightLevel'])) return false;
   if (value['backgroundMode'] !== undefined && !isBouquetBackgroundMode(value['backgroundMode'])) return false;
   if (value['sceneEffects'] !== undefined && !isBouquetSceneEffects(value['sceneEffects'])) return false;
   if (!Array.isArray(value['flowers'])) return false;

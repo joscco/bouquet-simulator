@@ -67,6 +67,7 @@ describe('bouquetFlowerRenderSignature', () => {
     const presentationOnlyChanges: BouquetState[] = [
       {...state, rotation: Math.PI},
       {...state, backgroundMode: 'dark'},
+      {...state, lightLevel: 50},
       {...state, sceneEffects: {sparkles: true, glowPoints: true, uplight: true}},
     ];
 

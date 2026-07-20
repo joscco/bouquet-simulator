@@ -2,7 +2,6 @@ import {computed, Injectable, signal} from '@angular/core';
 import {DEFAULT_FLOWERS} from '../data/default-flowers';
 import {
   BouquetFlower,
-  BouquetBackgroundMode,
   BouquetProject,
   BouquetSceneEffectId,
   BouquetState,
@@ -23,9 +22,10 @@ import {autoCorrectBouquetFlowerOverlaps} from '../rendering/bouquet-flower-over
 import {clamp} from '../utils/numbers';
 import {
   DEFAULT_BOUQUET_BACKGROUND,
+  DEFAULT_BOUQUET_LIGHT_LEVEL,
   DEFAULT_BOUQUET_SCENE_EFFECTS,
-  isBouquetBackgroundMode,
-  normalizedBouquetBackgroundMode,
+  bouquetBackgroundModeForLightLevel,
+  normalizedBouquetLightLevel,
   normalizedBouquetSceneEffects,
 } from '../data/bouquet-scene';
 import {moveFlowerInsideVase} from './bouquet-flower-placement';
@@ -91,6 +91,7 @@ export class BouquetStore {
         rotation: 0,
         vaseId: DEFAULT_VASE_ID,
         vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+        lightLevel: DEFAULT_BOUQUET_LIGHT_LEVEL,
         backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
         sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
         flowers: [],
@@ -196,9 +197,13 @@ export class BouquetStore {
     this.updateActiveBouquetState((state) => ({...state, vaseMaterialId}));
   }
 
-  setBackgroundMode(backgroundMode: BouquetBackgroundMode): void {
-    if (!isBouquetBackgroundMode(backgroundMode)) return;
-    this.updateActiveBouquetState((state) => ({...state, backgroundMode}));
+  setLightLevel(lightLevel: number): void {
+    const normalized = normalizedBouquetLightLevel(lightLevel);
+    this.updateActiveBouquetState((state) => ({
+      ...state,
+      lightLevel: normalized,
+      backgroundMode: bouquetBackgroundModeForLightLevel(normalized),
+    }));
   }
 
   setSceneEffect(effectId: BouquetSceneEffectId, enabled: boolean): void {
@@ -375,6 +380,7 @@ export class BouquetStore {
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
       vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+      lightLevel: DEFAULT_BOUQUET_LIGHT_LEVEL,
       backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
       sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
       flowers: [],
@@ -396,6 +402,7 @@ export class BouquetStore {
       rotation: 0,
       vaseId: DEFAULT_VASE_ID,
       vaseMaterialId: DEFAULT_VASE_MATERIAL_ID,
+      lightLevel: DEFAULT_BOUQUET_LIGHT_LEVEL,
       backgroundMode: DEFAULT_BOUQUET_BACKGROUND,
       sceneEffects: structuredClone(DEFAULT_BOUQUET_SCENE_EFFECTS),
       flowers: flowerIds.map((definitionId, index) => {
@@ -479,13 +486,15 @@ export class BouquetStore {
   }
 
   private normalizedBouquetState(state: BouquetState): BouquetState {
+    const lightLevel = normalizedBouquetLightLevel(state.lightLevel, state.backgroundMode);
     return {
       ...structuredClone(state),
       vaseId: isVaseId(state.vaseId) ? state.vaseId : DEFAULT_VASE_ID,
       vaseMaterialId: isVaseMaterialId(state.vaseMaterialId)
         ? state.vaseMaterialId
         : DEFAULT_VASE_MATERIAL_ID,
-      backgroundMode: normalizedBouquetBackgroundMode(state.backgroundMode),
+      lightLevel,
+      backgroundMode: bouquetBackgroundModeForLightLevel(lightLevel),
       sceneEffects: normalizedBouquetSceneEffects(state.sceneEffects),
     };
   }

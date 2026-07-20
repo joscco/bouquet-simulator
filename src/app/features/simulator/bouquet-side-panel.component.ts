@@ -10,12 +10,10 @@ import {MatIconModule} from '@angular/material/icon';
 import {MatTooltipModule} from '@angular/material/tooltip';
 import {VaseMaterialId, VaseMaterialOption, VaseOption} from '../../core/data/vases';
 import {
-  BouquetBackgroundMode,
   BouquetSceneEffectId,
   BouquetSceneEffects,
 } from '../../core/models/flower.models';
 import {
-  BOUQUET_BACKGROUND_OPTIONS,
   BOUQUET_SCENE_EFFECT_OPTIONS,
 } from '../../core/data/bouquet-scene';
 import {
@@ -53,7 +51,6 @@ type DisclosureSection = 'vase' | 'scene' | 'files';
   templateUrl: './bouquet-side-panel.component.html',
 })
 export class BouquetSidePanelComponent implements OnDestroy {
-  readonly backgroundOptions = BOUQUET_BACKGROUND_OPTIONS;
   readonly sceneEffectOptions = BOUQUET_SCENE_EFFECT_OPTIONS;
   readonly videoFormatOptions = BOUQUET_VIDEO_FORMAT_OPTIONS;
   readonly menuOpen = input.required<boolean>();
@@ -70,7 +67,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly videoExporting = input.required<boolean>();
   readonly videoExportProgress = input.required<number>();
   readonly modelExporting = input.required<boolean>();
-  readonly backgroundMode = input.required<BouquetBackgroundMode>();
+  readonly lightLevel = input.required<number>();
   readonly sceneEffects = input.required<BouquetSceneEffects>();
   readonly videoFormat = input.required<BouquetVideoFormat>();
   readonly settingsExtentRatio = input(0.5);
@@ -94,7 +91,7 @@ export class BouquetSidePanelComponent implements OnDestroy {
   readonly bouquetNameChange = output<string>();
   readonly videoExport = output<void>();
   readonly modelExport = output<void>();
-  readonly backgroundModeChange = output<BouquetBackgroundMode>();
+  readonly lightLevelChange = output<number>();
   readonly sceneEffectChange = output<{effectId: BouquetSceneEffectId; enabled: boolean}>();
   readonly videoFormatChange = output<BouquetVideoFormatId>();
   readonly settingsExtentRatioChange = output<number>();

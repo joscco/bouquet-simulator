@@ -121,4 +121,4 @@ function sameConfiguration(
 }
 
 export {bouquetEffectLoopPhase} from './bouquet-effect-phase';
-export {sparkleBrightness} from './bouquet-effect-particles';
+export {glowPointBrightness, sparkleBrightness} from './bouquet-effect-particles';

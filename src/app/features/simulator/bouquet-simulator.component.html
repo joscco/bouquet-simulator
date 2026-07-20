@@ -1,7 +1,6 @@
 <section
   class="relative h-dvh min-h-[480px] select-none overflow-hidden [&_input]:select-text [&_textarea]:select-text"
-  [class.bg-[#f8f7f2]]="backgroundMode() === 'light'"
-  [class.bg-[#111113]]="backgroundMode() === 'dark'"
+  [style.background-color]="backgroundColor()"
 >
   <app-bouquet-canvas
     class="absolute inset-0 block h-full w-full"
@@ -50,7 +49,7 @@
     [videoExporting]="videoExporting()"
     [videoExportProgress]="videoExportProgress()"
     [modelExporting]="modelExporting()"
-    [backgroundMode]="backgroundMode()"
+    [lightLevel]="lightLevel()"
     [sceneEffects]="sceneEffects()"
     [videoFormat]="videoFormat()"
     [settingsExtentRatio]="settingsExtentRatio()"
@@ -70,7 +69,7 @@
     (bouquetNameChange)="store.renameActiveBouquet($event)"
     (videoExport)="exportTurntableVideo()"
     (modelExport)="exportBouquetModel()"
-    (backgroundModeChange)="store.setBackgroundMode($event)"
+    (lightLevelChange)="store.setLightLevel($event)"
     (sceneEffectChange)="setSceneEffect($event)"
     (videoFormatChange)="videoFormatId.set($event)"
     (settingsExtentRatioChange)="setSettingsExtentRatio($event)"

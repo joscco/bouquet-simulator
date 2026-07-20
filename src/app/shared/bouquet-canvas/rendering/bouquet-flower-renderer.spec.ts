@@ -57,4 +57,5 @@ describe('bouquet flower renderer editor helpers', () => {
     expect(baseDirection.y).toBeCloseTo(1);
     expect(baseDirection.z).toBeCloseTo(0);
   });
+
 });

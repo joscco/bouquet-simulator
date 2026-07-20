@@ -37,9 +37,10 @@ import {detectBouquetFlowerOverlaps} from '../../core/rendering/bouquet-flower-o
 import {canRecordCanvasVideo} from '../../shared/media/canvas-video-recorder';
 import {clamp} from '../../core/utils/numbers';
 import {
-  DEFAULT_BOUQUET_BACKGROUND,
+  DEFAULT_BOUQUET_LIGHT_LEVEL,
   DEFAULT_BOUQUET_SCENE_EFFECTS,
-  normalizedBouquetBackgroundMode,
+  bouquetBackgroundColor,
+  normalizedBouquetLightLevel,
   normalizedBouquetSceneEffects,
 } from '../../core/data/bouquet-scene';
 import {
@@ -159,8 +160,11 @@ export class BouquetSimulatorComponent implements OnDestroy {
   readonly activeVaseId = computed(() => this.store.state().vaseId ?? DEFAULT_VASE_ID);
   readonly activeVaseMaterialId = computed(() =>
     this.store.state().vaseMaterialId as VaseMaterialId | undefined ?? DEFAULT_VASE_MATERIAL_ID);
-  readonly backgroundMode = computed(() =>
-    normalizedBouquetBackgroundMode(this.store.state().backgroundMode ?? DEFAULT_BOUQUET_BACKGROUND));
+  readonly lightLevel = computed(() => normalizedBouquetLightLevel(
+    this.store.state().lightLevel ?? DEFAULT_BOUQUET_LIGHT_LEVEL,
+    this.store.state().backgroundMode,
+  ));
+  readonly backgroundColor = computed(() => bouquetBackgroundColor(this.lightLevel()));
   readonly sceneEffects = computed(() =>
     normalizedBouquetSceneEffects(this.store.state().sceneEffects ?? DEFAULT_BOUQUET_SCENE_EFFECTS));
 

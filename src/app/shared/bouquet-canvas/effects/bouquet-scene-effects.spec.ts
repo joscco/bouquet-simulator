@@ -3,6 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {
   BouquetSceneEffectsRenderer,
   bouquetEffectLoopPhase,
+  glowPointBrightness,
   sparkleBrightness,
 } from './bouquet-scene-effects';
 
@@ -147,6 +148,12 @@ describe('bouquet scene effect loop', () => {
     expect(sparkleBrightness(0)).toBeCloseTo(0);
     expect(sparkleBrightness(Math.PI)).toBeGreaterThan(1);
     expect(sparkleBrightness(Math.PI * 2)).toBeCloseTo(0);
+  });
+
+  it('keeps glow points softly visible instead of making them sparkle', () => {
+    expect(glowPointBrightness(0)).toBeGreaterThan(0.7);
+    expect(glowPointBrightness(Math.PI)).toBeGreaterThan(0.7);
+    expect(glowPointBrightness(Math.PI * 2)).toBeGreaterThan(0.7);
   });
 });
 

@@ -1,7 +1,6 @@
 import {
   ACESFilmicToneMapping,
   Box3Helper,
-  Color,
   Group,
   OrthographicCamera,
   PCFSoftShadowMap,
@@ -10,8 +9,8 @@ import {
   WebGLRenderer,
 } from 'three';
 import {
-  BOUQUET_BACKGROUND_COLORS,
-  normalizedBouquetBackgroundMode,
+  bouquetToneMappingExposure,
+  normalizedBouquetLightLevel,
 } from '../../../core/data/bouquet-scene';
 import {BouquetBackgroundMode} from '../../../core/models/flower.models';
 import {
@@ -34,6 +33,7 @@ export interface BouquetTurntableRecordingContext {
   sceneEffects: BouquetSceneEffectsRenderer;
   initialRotation: number;
   backgroundMode: BouquetBackgroundMode | undefined;
+  lightLevel: number | undefined;
   currentRotation: () => number;
   setRecordingViewport: (viewport: {width: number; height: number} | null) => void;
   resizeCamera: () => void;
@@ -48,14 +48,11 @@ export async function recordBouquetTurntable(
   const width = validVideoDimension(options.width ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
   const height = validVideoDimension(options.height ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
   const frames = Math.round(durationSeconds * fps);
-  const initialBackground = context.scene.background;
-  const backgroundMode = normalizedBouquetBackgroundMode(context.backgroundMode);
-  const recordingRenderer = createRecordingRenderer(width, height, backgroundMode);
+  const lightLevel = normalizedBouquetLightLevel(context.lightLevel, context.backgroundMode);
+  const recordingRenderer = createRecordingRenderer(width, height, lightLevel);
   const hiddenHelpers = hideBoundingBoxHelpers(context.bouquet);
 
   context.setRecordingViewport({width, height});
-  context.scene.background = new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
-
   try {
     return await recordCanvasVideo(recordingRenderer.domElement, {
       frames,
@@ -71,7 +68,6 @@ export async function recordBouquetTurntable(
     });
   } finally {
     context.setRecordingViewport(null);
-    context.scene.background = initialBackground;
     for (const helper of hiddenHelpers) helper.visible = true;
     context.bouquet.rotation.y = context.currentRotation();
     context.sceneEffects.update(performance.now() / 1000);
@@ -84,7 +80,7 @@ export async function recordBouquetTurntable(
 function createRecordingRenderer(
   width: number,
   height: number,
-  backgroundMode: BouquetBackgroundMode,
+  lightLevel: number,
 ): WebGLRenderer {
   const renderer = new WebGLRenderer({
     alpha: false,
@@ -95,7 +91,7 @@ function createRecordingRenderer(
   renderer.setSize(width, height, false);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = backgroundMode === 'dark' ? 1 : 1.08;
+  renderer.toneMappingExposure = bouquetToneMappingExposure(lightLevel);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
   return renderer;

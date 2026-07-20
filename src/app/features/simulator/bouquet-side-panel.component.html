@@ -168,25 +168,25 @@
           [expanded]="expandedDisclosure() === 'scene'"
           (expandedChange)="setDisclosureExpanded('scene', $event)"
         >
-          <div class="mb-2 text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.background' | transloco }}</div>
-          <div class="grid grid-cols-2 gap-1.5">
-            @for (background of backgroundOptions; track background.id) {
-              <button
-                class="flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-[9px] font-bold transition"
-                [class.border-emerald-900]="backgroundMode() === background.id"
-                [class.bg-emerald-950]="backgroundMode() === background.id"
-                [class.text-white]="backgroundMode() === background.id"
-                [class.border-stone-200]="backgroundMode() !== background.id"
-                [class.bg-white]="backgroundMode() !== background.id"
-                [class.text-stone-500]="backgroundMode() !== background.id"
-                type="button"
-                [attr.aria-pressed]="backgroundMode() === background.id"
-                (click)="backgroundModeChange.emit(background.id)"
-              >
-                <mat-icon class="text-[17px]!">{{ background.symbol }}</mat-icon>
-                {{ ('options.backgrounds.' + background.id) | transloco }}
-              </button>
-            }
+          <div class="rounded-xl border border-stone-200 bg-stone-50/80 px-3 pb-2 pt-2.5">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-[9px] font-bold uppercase tracking-wider text-stone-500">{{ 'sections.lighting' | transloco }}</span>
+              <span class="text-[10px] font-semibold tabular-nums text-stone-600">{{ lightLevel().toFixed(0) }}%</span>
+            </div>
+            <div class="mt-2 h-2 rounded-full bg-[linear-gradient(90deg,#080b18_0%,#172d66_18%,#66317c_32%,#ef7f45_50%,#f0a33f_68%,#f5d69c_82%,#f8f7f2_100%)] shadow-inner ring-1 ring-black/10"></div>
+            <app-slider-track
+              [minimum]="0"
+              [maximum]="100"
+              [step]="1"
+              [value]="lightLevel()"
+              [ariaLabel]="'sections.lighting' | transloco"
+              (valueChange)="lightLevelChange.emit($event)"
+            />
+            <div class="-mt-1 grid grid-cols-3 text-[8px] font-semibold text-stone-500">
+              <span>{{ 'options.lighting.night' | transloco }}</span>
+              <span class="text-center text-amber-700">{{ 'options.lighting.twilight' | transloco }}</span>
+              <span class="text-right">{{ 'options.lighting.day' | transloco }}</span>
+            </div>
           </div>
 
           <div class="mb-2 mt-3 text-[9px] font-bold uppercase tracking-wider text-stone-500">

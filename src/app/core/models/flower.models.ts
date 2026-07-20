@@ -315,6 +315,9 @@ export interface BouquetState {
   vaseId?: string;
   /** Von der Vasenform unabhängige Oberflächenoptik. */
   vaseMaterialId?: string;
+  /** Lichtstimmung von 0 (Nacht) über 50 (Dämmerung) bis 100 (Tag). */
+  lightLevel?: number;
+  /** @deprecated Legacy-Fallback für Projekte ohne lightLevel. */
   backgroundMode?: BouquetBackgroundMode;
   sceneEffects?: BouquetSceneEffects;
   flowers: BouquetFlower[];

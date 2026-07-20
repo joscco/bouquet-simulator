@@ -36,7 +36,7 @@
   },
   "sections": {
     "vase": "Vase", "vaseDescription": "Shape and material", "vaseShape": "Vase shape", "material": "Material",
-    "scene": "Scene & light", "sceneDescription": "Background and atmosphere", "background": "Background", "atmosphere": "Light & atmosphere",
+    "scene": "Scene & light", "sceneDescription": "Time of day and atmosphere", "lighting": "Light mood", "atmosphere": "Light & atmosphere",
     "files": "Video & files", "filesDescription": "Record, load and save", "videoFormat": "Video format", "modelFile": "3D model", "projectFile": "Project file"
   },
   "files": {
@@ -77,7 +77,7 @@
   "options": {
     "vases": {"classic": "Classic", "tulip": "Tulip", "cylinder": "Cylinder", "bowl": "Bowl", "bud": "Bud vase", "bottle": "Bottle", "amphora": "Amphora", "ribbed": "Ribbed", "faceted": "Faceted"},
     "materials": {"clay": "Clay", "stoneware": "Stoneware", "concrete": "Concrete", "glass": "Glass"},
-    "backgrounds": {"light": "Light", "dark": "Dark"},
+    "lighting": {"night": "Night", "twilight": "Twilight", "day": "Day"},
     "effects": {"sparkles": "Sparkles", "glowPoints": "Glow points", "uplight": "Uplight"},
     "formats": {"square": "Square", "portrait": "Story", "landscape": "Landscape"}
   }

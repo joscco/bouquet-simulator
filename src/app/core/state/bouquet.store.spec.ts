@@ -79,29 +79,43 @@ describe('bouquet flower placement', () => {
     expect(store.state().vaseMaterialId).toBe(DEFAULT_VASE_MATERIAL_ID);
   });
 
-  it('changes and persists background and scene effects per bouquet', () => {
+  it('changes and persists light mood and scene effects per bouquet', () => {
     const store = new BouquetStore();
 
-    store.setBackgroundMode('dark');
+    store.setLightLevel(50);
     store.setSceneEffect('sparkles', true);
     store.setSceneEffect('glowPoints', true);
     store.setSceneEffect('uplight', true);
     const restored = new BouquetStore();
     restored.importProject(structuredClone(store.exportProject()));
 
-    expect(restored.state().backgroundMode).toBe('dark');
+    expect(restored.state().lightLevel).toBe(50);
+    expect(restored.state().backgroundMode).toBe('light');
     expect(restored.state().sceneEffects).toEqual({sparkles: true, glowPoints: true, uplight: true});
   });
 
   it('migrates bouquets without scene settings to the light background without effects', () => {
     const store = new BouquetStore();
     const legacy = structuredClone(store.state());
+    delete legacy.lightLevel;
     delete legacy.backgroundMode;
     delete legacy.sceneEffects;
 
     expect(store.restoreBouquet(legacy)).toBe(true);
+    expect(store.state().lightLevel).toBe(100);
     expect(store.state().backgroundMode).toBe(DEFAULT_BOUQUET_BACKGROUND);
     expect(store.state().sceneEffects).toEqual(DEFAULT_BOUQUET_SCENE_EFFECTS);
+  });
+
+  it('migrates the former dark background to the night end of the slider', () => {
+    const store = new BouquetStore();
+    const legacy = structuredClone(store.state());
+    delete legacy.lightLevel;
+    legacy.backgroundMode = 'dark';
+
+    expect(store.restoreBouquet(legacy)).toBe(true);
+    expect(store.state().lightLevel).toBe(0);
+    expect(store.state().backgroundMode).toBe('dark');
   });
 
   it('migrates the former combined glitter effect to sparkles and light points', () => {

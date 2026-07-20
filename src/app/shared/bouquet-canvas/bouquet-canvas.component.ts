@@ -12,7 +12,6 @@ import {
 } from '@angular/core';
 import {
   Box3,
-  Color,
   Group,
   Object3D,
   OrthographicCamera,
@@ -24,7 +23,6 @@ import {
   WebGLRenderer,
 } from 'three';
 import {
-  BouquetBackgroundMode,
   BouquetFlower,
   BouquetState,
   FlowerDefinition,
@@ -57,13 +55,14 @@ import {
   BouquetCanvasViewController,
 } from './bouquet-canvas-view-controller';
 import {
-  BOUQUET_BACKGROUND_COLORS,
-  normalizedBouquetBackgroundMode,
+  bouquetBackgroundModeForLightLevel,
+  normalizedBouquetLightLevel,
 } from '../../core/data/bouquet-scene';
 import {recordBouquetTurntable} from './recording/bouquet-turntable-recorder';
 import {
   applyBouquetSceneLighting,
   bouquetSceneLightingObjects,
+  createBouquetSceneBackground,
   createBouquetRenderer,
   createBouquetSceneLighting,
 } from './rendering/bouquet-scene-runtime';
@@ -167,6 +166,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
   private emittedSnapshotKey: string | null = null;
   private recordingViewport: {width: number; height: number} | null = null;
   private effectsAnimationFrame: number | null = null;
+  private lastSceneBackgroundLevel: number | null = null;
+  private lastSceneBackgroundTransparent: boolean | null = null;
 
   constructor() {
     this.bouquet.add(this.bouquetContent, this.sceneEffects.group);
@@ -183,7 +184,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       const vaseEnabled = this.vaseEnabled();
       const vaseId = state.vaseId ?? DEFAULT_VASE_ID;
       const vaseMaterialId = normalizedVaseMaterialId(state.vaseMaterialId);
-      const backgroundMode = normalizedBouquetBackgroundMode(state.backgroundMode);
+      const lightLevel = normalizedBouquetLightLevel(state.lightLevel, state.backgroundMode);
+      const backgroundMode = bouquetBackgroundModeForLightLevel(lightLevel);
       this.zoom();
       this.fitToContent();
       this.viewportInsets();
@@ -229,8 +231,8 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       this.lastVaseMaterialId = vaseMaterialId;
       this.lastGeometrySignature = geometrySignature;
       this.lastRecenterKey = recenterKey;
-      this.scene.background = thumbnailMode ? null : new Color(BOUQUET_BACKGROUND_COLORS[backgroundMode]);
-      this.applySceneLighting(backgroundMode);
+      this.updateSceneBackground(lightLevel, thumbnailMode);
+      this.applySceneLighting(lightLevel);
       this.sceneEffects.configure(state.sceneEffects, backgroundMode);
       this.syncEffectsAnimation();
       if (structureChanged || recenterRequested) {
@@ -260,7 +262,10 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
     this.canvasHost.nativeElement.appendChild(renderer.domElement);
 
     this.scene.add(...bouquetSceneLightingObjects(this.sceneLighting), this.bouquet);
-    this.applySceneLighting(normalizedBouquetBackgroundMode(this.state().backgroundMode));
+    this.applySceneLighting(normalizedBouquetLightLevel(
+      this.state().lightLevel,
+      this.state().backgroundMode,
+    ));
     this.camera.position.set(0, 0, 1000);
     this.camera.lookAt(0, 0, 0);
 
@@ -344,14 +349,25 @@ export class BouquetCanvasComponent implements AfterViewInit, OnDestroy {
       sceneEffects: this.sceneEffects,
       initialRotation: this.state().rotation,
       backgroundMode: this.state().backgroundMode,
+      lightLevel: this.state().lightLevel,
       currentRotation: () => this.state().rotation,
       setRecordingViewport: (viewport) => this.recordingViewport = viewport,
       resizeCamera: () => this.resizeCamera(),
     }, options);
   }
 
-  private applySceneLighting(backgroundMode: BouquetBackgroundMode): void {
-    applyBouquetSceneLighting(this.sceneLighting, backgroundMode, this.renderer);
+  private applySceneLighting(lightLevel: number): void {
+    applyBouquetSceneLighting(this.sceneLighting, lightLevel, this.renderer);
+  }
+
+  private updateSceneBackground(lightLevel: number, transparent: boolean): void {
+    if (
+      lightLevel === this.lastSceneBackgroundLevel
+      && transparent === this.lastSceneBackgroundTransparent
+    ) return;
+    this.scene.background = transparent ? null : createBouquetSceneBackground(lightLevel);
+    this.lastSceneBackgroundLevel = lightLevel;
+    this.lastSceneBackgroundTransparent = transparent;
   }
 
   private requestRebuild(): void {

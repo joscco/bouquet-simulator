@@ -16,6 +16,7 @@ import {mulberry32} from '../../../core/utils/random';
 
 const FULL_CIRCLE = Math.PI * 2;
 const WARM_LIGHT_COLORS = ['#fff8e7', '#ffefcc', '#fffdf7'] as const;
+const NIGHT_SPARKLE_COLORS = ['#fff4bd', '#ffd37d', '#cadcff', '#d8b4fe'] as const;
 
 type ParticleEffectKind = 'sparkles' | 'glowPoints';
 
@@ -42,11 +43,11 @@ interface GlowLightRuntime {
 
 const PARTICLE_STYLES: Record<ParticleEffectKind, ParticleStyle> = {
   sparkles: {
-    count: 58,
+    count: 64,
     seed: 0x8ab4dc,
-    radiusFactor: 0.54,
-    darkSize: 7.5,
-    lightSize: 6.5,
+    radiusFactor: 0.56,
+    darkSize: 8.5,
+    lightSize: 7,
     focused: false,
   },
   glowPoints: {
@@ -72,8 +73,9 @@ const PARTICLE_DISTRIBUTION = {
   focusedHeightJitter: 0.6,
 } as const;
 const PARTICLE_MOTION = {x: 1.6, y: 2.4, z: 1.2, verticalFrequency: 2} as const;
-const PARTICLE_MATERIAL = {opacity: 0.9, alphaTest: 0.025} as const;
-const SPARKLE_BRIGHTNESS = {exponent: 6, peak: 1.45} as const;
+const PARTICLE_MATERIAL = {opacity: 0.95, alphaTest: 0.025} as const;
+const SPARKLE_BRIGHTNESS = {exponent: 6, peak: 2.25} as const;
+const GLOW_POINT_BRIGHTNESS = {minimum: 0.72, pulse: 0.22} as const;
 const GLOW_LIGHT = {
   color: '#fff0d2',
   minimumDistance: 160,
@@ -96,6 +98,7 @@ class ThreeBouquetParticleRuntime implements BouquetParticleRuntime {
   private disposed = false;
 
   constructor(
+    private readonly kind: ParticleEffectKind,
     private readonly points: Points<BufferGeometry, PointsMaterial>,
     private readonly positionAttribute: BufferAttribute,
     private readonly colorAttribute: BufferAttribute,
@@ -120,7 +123,10 @@ class ThreeBouquetParticleRuntime implements BouquetParticleRuntime {
         ) * PARTICLE_MOTION.y,
         this.basePositions[index * 3 + 2]! + Math.cos(loopPhase + particlePhase) * PARTICLE_MOTION.z,
       );
-      const brightness = sparkleBrightness((loopPhase + particlePhase) % FULL_CIRCLE);
+      const localPhase = (loopPhase + particlePhase) % FULL_CIRCLE;
+      const brightness = this.kind === 'sparkles'
+        ? sparkleBrightness(localPhase)
+        : glowPointBrightness(localPhase);
       this.colorAttribute.setXYZ(
         index,
         this.baseColors[index * 3]! * brightness,
@@ -150,7 +156,7 @@ class ThreeBouquetParticleRuntime implements BouquetParticleRuntime {
         this.positionAttribute.getZ(particleIndex),
       );
       const localPhase = (loopPhase + this.phases[particleIndex]!) % FULL_CIRCLE;
-      light.intensity = sparkleBrightness(localPhase) * peakIntensity;
+      light.intensity = glowPointBrightness(localPhase) * peakIntensity;
     }
   }
 }
@@ -162,7 +168,7 @@ export function createBouquetParticleRuntime(
 ): BouquetParticleRuntime {
   const style = PARTICLE_STYLES[kind];
   const positions = particlePositions(bounds, style);
-  const colors = particleColors(style.count);
+  const colors = particleColors(style.count, kind, backgroundMode);
   const geometry = new BufferGeometry();
   const positionAttribute = new BufferAttribute(positions.current, 3);
   const colorAttribute = new BufferAttribute(colors, 3);
@@ -176,7 +182,7 @@ export function createBouquetParticleRuntime(
     depthWrite: false,
     blending: AdditiveBlending,
     sizeAttenuation: true,
-    map: createParticleTexture() ?? undefined,
+    map: createParticleTexture(kind) ?? undefined,
     alphaTest: PARTICLE_MATERIAL.alphaTest,
   });
   const points = new Points(geometry, material);
@@ -184,6 +190,7 @@ export function createBouquetParticleRuntime(
     ? createGlowPointLights(style.count, positionAttribute, bounds, backgroundMode)
     : [];
   return new ThreeBouquetParticleRuntime(
+    kind,
     points,
     positionAttribute,
     colorAttribute,
@@ -199,6 +206,11 @@ export function sparkleBrightness(localPhase: number): number {
     Math.sin(localPhase / 2),
     SPARKLE_BRIGHTNESS.exponent,
   ) * SPARKLE_BRIGHTNESS.peak;
+}
+
+export function glowPointBrightness(localPhase: number): number {
+  return GLOW_POINT_BRIGHTNESS.minimum
+    + (Math.sin(localPhase) + 1) / 2 * GLOW_POINT_BRIGHTNESS.pulse;
 }
 
 function particlePositions(bounds: Box3, style: ParticleStyle): ParticlePositions {
@@ -239,9 +251,16 @@ function particlePositions(bounds: Box3, style: ParticleStyle): ParticlePosition
   return {current, base, phases};
 }
 
-function particleColors(count: number): Float32Array {
+function particleColors(
+  count: number,
+  kind: ParticleEffectKind,
+  backgroundMode: BouquetBackgroundMode,
+): Float32Array {
   const colors = new Float32Array(count * 3);
-  const palette = WARM_LIGHT_COLORS.map((color) => new Color(color));
+  const source = kind === 'sparkles' && backgroundMode === 'dark'
+    ? NIGHT_SPARKLE_COLORS
+    : WARM_LIGHT_COLORS;
+  const palette = source.map((color) => new Color(color));
   for (let index = 0; index < count; index += 1) {
     const color = palette[index % palette.length]!;
     colors[index * 3] = color.r;
@@ -276,7 +295,7 @@ function createGlowPointLights(
   });
 }
 
-function createParticleTexture(): CanvasTexture | null {
+function createParticleTexture(kind: ParticleEffectKind): CanvasTexture | null {
   if (typeof document === 'undefined' || typeof CanvasRenderingContext2D === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = PARTICLE_TEXTURE.size;
@@ -286,6 +305,16 @@ function createParticleTexture(): CanvasTexture | null {
 
   const center = PARTICLE_TEXTURE.size / 2;
   const outer = PARTICLE_TEXTURE.outerRadius;
+  if (kind === 'glowPoints') {
+    const glow = context.createRadialGradient(center, center, 0, center, center, outer);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    glow.addColorStop(0.24, 'rgba(255, 255, 255, 0.92)');
+    glow.addColorStop(0.58, 'rgba(255, 255, 255, 0.32)');
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    context.fillStyle = glow;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    return new CanvasTexture(canvas);
+  }
   const inner = PARTICLE_TEXTURE.innerRadius;
   context.translate(center, center);
   context.fillStyle = '#ffffff';
