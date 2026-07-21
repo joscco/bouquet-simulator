@@ -26,6 +26,7 @@ export class FlowerSearchDialogComponent {
   readonly title = input.required<string>();
   readonly placeholder = input.required<string>();
   readonly definitionActions = input(false);
+  readonly contained = input(false);
   readonly primaryActionLabel = input('');
   readonly primaryActionDescription = input('');
   readonly primaryActionIcon = input('add_circle');

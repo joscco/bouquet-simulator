@@ -40,6 +40,16 @@ describe('FlowerSearchDialogComponent', () => {
     expect(load).toHaveBeenCalledOnce();
   });
 
+  it('can be contained by a parent workspace instead of covering the viewport', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('contained', true);
+    fixture.detectChanges();
+
+    const backdrop: HTMLDivElement = fixture.nativeElement.firstElementChild;
+    expect(backdrop.classList.contains('absolute')).toBe(true);
+    expect(backdrop.classList.contains('fixed')).toBe(false);
+  });
+
   it('renders an optional primary action independently from search results', () => {
     const fixture = createFixture();
     const action = vi.fn();

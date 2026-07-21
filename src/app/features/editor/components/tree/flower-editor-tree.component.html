@@ -1,229 +1,274 @@
-<svg
-  #graphCanvas
-  class="pointer-events-none h-full min-h-0 w-full touch-none select-none"
-  [attr.viewBox]="graphViewBox()"
-  preserveAspectRatio="xMidYMid meet"
-  role="tree"
-  aria-label="Kompakter Knotengraph"
-  (pointermove)="graphPointerMove($event)"
-  (pointerup)="graphPointerUp($event)"
-  (pointercancel)="graphPointerUp($event)"
-  (wheel)="graphWheel($event)"
->
-  <defs>
-    <pattern id="compact-graph-grid" width="18" height="18" patternUnits="userSpaceOnUse">
-      <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".45" />
-    </pattern>
-  </defs>
-  <rect
-    x="-5000"
-    y="-5000"
-    width="10000"
-    height="10000"
-    fill="url(#compact-graph-grid)"
-    class="pointer-events-auto cursor-grab active:cursor-grabbing"
-    (pointerdown)="graphPointerDown($event)"
-  />
-
-  @for (loop of compactGraph().loops; track loop.id) {
-    <g
-      class="pointer-events-auto cursor-pointer outline-none"
-      [attr.opacity]="isActiveNode(loop.id) ? 1 : 0.72"
-      tabindex="0"
-      role="treeitem"
-      [attr.aria-label]="loop.name + ', ' + loop.label"
-      [attr.aria-selected]="selectedNodeId() === loop.id"
-      (pointerdown)="selectCompactNode($event, loop.id)"
-      (pointerup)="finishConnection($event, loop.id)"
-      (keydown.enter)="selectNodeFromKeyboard($event, loop.id)"
-      (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, loop.id)"
-    >
-      <rect
-        [attr.x]="loop.x"
-        [attr.y]="loop.y"
-        [attr.width]="loop.width"
-        [attr.height]="loop.height"
-        rx="16"
-        fill="#fffcf2"
-        fill-opacity=".94"
-        [attr.stroke]="selectedNodeId() === loop.id ? '#d97706' : isSubtreeNodeSelected(loop.id) ? '#2dd4bf' : '#f59e0b'"
-        [attr.stroke-width]="selectedNodeId() === loop.id ? 4 : 2.5"
-      />
-      <rect
-        [attr.x]="loop.x + 8"
-        [attr.y]="loop.y + 8"
-        [attr.width]="loop.width - 16"
-        height="28"
-        rx="10"
-        fill="#fffbeb"
-        stroke="#fde68a"
-        stroke-width="1"
-        class="pointer-events-none"
-      />
-      <text [attr.x]="loop.x + 16" [attr.y]="loop.y + 26" class="pointer-events-none fill-amber-900 text-[9px] font-bold">{{ loop.label }} ↻ {{ loop.compactName }}</text>
-      <title>{{ loop.name }} · {{ loop.label }}</title>
-    </g>
-  }
-
-  @for (edge of compactGraph().edges; track edge.key) {
-    <path
-      [attr.d]="edge.path"
-      fill="none"
-      stroke="transparent"
-      stroke-width="20"
-      class="pointer-events-auto cursor-pointer"
-      (pointerdown)="selectConnection($event, edge.targetId)"
+@if (mode() === 'editor') {
+  <svg
+    #graphCanvas
+    class="h-full min-h-0 w-full touch-none select-none"
+    [attr.viewBox]="graphViewBox()"
+    preserveAspectRatio="xMidYMid meet"
+    role="application"
+    aria-label="NodeTree bearbeiten"
+    (pointermove)="graphPointerMove($event)"
+    (pointerup)="graphPointerUp($event)"
+    (pointercancel)="graphPointerUp($event)"
+    (wheel)="graphWheel($event)"
+  >
+    <defs>
+      <pattern id="graph-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+        <circle cx="1" cy="1" r="1" fill="#d6d3d1" opacity=".55" />
+      </pattern>
+    </defs>
+    <rect
+      x="-5000"
+      y="-5000"
+      width="11000"
+      [attr.height]="graphLayout().height + 10000"
+      fill="url(#graph-grid)"
+      class="cursor-grab active:cursor-grabbing"
+      (pointerdown)="graphPointerDown($event)"
     />
-    <path
-      [attr.d]="edge.path"
-      fill="none"
-      stroke="#ffffff"
-      stroke-width="6"
-      stroke-linecap="round"
-      stroke-opacity=".75"
-      class="pointer-events-none"
-    />
-    <path
-      [attr.d]="edge.path"
-      fill="none"
-      [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : '#a8a29e'"
-      [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 4.5 : selectedNodeId() === edge.targetId ? 4 : 2.75"
-      stroke-linecap="round"
-      [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.25"
-      class="pointer-events-none"
-    />
-  }
 
-  @if (connectionDrag(); as pending) {
-    <path
-      [attr.d]="pendingConnectionPath()"
-      fill="none"
-      stroke="#047857"
-      stroke-width="2.5"
-      stroke-dasharray="5 4"
-      stroke-linecap="round"
-      class="pointer-events-none"
-    />
-  }
-
-  @for (node of compactGraph().nodes; track node.id) {
-    @if (!node.loop) {
-    <g
-      class="pointer-events-auto cursor-pointer outline-none"
-      [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
-      [attr.opacity]="isActiveNode(node.id) ? 1 : 0.58"
-      tabindex="0"
-      role="treeitem"
-      [attr.aria-label]="node.name"
-      [attr.aria-selected]="selectedNodeId() === node.id"
-      (pointerdown)="selectCompactNode($event, node.id)"
-      (pointerup)="finishConnection($event, node.id)"
-      (keydown.enter)="selectNodeFromKeyboard($event, node.id)"
-      (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, node.id)"
-      (dblclick)="node.componentDefinitionId && openComponent($event, node.componentDefinitionId)"
-    >
-      <rect
-        [attr.x]="-node.compactWidth / 2"
-        [attr.y]="-node.compactHeight / 2"
-        [attr.width]="node.compactWidth"
-        [attr.height]="node.compactHeight"
-        rx="11"
-        [attr.fill]="selectedNodeId() === node.id ? '#ecfdf5' : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
-        [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#14b8a6' : selectedNodeId() === node.id ? '#047857' : node.component ? '#818cf8' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
-        [attr.stroke-width]="isSubtreeAnchor(node.id) ? 4 : isSubtreeNodeSelected(node.id) ? 3.5 : selectedNodeId() === node.id ? 3 : 2"
-        class="drop-shadow-sm transition-[fill,stroke,stroke-width]"
-      />
-      <rect
-        [attr.x]="-node.compactWidth / 2 + 7"
-        [attr.y]="-node.compactHeight / 2 + 8"
-        width="4"
-        [attr.height]="node.compactHeight - 16"
-        rx="2"
-        [attr.fill]="node.component ? '#6366f1' : node.hasGraphic ? '#059669' : '#a8a29e'"
-        class="pointer-events-none"
-      />
-      <text
-        [attr.x]="-node.compactWidth / 2 + 17"
-        y="-2"
-        class="pointer-events-none fill-stone-800 text-[10px] font-bold"
-      >{{ node.compactLabel }}</text>
-      <text
-        [attr.x]="-node.compactWidth / 2 + 17"
-        y="12"
-        class="pointer-events-none fill-stone-400 text-[7px] font-black tracking-[.08em]"
-      >{{ node.root && node.compactType !== 'START' ? 'START · ' : '' }}{{ node.compactType }}</text>
-      @if (node.componentDefinitionId; as definitionId) {
-        <g
-          class="cursor-pointer outline-none"
-          [attr.transform]="'translate(' + (node.compactWidth / 2 - 14) + ' ' + (-node.compactHeight / 2 + 14) + ')'"
-          tabindex="0"
-          role="link"
-          (pointerdown)="openComponent($event, definitionId)"
-          (keydown.enter)="openComponent($event, definitionId)"
-          (keydown.space)="openComponent($event, definitionId)"
-        >
-          <rect x="-10" y="-10" width="20" height="20" rx="6" fill="#ffffff" stroke="#c7d2fe" stroke-width="1" />
-          <path d="M-4 4 4-4M0-4h4v4" fill="none" stroke="#4338ca" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-          <title>Quelldefinition öffnen</title>
-        </g>
-      }
-      @if (!node.root) {
-        <circle
-          [attr.cx]="node.compactInputPoint.x - node.x"
-          [attr.cy]="node.compactInputPoint.y - node.y"
-          r="7"
-          fill="#ffffff"
-          stroke="#78716c"
-          stroke-width="2"
-          (pointerup)="finishConnection($event, node.id)"
+    @for (node of graphLayout().nodes; track node.id) {
+      @if (node.loop) {
+        <rect
+          [attr.x]="node.x - node.width / 2"
+          [attr.y]="node.y - node.height / 2"
+          [attr.width]="node.width"
+          [attr.height]="node.height"
+          rx="24"
+          [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? '#fffbeb' : '#fffcf2'"
+          stroke="none"
+          [attr.opacity]="isActiveNode(node.id) ? 1 : 0.22"
+          class="pointer-events-none"
         />
       }
-      @for (port of node.compactOutputPoints; track $index) {
-        <g
-          class="cursor-crosshair"
-          (pointerdown)="startCompactPortConnection($event, node.id, $index)"
-        >
-          <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" r="14" fill="transparent" />
-          <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" r="7" fill="#064e3b" stroke="#ffffff" stroke-width="2" />
-          @if (port.label) {
-            <text [attr.x]="port.x - node.x" [attr.y]="port.y - node.y + 2.5" class="pointer-events-none fill-white text-[6px] font-black [text-anchor:middle]">{{ port.label }}</text>
-          }
-          <title>{{ port.name || 'Ausgang ' + ($index + 1) }}</title>
-        </g>
-      }
-      <title>{{ node.name }}</title>
-    </g>
     }
-  }
 
-  @for (loop of compactGraph().loops; track loop.id) {
-    <g [attr.opacity]="isActiveNode(loop.id) ? 1 : 0.72">
-      @if (!loop.root) {
-        <circle
-          [attr.cx]="loop.inputPoint.x"
-          [attr.cy]="loop.inputPoint.y"
-          r="7"
-          fill="#ffffff"
-          stroke="#a8a29e"
-          stroke-width="2.5"
-          class="pointer-events-auto"
-          (pointerup)="finishConnection($event, loop.id)"
-        />
-      }
-      @for (port of loop.outputPoints; track $index) {
-        <g
-          class="pointer-events-auto cursor-crosshair"
-          (pointerdown)="startCompactPortConnection($event, loop.id, $index)"
-        >
-          <circle [attr.cx]="port.x" [attr.cy]="port.y" r="15" fill="transparent" />
-          <circle [attr.cx]="port.x" [attr.cy]="port.y" r="7" fill="#064e3b" stroke="#ffffff" stroke-width="2.5" />
-          @if (port.label) {
-            <text [attr.x]="port.x" [attr.y]="port.y + 2.5" class="pointer-events-none fill-white text-[6px] font-black [text-anchor:middle]">{{ port.label }}</text>
-          }
-          <title>{{ port.name || 'Ausgang ' + ($index + 1) }}</title>
+    @for (edge of graphLayout().edges; track edge.key) {
+      <path
+        [attr.d]="edge.path"
+        fill="none"
+        stroke="transparent"
+        stroke-width="28"
+        [class.cursor-pointer]="edge.selectable"
+        (pointerdown)="edge.selectable && selectConnection($event, edge.targetId)"
+      />
+      <path
+        [attr.d]="edge.path"
+        fill="none"
+        [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : edge.color"
+        [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 6 : selectedNodeId() === edge.targetId ? 5 : 4"
+        stroke-linecap="round"
+        [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.2"
+        class="pointer-events-none"
+      />
+      @if (edge.label) {
+        <g class="pointer-events-none" [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.2" [attr.transform]="'translate(' + edge.labelX + ' ' + edge.labelY + ')'">
+          <rect x="-25" y="-10" width="50" height="20" rx="10" fill="#ffffff" />
+          <text y="3" class="fill-stone-500 text-[10px] font-bold [text-anchor:middle]">{{ edge.label }}</text>
         </g>
       }
-    </g>
-  }
+    }
 
-</svg>
+    @if (connectionDrag()) {
+      <path
+        [attr.d]="pendingConnectionPath()"
+        fill="none"
+        stroke="#047857"
+        stroke-width="5"
+        stroke-dasharray="7 6"
+        stroke-linecap="round"
+        class="pointer-events-none"
+      />
+    }
+
+    @for (node of graphLayout().nodes; track node.id) {
+      <g
+        class="cursor-grab outline-none active:cursor-grabbing"
+        [attr.opacity]="isActiveNode(node.id) ? 1 : 0.28"
+        [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="node.name"
+        [attr.aria-pressed]="selectedNodeId() === node.id"
+        (pointerdown)="startNodeDrag($event, node.id)"
+        (pointerup)="finishConnection($event, node.id)"
+        (keydown.enter)="selectNodeFromKeyboard($event, node.id)"
+        (dblclick)="node.componentDefinitionId && openComponent($event, node.componentDefinitionId)"
+      >
+        @if (node.loop) {
+          <rect
+            [attr.x]="-node.width / 2"
+            [attr.y]="-node.height / 2"
+            [attr.width]="node.width"
+            [attr.height]="node.height"
+            rx="24"
+            fill="none"
+            [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? '#d97706' : '#f59e0b'"
+            [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
+            class="pointer-events-none drop-shadow-sm"
+          />
+          <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 25" class="pointer-events-none fill-amber-900 text-[12px] font-bold">↻ {{ node.name }}</text>
+          <text [attr.x]="-node.width / 2 + 18" [attr.y]="-node.height / 2 + 42" class="pointer-events-none fill-stone-400 text-[9px]">WIEDERHOLUNG</text>
+          @if (node.memberIds.length) {
+            @if (!node.root) {
+              <circle cx="0" [attr.cy]="node.height / 2" r="9" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
+              <text x="14" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-500 text-[8px] font-bold">EINGANG</text>
+            }
+            @for (port of node.outputPorts; track $index) {
+              <g class="cursor-crosshair" (pointerdown)="startConnection($event, node.id, $index)">
+                <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" r="17" fill="transparent" />
+                <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" r="11" fill="#064e3b" stroke="#ffffff" stroke-width="3" />
+                <text [attr.x]="port.x - node.x" [attr.y]="port.y - node.y + 4" class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]">{{ node.outputPortLabels[$index] }}</text>
+                <title>Ausgang {{ node.outputPortLabels[$index] }} · {{ node.outputPortNames[$index] }}</title>
+              </g>
+            }
+            <text x="0" [attr.y]="-node.height / 2 + 18" class="pointer-events-none fill-stone-500 text-[8px] font-bold [text-anchor:middle]">
+              {{ node.outputPorts.length === 1 ? 'AUSGANG' : 'AUSGÄNGE' }}
+            </text>
+          } @else {
+            <g class="cursor-crosshair" (pointerdown)="startLoopPath($event, node.id)">
+              <circle cx="0" [attr.cy]="node.height / 2" r="18" fill="transparent" />
+              <circle cx="0" [attr.cy]="node.height / 2" r="12" fill="#059669" />
+              <title>Zum ersten Knoten der Wiederholung ziehen</title>
+            </g>
+            <text x="16" [attr.y]="node.height / 2 - 7" class="pointer-events-none fill-stone-600 text-[8px]">Ersten Knoten hierher ziehen</text>
+            <g class="cursor-crosshair" (pointerdown)="startConnection($event, node.id)" (pointerup)="finishLoopEnd($event, node.id)">
+              <circle cx="0" [attr.cy]="-node.height / 2" r="16" fill="transparent" />
+              <circle cx="0" [attr.cy]="-node.height / 2" r="10" fill="#ffffff" stroke="#d97706" stroke-width="3" />
+            </g>
+            <text x="16" [attr.y]="-node.height / 2 + 12" class="pointer-events-none fill-stone-600 text-[8px]">Ende · {{ node.loopEndName }}</text>
+          }
+        } @else {
+          <rect
+            [attr.x]="-node.width / 2"
+            [attr.y]="-node.height / 2"
+            [attr.width]="node.width"
+            [attr.height]="node.height"
+            rx="20"
+            [attr.fill]="isSubtreeAnchor(node.id) ? '#ccfbf1' : isSubtreeNodeSelected(node.id) ? '#f0fdfa' : selectedNodeId() === node.id ? (node.component ? '#e0e7ff' : '#ecfdf5') : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
+            [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? (node.component ? '#4338ca' : '#047857') : node.component ? '#6366f1' : node.loopMember ? '#f59e0b' : '#d6d3d1'"
+            [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
+            class="drop-shadow-sm"
+          />
+          @if (!node.root) {
+            <circle cx="0" [attr.cy]="node.height / 2" r="8" fill="#ffffff" stroke="#a8a29e" stroke-width="2" class="pointer-events-none" />
+          }
+          <text [attr.x]="-node.width / 2 + 22" y="-7" class="pointer-events-none fill-stone-900 text-[12px] font-bold">{{ node.name }}</text>
+          <text [attr.x]="-node.width / 2 + 22" y="14" class="pointer-events-none fill-stone-400 text-[8px]">
+            {{ node.root ? 'AKTIVE WURZEL' : node.component ? (node.componentNodeCount ? 'KOMPONENTE · ' + node.componentNodeCount + ' INTERN · ' + node.componentOutputCount + ' AUSGÄNGE' : 'KOMPONENTENREFERENZ') : node.hasGraphic ? 'GRAFIK' : 'KNOTEN' }}
+          </text>
+          @if (node.componentDefinitionId; as definitionId) {
+            <g
+              class="cursor-pointer outline-none"
+              [attr.transform]="'translate(' + (node.width / 2 - 24) + ' -18)'"
+              tabindex="0"
+              role="link"
+              (pointerdown)="openComponent($event, definitionId)"
+              (keydown.enter)="openComponent($event, definitionId)"
+              (keydown.space)="openComponent($event, definitionId)"
+            >
+              <rect x="-15" y="-15" width="30" height="30" rx="9" fill="#ffffff" stroke="#c7d2fe" stroke-width="1.5" />
+              <path d="M-5 5 5-5M-1-5h6v6" fill="none" stroke="#4338ca" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              <title>Quelldefinition öffnen</title>
+            </g>
+          }
+          @for (port of node.outputPorts; track $index) {
+            <g class="cursor-crosshair" (pointerdown)="startConnection($event, node.id, $index)">
+              <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" r="18" fill="transparent" />
+              <circle [attr.cx]="port.x - node.x" [attr.cy]="port.y - node.y" [attr.r]="node.component ? 8 : 12" fill="#064e3b" stroke="#ffffff" stroke-width="3" />
+              @if (node.outputPortLabels[$index]) {
+                <text [attr.x]="port.x - node.x" [attr.y]="port.y - node.y + 4" class="pointer-events-none fill-white text-[10px] font-bold [text-anchor:middle]">{{ node.outputPortLabels[$index] }}</text>
+              }
+              <title>{{ node.outputPortNames[$index] || 'Ausgang ' + ($index + 1) }}</title>
+            </g>
+          }
+        }
+      </g>
+    }
+  </svg>
+} @else {
+  <svg
+    #graphCanvas
+    class="pointer-events-none h-full min-h-0 w-full select-none"
+    [attr.viewBox]="graphViewBox()"
+    preserveAspectRatio="xMidYMid meet"
+    role="tree"
+    aria-label="Kompakter Knotengraph"
+  >
+    @for (loop of compactGraph().loops; track loop.id) {
+      <g
+        class="pointer-events-auto cursor-pointer outline-none"
+        [attr.opacity]="isActiveNode(loop.id) ? 1 : 0.62"
+        tabindex="0"
+        role="treeitem"
+        [attr.aria-label]="loop.name + ', Wiederholung ' + loop.label"
+        [attr.aria-selected]="selectedNodeId() === loop.id"
+        (pointerdown)="selectCompactNode($event, loop.id)"
+        (keydown.enter)="selectNodeFromKeyboard($event, loop.id)"
+        (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, loop.id)"
+      >
+        <rect
+          [attr.x]="loop.x"
+          [attr.y]="loop.y"
+          [attr.width]="loop.width"
+          [attr.height]="loop.height"
+          rx="7"
+          [attr.fill]="selectedNodeId() === loop.id ? '#fffbeb' : '#fffcf2'"
+          fill-opacity=".52"
+          [attr.stroke]="isSubtreeAnchor(loop.id) ? '#0f766e' : isSubtreeNodeSelected(loop.id) ? '#2dd4bf' : selectedNodeId() === loop.id ? '#d97706' : '#f59e0b'"
+          [attr.stroke-width]="isSubtreeAnchor(loop.id) ? 4 : isSubtreeNodeSelected(loop.id) ? 3.5 : selectedNodeId() === loop.id ? 3 : 2"
+        />
+        <title>{{ loop.name }} · Wiederholung {{ loop.label }}</title>
+      </g>
+    }
+
+    @for (edge of compactGraph().edges; track edge.key) {
+      <path [attr.d]="edge.path" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-opacity=".7" class="pointer-events-none" />
+      <path
+        [attr.d]="edge.path"
+        fill="none"
+        [attr.stroke]="isSubtreeEdge(edge.sourceId, edge.targetId) ? '#0f766e' : selectedNodeId() === edge.targetId ? '#047857' : '#a8a29e'"
+        [attr.stroke-width]="isSubtreeEdge(edge.sourceId, edge.targetId) ? 3.5 : selectedNodeId() === edge.targetId ? 3 : 2"
+        stroke-linecap="round"
+        [attr.opacity]="isActiveEdge(edge.sourceId, edge.targetId) ? 1 : 0.22"
+        class="pointer-events-none"
+      />
+    }
+
+    @for (node of compactGraph().nodes; track node.id) {
+      @if (!node.loop) {
+        <g
+          class="pointer-events-auto cursor-pointer outline-none"
+          [attr.transform]="'translate(' + node.x + ' ' + node.y + ')'"
+          [attr.opacity]="isActiveNode(node.id) ? 1 : 0.52"
+          tabindex="0"
+          role="treeitem"
+          [attr.aria-label]="node.name"
+          [attr.aria-selected]="selectedNodeId() === node.id"
+          (pointerdown)="selectCompactNode($event, node.id)"
+          (keydown.enter)="selectNodeFromKeyboard($event, node.id)"
+          (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, node.id)"
+          (dblclick)="node.componentDefinitionId && openComponent($event, node.componentDefinitionId)"
+        >
+          <circle cx="0" cy="0" r="17" fill="transparent" />
+          <circle
+            cx="0"
+            cy="0"
+            [attr.r]="node.compactWidth / 2"
+            [attr.fill]="selectedNodeId() === node.id ? (node.component ? '#e0e7ff' : '#d1fae5') : node.component ? '#eef2ff' : node.loopMember ? '#fffbeb' : '#ffffff'"
+            [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#14b8a6' : selectedNodeId() === node.id ? (node.component ? '#4338ca' : '#047857') : node.component ? '#6366f1' : node.loopMember ? '#f59e0b' : '#a8a29e'"
+            [attr.stroke-width]="isSubtreeAnchor(node.id) ? 4 : isSubtreeNodeSelected(node.id) ? 3.5 : selectedNodeId() === node.id ? 3 : 2"
+          />
+          @if (node.root) {
+            <circle cx="0" cy="0" [attr.r]="node.compactWidth / 2 + 4" fill="none" stroke="#047857" stroke-width="1.5" stroke-opacity=".6" class="pointer-events-none" />
+          }
+          @if (node.component) {
+            <circle cx="0" cy="0" r="3" fill="#6366f1" class="pointer-events-none" />
+          } @else if (node.hasGraphic) {
+            <circle cx="0" cy="0" r="3" fill="#059669" class="pointer-events-none" />
+          }
+          <title>{{ node.name }}</title>
+        </g>
+      }
+    }
+  </svg>
+}

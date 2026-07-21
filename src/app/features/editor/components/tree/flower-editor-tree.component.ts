@@ -20,6 +20,7 @@ import {
   Point,
   createCompactGraphPositions,
   createGraphLayout,
+  curvedConnectionPath,
 } from '../../graph/flower-editor-graph';
 import {
   absorbConnectedSubtreeIntoLoop,
@@ -64,8 +65,10 @@ interface CompactLoopRegion {
   outputPoints: Array<Point & {label: string; name: string}>;
 }
 
-const COMPACT_NODE_WIDTH = 112;
-const COMPACT_NODE_HEIGHT = 52;
+const COMPACT_NODE_WIDTH = 20;
+const COMPACT_NODE_HEIGHT = 20;
+const COMPACT_VIEWPORT = {width: 300, height: 190};
+const EDITOR_VIEWPORT = {width: 1000, height: 700};
 
 function distributedPortOffsets(count: number, availableSpan: number): number[] {
   if (count <= 1) return [0];
@@ -106,6 +109,7 @@ export class FlowerEditorTreeComponent {
   readonly subtreeAnchorIds = input<Set<string>>(new Set());
   readonly subtreeNodeIds = input<Set<string>>(new Set());
   readonly compactLayoutDirection = input<'vertical' | 'horizontal'>('horizontal');
+  readonly mode = input<'compact' | 'editor'>('compact');
 
   readonly definitionChange = output<FlowerDefinition>();
   readonly positionsChange = output<Record<string, Point>>();
@@ -118,6 +122,7 @@ export class FlowerEditorTreeComponent {
   readonly graphCenter = signal<Point>({x: 150, y: 95});
   readonly graphCameraTouched = signal(false);
   readonly graphCameraDefinitionId = signal<string | null>(null);
+  readonly graphCameraMode = signal<'compact' | 'editor' | null>(null);
   readonly connectionDrag = signal<{
     sourceId: string;
     start: Point;
@@ -140,19 +145,14 @@ export class FlowerEditorTreeComponent {
     const maximumX = Math.max(...sourceNodes.map((node) => node.x));
     const minimumY = Math.min(...sourceNodes.map((node) => node.y));
     const maximumY = Math.max(...sourceNodes.map((node) => node.y));
-    const availableWidth = 224;
-    const availableHeight = 118;
+    const availableWidth = 220;
+    const availableHeight = 104;
     const rawSpanX = maximumX - minimumX;
     const rawSpanY = maximumY - minimumY;
-    const fittedScale = Math.max(0.82, Math.min(1,
-      availableWidth / Math.max(1, rawSpanX),
-      availableHeight / Math.max(1, rawSpanY),
-    ));
-    // Do not compress the hierarchy axis. Its level gap is what gives the
-    // connection curves enough visible length between the node cards. Only the
-    // perpendicular branch distribution may be condensed to fit the drawer.
-    const scaleX = direction === 'horizontal' ? 1 : fittedScale;
-    const scaleY = direction === 'vertical' ? 1 : fittedScale;
+    // The compact graph is a navigator, not an editor. Compress both axes so
+    // even larger component trees stay readable as a small structural map.
+    const scaleX = clamp(availableWidth / Math.max(1, rawSpanX), 0.34, 0.58);
+    const scaleY = clamp(availableHeight / Math.max(1, rawSpanY), 0.34, 0.58);
     const renderedWidth = rawSpanX * scaleX;
     const renderedHeight = rawSpanY * scaleY;
     const offsetX = (300 - renderedWidth) / 2;
@@ -163,7 +163,7 @@ export class FlowerEditorTreeComponent {
       const outputCount = Math.max(1, node.outputPorts.length);
       const compactWidth = COMPACT_NODE_WIDTH;
       const compactHeight = COMPACT_NODE_HEIGHT;
-      const offsets = distributedPortOffsets(outputCount, compactHeight - 18);
+      const offsets = distributedPortOffsets(outputCount, compactHeight - 8);
       const compactLabelLength = node.component ? 9 : 13;
       const compactLabel = node.name.length > compactLabelLength
         ? `${node.name.slice(0, compactLabelLength - 1)}…`
@@ -213,10 +213,10 @@ export class FlowerEditorTreeComponent {
         ? `${loopNode.loop.repeat.min}×`
         : `${loopNode.loop.repeat.min}–${loopNode.loop.repeat.max}×`;
       const badgeWidth = 18 + label.length * 5.2;
-      const width = Math.max(190, maximumMemberX - minimumMemberX + 64, badgeWidth + 48);
-      const height = Math.max(134, maximumMemberY - minimumMemberY + 72);
-      const x = (minimumMemberX + maximumMemberX - width) / 2;
-      const y = minimumMemberY - 42;
+      const width = Math.max(54, maximumMemberX - minimumMemberX + 28, badgeWidth);
+      const height = Math.max(42, maximumMemberY - minimumMemberY + 28);
+      const x = minimumMemberX - 14;
+      const y = minimumMemberY - 14;
       const outputCount = Math.max(1, loop.outputPorts.length);
       const outputOffsets = distributedPortOffsets(
         outputCount,
@@ -272,20 +272,23 @@ export class FlowerEditorTreeComponent {
     return {nodes, edges, loops};
   });
   readonly graphViewBox = computed(() => {
-    const framed = this.framedCompactCamera();
+    const viewport = this.graphViewportSize();
     const cameraIsCurrent = this.graphCameraTouched()
-      && this.graphCameraDefinitionId() === this.layoutDefinition().id;
+      && this.graphCameraDefinitionId() === this.layoutDefinition().id
+      && this.graphCameraMode() === this.mode();
+    const framed = this.framedCamera();
     const zoom = cameraIsCurrent ? this.graphZoom() : framed.zoom;
     const center = cameraIsCurrent ? this.graphCenter() : framed.center;
-    const width = 300 / zoom;
-    const height = 190 / zoom;
+    const width = viewport.width / zoom;
+    const height = viewport.height / zoom;
     return `${center.x - width / 2} ${center.y - height / 2} ${width} ${height}`;
   });
   readonly pendingConnectionPath = computed(() => {
     const pending = this.connectionDrag();
-    return pending
-      ? compactConnectionPath(pending.start, pending.end, this.compactLayoutDirection())
-      : '';
+    if (!pending) return '';
+    return this.mode() === 'editor'
+      ? curvedConnectionPath(pending.start, pending.end)
+      : compactConnectionPath(pending.start, pending.end, this.compactLayoutDirection());
   });
   @ViewChild('graphCanvas', {static: false}) private graphCanvas?: ElementRef<SVGSVGElement>;
   private nodeDrag: {
@@ -300,25 +303,28 @@ export class FlowerEditorTreeComponent {
 
   resetView(positions: Record<string, Point>): void {
     void positions;
-    this.resetCompactView();
+    this.resetCurrentView();
   }
 
   centerAfterLayout(positions: Record<string, Point>): void {
     void positions;
-    this.resetCompactView();
+    this.resetCurrentView();
   }
 
   resetCompactView(): void {
-    const camera = this.framedCompactCamera();
-    this.graphCenter.set(camera.center);
-    this.graphZoom.set(camera.zoom);
-    this.graphCameraDefinitionId.set(this.layoutDefinition().id);
-    this.graphCameraTouched.set(true);
+    this.resetCamera('compact');
+  }
+
+  resetEditorView(): void {
+    this.resetCamera('editor');
   }
 
   zoomCompactView(factor: number): void {
-    this.initializeGraphCamera();
-    this.setGraphZoom(this.graphZoom() * factor);
+    this.zoomView(factor, 'compact');
+  }
+
+  zoomEditorView(factor: number): void {
+    this.zoomView(factor, 'editor');
   }
 
   isSubtreeNodeSelected(id: string): boolean {
@@ -377,15 +383,16 @@ export class FlowerEditorTreeComponent {
     const currentZoom = this.graphZoom();
     const currentCenter = this.currentGraphCenter();
     const point = this.graphClientPoint(event);
-    const currentWidth = 300 / currentZoom;
-    const currentHeight = 190 / currentZoom;
+    const viewport = this.graphViewportSize();
+    const currentWidth = viewport.width / currentZoom;
+    const currentHeight = viewport.height / currentZoom;
     const relative = {
       x: (point.x - (currentCenter.x - currentWidth / 2)) / currentWidth,
       y: (point.y - (currentCenter.y - currentHeight / 2)) / currentHeight,
     };
     const nextZoom = clamp(currentZoom * Math.exp(-event.deltaY * 0.0015), 0.3, 3);
-    const nextWidth = 300 / nextZoom;
-    const nextHeight = 190 / nextZoom;
+    const nextWidth = viewport.width / nextZoom;
+    const nextHeight = viewport.height / nextZoom;
     this.graphZoom.set(nextZoom);
     this.graphCenter.set({
       x: point.x - (relative.x - 0.5) * nextWidth,
@@ -489,8 +496,9 @@ export class FlowerEditorTreeComponent {
       const svg = this.graphCanvas?.nativeElement;
       if (!svg) return;
       const bounds = svg.getBoundingClientRect();
-      const viewWidth = 300 / this.graphZoom();
-      const viewHeight = 190 / this.graphZoom();
+      const viewport = this.graphViewportSize();
+      const viewWidth = viewport.width / this.graphZoom();
+      const viewHeight = viewport.height / this.graphZoom();
       const renderedScale = Math.min(bounds.width / viewWidth, bounds.height / viewHeight);
       this.graphCenter.set({
         x: this.graphPan.center.x - (event.clientX - this.graphPan.client.x) / renderedScale,
@@ -517,18 +525,27 @@ export class FlowerEditorTreeComponent {
       const point = this.graphPoint(event);
       const svg = this.graphCanvas?.nativeElement;
       const bounds = svg?.getBoundingClientRect();
+      const viewport = this.graphViewportSize();
       const renderedScale = bounds
         ? Math.min(
-          bounds.width / (300 / this.graphZoom()),
-          bounds.height / (190 / this.graphZoom()),
+          bounds.width / (viewport.width / this.graphZoom()),
+          bounds.height / (viewport.height / this.graphZoom()),
         )
         : 1;
-      const targetRadius = Math.min(60, 24 / Math.max(0.4, renderedScale));
-      const target = this.compactGraph().nodes
-        .map((node) => {
-          const targetPoint = node.root ? node : node.compactInputPoint;
-          return {node, distance: Math.hypot(targetPoint.x - point.x, targetPoint.y - point.y)};
-        })
+      const targetRadius = Math.min(70, 26 / Math.max(0.35, renderedScale));
+      const target = (this.mode() === 'editor'
+        ? this.graphLayout().nodes.map((node) => ({
+          node,
+          targetPoint: {x: node.x, y: node.y + node.height / 2},
+        }))
+        : this.compactGraph().nodes.map((node) => ({
+          node,
+          targetPoint: node.root ? {x: node.x, y: node.y} : node.compactInputPoint,
+        })))
+        .map(({node, targetPoint}) => ({
+          node,
+          distance: Math.hypot(targetPoint.x - point.x, targetPoint.y - point.y),
+        }))
         .filter((candidate) => candidate.distance <= targetRadius)
         .sort((first, second) => first.distance - second.distance)[0]?.node;
       if (target) {
@@ -652,26 +669,53 @@ export class FlowerEditorTreeComponent {
 
   private setGraphZoom(zoom: number): void {
     this.graphCameraTouched.set(true);
-    this.graphZoom.set(clamp(zoom, 0.3, 3));
+    this.graphCameraMode.set(this.mode());
+    this.graphZoom.set(clamp(zoom, this.mode() === 'editor' ? 0.2 : 0.3, this.mode() === 'editor' ? 2.2 : 3));
   }
 
   private currentGraphCenter(): Point {
     return this.graphCameraTouched()
       && this.graphCameraDefinitionId() === this.layoutDefinition().id
+      && this.graphCameraMode() === this.mode()
       ? this.graphCenter()
-      : this.framedCompactCamera().center;
+      : this.framedCamera().center;
   }
 
   private initializeGraphCamera(): void {
     if (
       this.graphCameraTouched()
       && this.graphCameraDefinitionId() === this.layoutDefinition().id
+      && this.graphCameraMode() === this.mode()
     ) return;
-    const camera = this.framedCompactCamera();
+    this.resetCurrentView();
+  }
+
+  private resetCurrentView(): void {
+    this.resetCamera(this.mode());
+  }
+
+  private resetCamera(mode: 'compact' | 'editor'): void {
+    const camera = mode === 'editor' ? this.framedEditorCamera() : this.framedCompactCamera();
     this.graphCenter.set(camera.center);
     this.graphZoom.set(camera.zoom);
     this.graphCameraDefinitionId.set(this.layoutDefinition().id);
+    this.graphCameraMode.set(mode);
     this.graphCameraTouched.set(true);
+    this.connectionDrag.set(null);
+  }
+
+  private zoomView(factor: number, mode: 'compact' | 'editor'): void {
+    if (this.mode() !== mode) return;
+    this.initializeGraphCamera();
+    this.setGraphZoom(this.graphZoom() * factor);
+  }
+
+  private graphViewportSize(): {width: number; height: number} {
+    return this.mode() === 'editor' ? EDITOR_VIEWPORT : COMPACT_VIEWPORT;
+  }
+
+  private framedCamera(): {center: Point; zoom: number} {
+    return this.mode() === 'editor' ? this.framedEditorCamera() : this.framedCompactCamera();
   }
 
   private framedCompactCamera(): {center: Point; zoom: number} {
@@ -681,28 +725,46 @@ export class FlowerEditorTreeComponent {
       return {center: {x: 150, y: 95}, zoom: 1};
     }
     const minimumX = Math.min(
-      ...visibleNodes.map((node) => node.x - node.compactWidth / 2 - 18),
-      ...graph.loops.map((loop) => loop.x - 8),
+      ...visibleNodes.map((node) => node.x - node.compactWidth / 2 - 12),
+      ...graph.loops.map((loop) => loop.x - 6),
     );
     const maximumX = Math.max(
-      ...visibleNodes.map((node) => node.x + node.compactWidth / 2 + 18),
-      ...graph.loops.map((loop) => loop.x + loop.width + 8),
+      ...visibleNodes.map((node) => node.x + node.compactWidth / 2 + 12),
+      ...graph.loops.map((loop) => loop.x + loop.width + 6),
     );
     const minimumY = Math.min(
-      ...visibleNodes.map((node) => node.y - node.compactHeight / 2 - 46),
-      ...graph.loops.map((loop) => loop.y - 8),
+      ...visibleNodes.map((node) => node.y - node.compactHeight / 2 - 12),
+      ...graph.loops.map((loop) => loop.y - 6),
     );
     const maximumY = Math.max(
-      ...visibleNodes.map((node) => node.y + node.compactHeight / 2 + 18),
-      ...graph.loops.map((loop) => loop.y + loop.height + 8),
+      ...visibleNodes.map((node) => node.y + node.compactHeight / 2 + 12),
+      ...graph.loops.map((loop) => loop.y + loop.height + 6),
     );
     return {
       center: {x: (minimumX + maximumX) / 2, y: (minimumY + maximumY) / 2},
       zoom: clamp(Math.min(
         1,
-        300 / Math.max(1, maximumX - minimumX),
-        190 / Math.max(1, maximumY - minimumY),
+        COMPACT_VIEWPORT.width / Math.max(1, maximumX - minimumX),
+        COMPACT_VIEWPORT.height / Math.max(1, maximumY - minimumY),
       ), 0.3, 1),
+    };
+  }
+
+  private framedEditorCamera(): {center: Point; zoom: number} {
+    const nodes = this.graphLayout().nodes;
+    if (!nodes.length) return {center: {x: 500, y: 500}, zoom: 1};
+    const padding = 100;
+    const minimumX = Math.min(...nodes.map((node) => node.x - node.width / 2)) - padding;
+    const maximumX = Math.max(...nodes.map((node) => node.x + node.width / 2)) + padding;
+    const minimumY = Math.min(...nodes.map((node) => node.y - node.height / 2)) - padding;
+    const maximumY = Math.max(...nodes.map((node) => node.y + node.height / 2)) + padding;
+    return {
+      center: {x: (minimumX + maximumX) / 2, y: (minimumY + maximumY) / 2},
+      zoom: clamp(Math.min(
+        1.15,
+        EDITOR_VIEWPORT.width / Math.max(1, maximumX - minimumX),
+        EDITOR_VIEWPORT.height / Math.max(1, maximumY - minimumY),
+      ), 0.2, 1.15),
     };
   }
 

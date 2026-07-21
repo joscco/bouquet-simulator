@@ -3,105 +3,159 @@
   [style.--editor-panel-extent]="editorPanelExtent() + 'px'"
 >
   <div class="relative block h-full min-h-0 w-full max-w-[100vw] flex-1 overflow-hidden">
-    <ng-template #graphContent>
-    <div
-      class="relative h-full min-h-0 w-full overflow-hidden rounded-lg bg-stone-50"
-    >
-      <div class="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5">
-        <button app-button variant="icon"
-          [matTooltip]="'editor.editSelection' | transloco"
-          [attr.aria-label]="'editor.editSelection' | transloco"
-          [disabled]="!subtreeSelection()"
-          (click)="toggleSubtreeActions()"
-        >
-          <mat-icon>inventory_2</mat-icon>
-        </button>
-        <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
-        <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
-        <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
+    <ng-template #compactGraphContent>
+      <div class="relative h-full min-h-0 w-full overflow-hidden rounded-xl bg-stone-50">
+        <app-flower-editor-tree
+          #graphTree
+          mode="compact"
+          [definition]="draft()"
+          [layoutDefinition]="materializedDraft()"
+          [positions]="graphPositions()"
+          [selectedNodeId]="selectedNodeId()"
+          [activeNodeIds]="activeTreeNodeIds()"
+          [subtreeAnchorIds]="subtreeAnchorIds()"
+          [subtreeNodeIds]="subtreeNodeIds()"
+          [compactLayoutDirection]="graphLayoutDirection()"
+          (nodeSelection)="selectNodeFromTree($event)"
+          (componentOpen)="openComponentDefinition($event)"
+        />
       </div>
+    </ng-template>
 
-      <div class="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/90! p-0.5">
-        <button app-button variant="icon" [matTooltip]="'editor.zoomOut' | transloco" [attr.aria-label]="'editor.zoomOut' | transloco" (click)="zoomGraphView(0.8)"><mat-icon>zoom_out</mat-icon></button>
-        <button app-button variant="icon" [matTooltip]="'editor.zoomIn' | transloco" [attr.aria-label]="'editor.zoomIn' | transloco" (click)="zoomGraphView(1.25)"><mat-icon>zoom_in</mat-icon></button>
-        <button
-          app-button
-          variant="icon"
-          [matTooltip]="'editor.centerView' | transloco"
-          [attr.aria-label]="'editor.centerView' | transloco"
-          (click)="resetGraphView()"
-        >
-          <mat-icon>center_focus_strong</mat-icon>
-        </button>
-        <button
-          app-button
-          variant="icon"
-          [matTooltip]="(graphLayoutDirection() === 'vertical' ? 'editor.layoutHorizontal' : 'editor.layoutVertical') | transloco"
-          [attr.aria-label]="(graphLayoutDirection() === 'vertical' ? 'editor.layoutHorizontal' : 'editor.layoutVertical') | transloco"
-          (click)="toggleGraphLayoutDirection()"
-        >
-          <mat-icon>{{ graphLayoutDirection() === 'vertical' ? 'swap_horiz' : 'swap_vert' }}</mat-icon>
-        </button>
-      </div>
+    <ng-template #editorGraphContent>
+      <div class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-white">
+        <div class="flex min-h-14 shrink-0 items-center gap-2 border-b border-stone-200 bg-white px-2.5 py-2">
+          <button
+            app-button
+            variant="icon"
+            [matTooltip]="'editor.collapseNodeTree' | transloco"
+            [attr.aria-label]="'editor.collapseNodeTree' | transloco"
+            (click)="closeGraphWorkspace()"
+          >
+            <mat-icon>close_fullscreen</mat-icon>
+          </button>
 
-      @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
-        <span class="absolute right-2 top-2 z-20 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800 shadow-sm">
-          {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
-        </span>
-      }
-
-      @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
-        <section class="absolute bottom-1.5 left-[46px] top-1.5 z-40 w-[min(360px,calc(100%-52px))] overflow-y-auto rounded-xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
-          <div class="mb-2 flex items-start gap-3">
-            <div class="min-w-0 flex-1">
-              <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
-              <p class="mb-0 mt-1 text-[10px] leading-relaxed text-stone-500">
-                Mit Shift-Klick Knoten hinzufügen oder entfernen. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.
-              </p>
-            </div>
-            <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
-              {{ subtreeAnchorIds().size }} gewählt · {{ subtreeNodeIds().size }} gesamt
-            </span>
-          </div>
-          <div class="flex gap-2">
+          @if (selectedNode(); as node) {
             <input
-              class="h-9 min-w-0 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10 min-w-0 flex-1"
-              type="text"
-              placeholder="Name der Komponente"
-              [ngModel]="subtreeName()"
-              (ngModelChange)="subtreeName.set($event)"
+              class="h-9 min-w-0 flex-1 truncate rounded-lg border border-stone-200 bg-stone-50 px-2.5 text-xs font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-white focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
+              [ngModel]="node.name"
+              [attr.aria-label]="'inspector.nodeName' | transloco"
+              (ngModelChange)="updateSelectedNodeName($event)"
             >
-            <button app-button variant="icon-text" tone="primary"
-                    [disabled]="!subtreeSelection()" (click)="extractSelectedSubtree()">
-              <mat-icon>inventory_2</mat-icon>
-              Extrahieren
-            </button>
-          </div>
-          <div class="mt-2 flex justify-end gap-1">
-            <button app-button variant="text" (click)="clearSubtreeSelection()">Auswahl leeren</button>
-            <button app-button variant="text" (click)="exportSelectedSubtree()">Nur exportieren</button>
-          </div>
-        </section>
-      }
+            @if (multiNodeSelection()) {
+              <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
+                {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
+              </span>
+            }
+            <button app-button variant="icon" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
+            @if (!multiNodeSelection() && selectedIncoming()) {
+              <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco" (click)="removeSelectedIncomingConnection()"><mat-icon>link_off</mat-icon></button>
+            }
+            <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
+          }
+        </div>
 
-      <app-flower-editor-tree
-        #graphTree
-        [definition]="draft()"
-        [layoutDefinition]="materializedDraft()"
-        [positions]="graphPositions()"
-        [selectedNodeId]="selectedNodeId()"
-        [activeNodeIds]="activeTreeNodeIds()"
-        [subtreeAnchorIds]="subtreeAnchorIds()"
-        [subtreeNodeIds]="subtreeNodeIds()"
-        [compactLayoutDirection]="graphLayoutDirection()"
-        (definitionChange)="applyDefinitionChange($event)"
-        (positionsChange)="graphPositions.set($event)"
-        (nodeSelection)="selectNodeFromTree($event)"
-        (componentOpen)="openComponentDefinition($event)"
-        (positionEditStart)="beginPositionEdit()"
-        (message)="showTreeMessage($event)"
-      />
-    </div>
+        <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-stone-50">
+          <div class="absolute left-2 top-2 z-30 flex items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/95 p-0.5 shadow-sm backdrop-blur">
+            <button app-button variant="icon" [matTooltip]="'editor.editSelection' | transloco" [attr.aria-label]="'editor.editSelection' | transloco" [disabled]="!subtreeSelection()" (click)="toggleSubtreeActions()"><mat-icon>inventory_2</mat-icon></button>
+            <div class="relative">
+              <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" [attr.aria-expanded]="addMenuOpen()" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
+              @if (addMenuOpen()) {
+                <div class="absolute left-0 top-[calc(100%+0.4rem)] z-50 w-56 overflow-hidden rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl">
+                  <button
+                    class="flex w-full cursor-pointer items-start gap-2.5 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left transition-colors hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700"
+                    type="button"
+                    (click)="addNode()"
+                  >
+                    <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-800"><mat-icon class="size-4! text-[16px]! leading-4!">fiber_manual_record</mat-icon></span>
+                    <span class="min-w-0">
+                      <strong class="block text-xs font-semibold text-stone-900">{{ 'editor.newBaseNode' | transloco }}</strong>
+                      <span class="mt-0.5 block text-[9px] leading-snug text-stone-500">{{ 'editor.newBaseNodeHelp' | transloco }}</span>
+                    </span>
+                  </button>
+                  <button
+                    class="mt-1 flex w-full cursor-pointer items-start gap-2.5 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left transition-colors hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-600"
+                    type="button"
+                    (click)="openComponentPicker()"
+                  >
+                    <span class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-indigo-100 text-indigo-700"><mat-icon class="size-4! text-[16px]! leading-4!">widgets</mat-icon></span>
+                    <span class="min-w-0">
+                      <strong class="block text-xs font-semibold text-stone-900">{{ 'editor.addComponent' | transloco }}</strong>
+                      <span class="mt-0.5 block text-[9px] leading-snug text-stone-500">{{ 'editor.addComponentHelp' | transloco }}</span>
+                    </span>
+                  </button>
+                </div>
+              }
+            </div>
+            <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
+            <span class="mx-0.5 h-6 w-px bg-stone-200"></span>
+            <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>auto_awesome_motion</mat-icon></button>
+          </div>
+
+          <div class="absolute right-2 top-2 z-30 flex items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/95 p-0.5 shadow-sm backdrop-blur">
+            <button app-button variant="icon" [matTooltip]="'editor.zoomOut' | transloco" [attr.aria-label]="'editor.zoomOut' | transloco" (click)="zoomGraphView(0.8)"><mat-icon>zoom_out</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.zoomIn' | transloco" [attr.aria-label]="'editor.zoomIn' | transloco" (click)="zoomGraphView(1.25)"><mat-icon>zoom_in</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.centerView' | transloco" [attr.aria-label]="'editor.centerView' | transloco" (click)="resetGraphView()"><mat-icon>center_focus_strong</mat-icon></button>
+          </div>
+
+          @if (subtreeAnchorIds().size && !subtreeActionsOpen()) {
+            <span class="absolute bottom-2 left-2 z-20 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800 shadow-sm">
+              {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
+            </span>
+          }
+
+          @if (subtreeActionsOpen() && subtreeAnchorIds().size) {
+            <section class="absolute bottom-2 left-2 z-40 w-[min(360px,calc(100%-16px))] overflow-y-auto rounded-xl border border-teal-200 bg-white/95 p-3 shadow-xl backdrop-blur">
+              <div class="mb-2 flex items-start gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-bold text-teal-900">Komponente markieren</div>
+                  <p class="mb-0 mt-1 text-[10px] leading-relaxed text-stone-500">Mit Shift-Klick Knoten hinzufügen oder entfernen. Alle Knoten auf den Verbindungswegen werden automatisch ergänzt.</p>
+                </div>
+                <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">{{ subtreeAnchorIds().size }} gewählt · {{ subtreeNodeIds().size }} gesamt</span>
+              </div>
+              <div class="flex gap-2">
+                <input class="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2.5 text-xs font-medium text-stone-800 outline-none transition-[border-color,box-shadow] focus:border-emerald-700 focus:ring-3 focus:ring-emerald-700/10" type="text" placeholder="Name der Komponente" [ngModel]="subtreeName()" (ngModelChange)="subtreeName.set($event)">
+                <button app-button variant="icon-text" tone="primary" [disabled]="!subtreeSelection()" (click)="extractSelectedSubtree()"><mat-icon>inventory_2</mat-icon>Extrahieren</button>
+              </div>
+              <div class="mt-2 flex justify-end gap-1">
+                <button app-button variant="text" (click)="clearSubtreeSelection()">Auswahl leeren</button>
+                <button app-button variant="text" (click)="exportSelectedSubtree()">Nur exportieren</button>
+              </div>
+            </section>
+          }
+
+          <app-flower-editor-tree
+            #graphTree
+            mode="editor"
+            [definition]="draft()"
+            [layoutDefinition]="materializedDraft()"
+            [positions]="graphPositions()"
+            [selectedNodeId]="selectedNodeId()"
+            [activeNodeIds]="activeTreeNodeIds()"
+            [subtreeAnchorIds]="subtreeAnchorIds()"
+            [subtreeNodeIds]="subtreeNodeIds()"
+            [compactLayoutDirection]="graphLayoutDirection()"
+            (definitionChange)="applyDefinitionChange($event)"
+            (positionsChange)="graphPositions.set($event)"
+            (nodeSelection)="selectNodeFromTree($event)"
+            (componentOpen)="openComponentDefinition($event)"
+            (positionEditStart)="beginPositionEdit()"
+            (message)="showTreeMessage($event)"
+          />
+
+          @if (componentPickerOpen()) {
+            <app-flower-search-dialog
+              [entries]="componentSearchEntries()"
+              [title]="'editor.addComponent' | transloco"
+              [placeholder]="'editor.searchComponents' | transloco"
+              [contained]="true"
+              (entrySelect)="insertComponentFromAddMenu($event)"
+              (close)="componentPickerOpen.set(false)"
+            />
+          }
+        </div>
+      </div>
     </ng-template>
 
     <aside class="contents">
@@ -151,6 +205,9 @@
           </button>
           <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
         </header>
+        @if (graphWorkspaceOpen()) {
+          <ng-container [ngTemplateOutlet]="editorGraphContent"></ng-container>
+        } @else {
         <div class="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
           <section class="space-y-3 border-b border-stone-200 bg-white p-3">
             <app-editor-disclosure
@@ -228,28 +285,18 @@
               [expanded]="graphSectionExpanded()"
               (expandedChange)="setGraphSectionExpanded($event)"
             >
-              @if (selectedNode(); as node) {
-                <div class="mb-2 flex min-w-0 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50/90 p-1.5">
-                  <input
-                    class="h-8 min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-2 text-xs font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-white focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
-                    [ngModel]="node.name"
-                    [attr.aria-label]="'inspector.nodeName' | transloco"
-                    (ngModelChange)="updateSelectedNodeName($event)"
-                  >
-                  @if (multiNodeSelection()) {
-                    <span class="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-[9px] font-bold text-teal-800">
-                      {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
-                    </span>
-                  }
-                  <button app-button variant="icon" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-                  @if (!multiNodeSelection() && selectedIncoming()) {
-                    <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco" (click)="removeSelectedIncomingConnection()"><mat-icon>link_off</mat-icon></button>
-                  }
-                  <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
-                </div>
-              }
-              <div class="h-[clamp(180px,26dvh,250px)] min-h-0 overflow-hidden rounded-xl border border-stone-200 portrait:h-[clamp(150px,19dvh,185px)]">
-                <ng-container [ngTemplateOutlet]="graphContent"></ng-container>
+              <div class="relative h-[clamp(88px,12dvh,112px)] min-h-0 overflow-hidden rounded-xl border border-stone-200 portrait:h-[88px]">
+                <ng-container [ngTemplateOutlet]="compactGraphContent"></ng-container>
+                <button
+                  app-button
+                  variant="icon"
+                  class="absolute right-1.5 top-1.5 z-20 rounded-lg bg-white/95 shadow-sm"
+                  [matTooltip]="'editor.expandNodeTree' | transloco"
+                  [attr.aria-label]="'editor.expandNodeTree' | transloco"
+                  (click)="openGraphWorkspace()"
+                >
+                  <mat-icon>open_in_full</mat-icon>
+                </button>
               </div>
             </app-editor-disclosure>
           </section>
@@ -272,26 +319,13 @@
             </app-editor-disclosure>
           </div>
         </div>
+        }
       </div>
       </app-settings-drawer>
     </aside>
   </div>
 
   <input #definitionFile class="sr-only" type="file" accept=".json,application/json" (change)="importFlower($event)">
-
-  @if (addMenuOpen()) {
-    <app-flower-search-dialog
-      [entries]="componentSearchEntries()"
-      [title]="'editor.addNodeTitle' | transloco"
-      [placeholder]="'editor.searchComponents' | transloco"
-      [primaryActionLabel]="'editor.newBaseNode' | transloco"
-      [primaryActionDescription]="'editor.newBaseNodeHelp' | transloco"
-      primaryActionIcon="fiber_manual_record"
-      (primaryAction)="addNode()"
-      (entrySelect)="insertComponentFromAddMenu($event)"
-      (close)="addMenuOpen.set(false)"
-    />
-  }
 
   @if (catalogSearchOpen()) {
     <app-flower-search-dialog

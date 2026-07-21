@@ -192,10 +192,12 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly catalogSearchOpen = signal(false);
   readonly generalSectionExpanded = signal(false);
   readonly graphSectionExpanded = signal(false);
+  readonly graphWorkspaceOpen = signal(false);
   readonly graphLayoutDirection = signal<'vertical' | 'horizontal'>('horizontal');
   readonly nodeSectionExpanded = signal(true);
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
+  readonly componentPickerOpen = signal(false);
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
@@ -480,11 +482,13 @@ export class FlowerEditorComponent implements OnDestroy {
       return;
     }
     this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
     this.subtreeActionsOpen.update((open) => !open);
   }
 
   addNode(): void {
     this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
     const existing = new Set(this.draft().nodes.map((node) => node.id));
     let index = this.draft().nodes.length + 1;
     while (existing.has(`node-${index}`)) index++;
@@ -506,7 +510,13 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   toggleAddMenu(): void {
+    this.componentPickerOpen.set(false);
     this.addMenuOpen.update((open) => !open);
+  }
+
+  openComponentPicker(): void {
+    this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(true);
   }
 
   insertComponentFromAddMenu(entryKey: string): void {
@@ -518,10 +528,12 @@ export class FlowerEditorComponent implements OnDestroy {
       this.insertSavedTree(entry.tree);
     }
     this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
   }
 
   addLoop(): void {
     this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
     const selection = this.subtreeSelection()
       ?? resolveFlowerSubtreeSelection(this.draft(), [this.selectedNodeId()]);
     const created = createFlowerLoop(
@@ -692,6 +704,22 @@ export class FlowerEditorComponent implements OnDestroy {
     this.graphSectionExpanded.set(expanded);
     if (expanded) return;
     this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
+    this.subtreeActionsOpen.set(false);
+  }
+
+  openGraphWorkspace(): void {
+    this.graphSectionExpanded.set(true);
+    this.graphWorkspaceOpen.set(true);
+    this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
+    this.subtreeActionsOpen.set(false);
+  }
+
+  closeGraphWorkspace(): void {
+    this.graphWorkspaceOpen.set(false);
+    this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
     this.subtreeActionsOpen.set(false);
   }
 
@@ -702,11 +730,13 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   resetGraphView(): void {
-    this.graphTree?.resetCompactView();
+    if (this.graphWorkspaceOpen()) this.graphTree?.resetEditorView();
+    else this.graphTree?.resetCompactView();
   }
 
   zoomGraphView(factor: number): void {
-    this.graphTree?.zoomCompactView(factor);
+    if (this.graphWorkspaceOpen()) this.graphTree?.zoomEditorView(factor);
+    else this.graphTree?.zoomCompactView(factor);
   }
 
   setEditorPanelExtentRatio(ratio: number): void {
@@ -943,6 +973,9 @@ export class FlowerEditorComponent implements OnDestroy {
     this.selectedCatalogKey.set(catalogKey);
     this.urlState.writeCatalogKey(catalogKey);
     this.catalogSearchOpen.set(false);
+    this.graphWorkspaceOpen.set(false);
+    this.addMenuOpen.set(false);
+    this.componentPickerOpen.set(false);
     const positions = materializePositions(clone);
     this.graphPositions.set(positions);
     this.graphTree?.resetView(positions);

@@ -24,7 +24,7 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
     expect(fixture.componentInstance.connectionDrag()?.sourceId).toBe('loop');
   });
 
-  it('renders a repetition as a labeled region around its members', () => {
+  it('renders a repetition as a compact rectangle around its members', () => {
     TestBed.configureTestingModule({imports: [FlowerEditorTreeComponent]});
     const fixture = TestBed.createComponent(FlowerEditorTreeComponent);
     setInputs(fixture.componentRef, repeatDefinition());
@@ -33,8 +33,8 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
 
     expect(loops).toHaveLength(1);
     expect(loops[0].label).toBe('2–4×');
-    expect(loops[0].width).toBeGreaterThanOrEqual(148);
-    expect(loops[0].height).toBeGreaterThanOrEqual(116);
+    expect(loops[0].width).toBeGreaterThanOrEqual(54);
+    expect(loops[0].height).toBeGreaterThanOrEqual(42);
     expect(loops[0].inputPoint).toEqual(expect.objectContaining({x: expect.any(Number), y: expect.any(Number)}));
     expect(loops[0].outputPoints).toHaveLength(1);
   });
@@ -114,7 +114,7 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
     expect(edge.start.y - edge.end.y).toBeGreaterThanOrEqual(36);
   });
 
-  it('uses the same compact card size and truncated labels for every regular node', () => {
+  it('uses small equal-sized markers for every regular node', () => {
     TestBed.configureTestingModule({imports: [FlowerEditorTreeComponent]});
     const fixture = TestBed.createComponent(FlowerEditorTreeComponent);
     setInputs(fixture.componentRef, repeatDefinition());
@@ -123,15 +123,15 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
     const member = graph.nodes.find((node) => node.id === 'member')!;
     const loop = graph.nodes.find((node) => node.id === 'loop')!;
 
-    expect(member.compactWidth).toBe(112);
-    expect(member.compactHeight).toBe(52);
+    expect(member.compactWidth).toBe(20);
+    expect(member.compactHeight).toBe(20);
     expect(loop.compactWidth).toBe(member.compactWidth);
     expect(loop.compactHeight).toBe(member.compactHeight);
     expect(member.compactLabel).toBe('Blatt');
     expect(member.compactType).toBe('KNOTEN');
   });
 
-  it('shows repetition count, symbol and truncated name in one loop header line', () => {
+  it('keeps compact repetition metadata available for accessible labels', () => {
     TestBed.configureTestingModule({imports: [FlowerEditorTreeComponent]});
     const fixture = TestBed.createComponent(FlowerEditorTreeComponent);
     const definition = repeatDefinition();
