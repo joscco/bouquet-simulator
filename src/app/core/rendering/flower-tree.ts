@@ -56,7 +56,7 @@ export interface FlowerTree {
   edges: FlowerTreeEdge[];
 }
 
-const MAX_GENERATED_NODES = 2000;
+const MAX_GENERATED_NODES = 1000;
 const MAX_EXPANSION_DEPTH = 24;
 
 /**
