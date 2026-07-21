@@ -8,6 +8,7 @@ export interface FlowerSearchEntry {
   id: string;
   name: string;
   definition: FlowerDefinition;
+  origin?: 'default' | 'local';
 }
 
 interface HighlightSegment {

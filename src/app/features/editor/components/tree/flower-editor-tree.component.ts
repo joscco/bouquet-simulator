@@ -65,10 +65,11 @@ interface CompactLoopRegion {
   outputPoints: Array<Point & {label: string; name: string}>;
 }
 
-const COMPACT_NODE_WIDTH = 20;
-const COMPACT_NODE_HEIGHT = 20;
+const COMPACT_NODE_WIDTH = 26;
+const COMPACT_NODE_HEIGHT = 26;
 const COMPACT_VIEWPORT = {width: 300, height: 190};
 const EDITOR_VIEWPORT = {width: 1000, height: 700};
+const MAX_FREE_NODE_GAP = 680;
 
 function distributedPortOffsets(count: number, availableSpan: number): number[] {
   if (count <= 1) return [0];
@@ -110,6 +111,8 @@ export class FlowerEditorTreeComponent {
   readonly subtreeNodeIds = input<Set<string>>(new Set());
   readonly compactLayoutDirection = input<'vertical' | 'horizontal'>('horizontal');
   readonly mode = input<'compact' | 'editor'>('compact');
+  readonly readOnly = input(false);
+  readonly rewireMode = input(false);
 
   readonly definitionChange = output<FlowerDefinition>();
   readonly positionsChange = output<Record<string, Point>>();
@@ -408,6 +411,10 @@ export class FlowerEditorTreeComponent {
       return;
     }
     event.stopPropagation();
+    if (this.readOnly()) {
+      this.selectNode(nodeId);
+      return;
+    }
     const point = this.graphPoint(event);
     const node = this.graphLayout().nodes.find((candidate) => candidate.id === nodeId);
     if (!node) return;
@@ -428,6 +435,7 @@ export class FlowerEditorTreeComponent {
   }
 
   startCompactPortConnection(event: PointerEvent, nodeId: string, portIndex = 0): void {
+    if (this.readOnly()) return;
     if (event.button !== 0 && event.pointerType !== 'touch') return;
     event.preventDefault();
     event.stopPropagation();
@@ -449,6 +457,7 @@ export class FlowerEditorTreeComponent {
   }
 
   startConnection(event: PointerEvent, sourceId: string, portIndex = 0): void {
+    if (this.readOnly()) return;
     event.stopPropagation();
     const source = this.graphLayout().nodes.find((node) => node.id === sourceId);
     if (!source) return;
@@ -460,6 +469,7 @@ export class FlowerEditorTreeComponent {
   }
 
   startLoopPath(event: PointerEvent, loopId: string): void {
+    if (this.readOnly()) return;
     event.stopPropagation();
     const source = this.graphLayout().nodes.find((node) => node.id === loopId);
     if (!source) return;
@@ -469,6 +479,7 @@ export class FlowerEditorTreeComponent {
   }
 
   finishLoopEnd(event: PointerEvent, loopId: string): void {
+    if (this.readOnly()) return;
     const pending = this.connectionDrag();
     if (!pending || pending.loopStartId || pending.sourceId === loopId) return;
     event.stopPropagation();
@@ -593,21 +604,35 @@ export class FlowerEditorTreeComponent {
       this.selectNode(pending.loopStartId);
       return;
     }
-    if (wouldCreateFlowerCycle(this.definition(), pending.sourceId, targetId)) {
+    const existingIncoming = incomingConnectionReference(this.definition(), targetId);
+    let baseDefinition = this.definition();
+    if (existingIncoming) {
+      if (!this.rewireMode()) {
+        this.message.emit({text: 'Dieser Knoten hat bereits eine Eingangsverbindung.'});
+        return;
+      }
+      if (existingIncoming.sourceId === pending.sourceId) return;
+      baseDefinition = {
+        ...baseDefinition,
+        nodes: baseDefinition.nodes.map((node) => node.id === existingIncoming.sourceId
+          ? {
+              ...node,
+              connections: node.connections.filter((_, index) => index !== existingIncoming.index),
+            }
+          : node),
+      };
+    }
+    if (wouldCreateFlowerCycle(baseDefinition, pending.sourceId, targetId)) {
       this.message.emit({text: 'Diese Verbindung würde einen Zyklus erzeugen.'});
       return;
     }
-    if (incomingConnectionReference(this.definition(), targetId)) {
-      this.message.emit({text: 'Dieser Knoten hat bereits eine Eingangsverbindung.'});
-      return;
-    }
-    const target = this.definition().nodes.find((node) => node.id === targetId);
+    const target = baseDefinition.nodes.find((node) => node.id === targetId);
     if (!target) return;
     const incoming = nodeIncomingOrDefault(target);
     const connection = connectionFromIncoming(targetId);
     const connected: FlowerDefinition = {
-      ...this.definition(),
-      nodes: this.definition().nodes.map((node) => {
+      ...baseDefinition,
+      nodes: baseDefinition.nodes.map((node) => {
         if (node.id === pending.sourceId) return {...node, connections: [...node.connections, connection]};
         if (node.id === targetId) return {...node, incoming: structuredClone(incoming)};
         return node;
@@ -621,6 +646,7 @@ export class FlowerEditorTreeComponent {
         Object.entries(this.positions()).filter(([id]) => !absorbed.has(id)),
       ));
     }
+    if (existingIncoming) this.message.emit({text: 'Verbindung umgehängt.'});
     this.selectNode(targetId);
   }
 
@@ -642,19 +668,40 @@ export class FlowerEditorTreeComponent {
       this.nodeDrag!.historyStarted = true;
       this.positionEditStart.emit();
     }
-    const target = {x: point.x - this.nodeDrag!.offset.x, y: point.y - this.nodeDrag!.offset.y};
+    const requestedTarget = {x: point.x - this.nodeDrag!.offset.x, y: point.y - this.nodeDrag!.offset.y};
+    const movedNodeIds = dragged.loop
+      ? new Set(nestedGraphNodeIds(layout.nodes, dragged.id))
+      : new Set([dragged.id]);
+    const anchors = layout.nodes.filter((node) => !movedNodeIds.has(node.id));
+    const target = this.clampDraggedNodeTarget(requestedTarget, anchors);
     if (!dragged.loop) {
       this.positionsChange.emit({...this.positions(), [dragged.id]: target});
       return;
     }
     const delta = {x: target.x - dragged.x, y: target.y - dragged.y};
-    const movedNodeIds = nestedGraphNodeIds(layout.nodes, dragged.id);
     const next = {...this.positions()};
     for (const id of movedNodeIds) {
       const current = this.positions()[id] ?? layout.nodes.find((node) => node.id === id) ?? dragged;
       next[id] = {x: current.x + delta.x, y: current.y + delta.y};
     }
     this.positionsChange.emit(next);
+  }
+
+  private clampDraggedNodeTarget(target: Point, anchors: Array<{x: number; y: number}>): Point {
+    if (!anchors.length) {
+      return {
+        x: clamp(target.x, -MAX_FREE_NODE_GAP, EDITOR_VIEWPORT.width + MAX_FREE_NODE_GAP),
+        y: clamp(target.y, -MAX_FREE_NODE_GAP, EDITOR_VIEWPORT.height + MAX_FREE_NODE_GAP),
+      };
+    }
+    const minimumX = Math.min(...anchors.map((node) => node.x));
+    const maximumX = Math.max(...anchors.map((node) => node.x));
+    const minimumY = Math.min(...anchors.map((node) => node.y));
+    const maximumY = Math.max(...anchors.map((node) => node.y));
+    return {
+      x: clamp(target.x, minimumX - MAX_FREE_NODE_GAP, maximumX + MAX_FREE_NODE_GAP),
+      y: clamp(target.y, minimumY - MAX_FREE_NODE_GAP, maximumY + MAX_FREE_NODE_GAP),
+    };
   }
 
   private graphPoint(event: PointerEvent): Point {

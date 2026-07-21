@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {FlowerDefinition, FlowerNodeConnection, FlowerNodeDefinition} from '../../../core/models/flower.models';
 import {
   absorbConnectedSubtreeIntoLoop,
+  dissolveFlowerLoop,
   initializeEmptyLoopWithNode,
   pruneDisconnectedLoopMembers,
 } from './flower-editor-loops';
@@ -9,6 +10,43 @@ import {
 const stem = {color: '#000000', highlightColor: '#ffffff', width: 5, taper: 0.8};
 
 describe('flower editor loop membership', () => {
+  it('dissolves a loop into one direct pass without losing its member nodes', () => {
+    const definition: FlowerDefinition = {
+      schemaVersion: 2,
+      id: 'dissolve-loop',
+      name: 'Dissolve loop',
+      rootNodeId: 'root',
+      stem,
+      nodes: [
+        node('root', [connection('loop')]),
+        {
+          ...node('loop', [connection('outside')]),
+          loop: {
+            repeat: {min: 2, max: 4},
+            startNodeId: 'start',
+            endNodeId: 'end',
+            memberNodeIds: ['start', 'end'],
+            continuationOutputNodeIds: ['end'],
+          },
+        },
+        node('start', [connection('end')]),
+        node('end'),
+        node('outside'),
+      ],
+    };
+
+    const dissolved = dissolveFlowerLoop(definition, 'loop');
+
+    expect(dissolved.nextSelectedNodeId).toBe('start');
+    expect(dissolved.definition.nodes.some((candidate) => candidate.id === 'loop')).toBe(false);
+    expect(dissolved.definition.nodes.find((candidate) => candidate.id === 'root')!.connections)
+      .toEqual([connection('start')]);
+    expect(dissolved.definition.nodes.find((candidate) => candidate.id === 'start')!.connections)
+      .toEqual([connection('end')]);
+    expect(dissolved.definition.nodes.find((candidate) => candidate.id === 'end')!.connections)
+      .toEqual([connection('outside')]);
+  });
+
   it('can initialize an empty loop with the currently active root node', () => {
     const definition: FlowerDefinition = {
       schemaVersion: 2,

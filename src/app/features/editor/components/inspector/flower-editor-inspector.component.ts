@@ -90,6 +90,7 @@ export class FlowerEditorInspectorComponent {
   readonly definition = input.required<FlowerDefinition>();
   readonly selectedNodeId = input.required<string>();
   readonly selectedNodeIds = input<ReadonlySet<string>>(new Set());
+  readonly readOnly = input(false);
 
   readonly definitionChange = output<FlowerDefinition>();
 
@@ -125,7 +126,10 @@ export class FlowerEditorInspectorComponent {
   });
   readonly multiSelection = computed(() => this.selectedNodes().length > 1);
   readonly allSelectedSupportIncoming = computed(() => this.selectedNodes().length > 0
-    && this.selectedNodes().every((node) => !node.loop && node.id !== this.definition().rootNodeId));
+    && this.selectedNodes().every((node) => !node.loop && (
+      node.id !== this.definition().rootNodeId
+      || this.definition().nodes.some((candidate) => candidate.loop?.memberNodeIds?.includes(node.id))
+    )));
   readonly allSelectedComponents = computed(() => this.selectedNodes().length > 0
     && this.selectedNodes().every((node) => !!node.component));
   readonly allSelectedLoops = computed(() => this.selectedNodes().length > 0

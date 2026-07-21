@@ -102,6 +102,16 @@
             [attr.height]="node.height"
             rx="24"
             fill="none"
+            stroke="transparent"
+            stroke-width="20"
+          />
+          <rect
+            [attr.x]="-node.width / 2"
+            [attr.y]="-node.height / 2"
+            [attr.width]="node.width"
+            [attr.height]="node.height"
+            rx="24"
+            fill="none"
             [attr.stroke]="isSubtreeAnchor(node.id) ? '#0f766e' : isSubtreeNodeSelected(node.id) ? '#2dd4bf' : selectedNodeId() === node.id ? '#d97706' : '#f59e0b'"
             [attr.stroke-width]="isSubtreeAnchor(node.id) ? 5 : isSubtreeNodeSelected(node.id) ? 4 : selectedNodeId() === node.id ? 3 : 2"
             class="pointer-events-none drop-shadow-sm"
@@ -249,7 +259,7 @@
           (keydown.space)="$event.preventDefault(); selectNodeFromKeyboard($event, node.id)"
           (dblclick)="node.componentDefinitionId && openComponent($event, node.componentDefinitionId)"
         >
-          <circle cx="0" cy="0" r="17" fill="transparent" />
+          <circle cx="0" cy="0" r="21" fill="transparent" />
           <circle
             cx="0"
             cy="0"

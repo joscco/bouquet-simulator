@@ -123,8 +123,8 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
     const member = graph.nodes.find((node) => node.id === 'member')!;
     const loop = graph.nodes.find((node) => node.id === 'loop')!;
 
-    expect(member.compactWidth).toBe(20);
-    expect(member.compactHeight).toBe(20);
+    expect(member.compactWidth).toBe(26);
+    expect(member.compactHeight).toBe(26);
     expect(loop.compactWidth).toBe(member.compactWidth);
     expect(loop.compactHeight).toBe(member.compactHeight);
     expect(member.compactLabel).toBe('Blatt');
@@ -142,6 +142,35 @@ describe('FlowerEditorTreeComponent compact interactions', () => {
 
     expect(loop.label).toBe('2–4×');
     expect(loop.compactName).toBe('Sehr lange Wieder…');
+  });
+
+  it('can rewire an already connected node while keeping its incoming settings', () => {
+    TestBed.configureTestingModule({imports: [FlowerEditorTreeComponent]});
+    const fixture = TestBed.createComponent(FlowerEditorTreeComponent);
+    const definition = connectedDefinition();
+    definition.nodes.push({id: 'alternative', name: 'Alternative', draggable: false, graphic: null, connections: []});
+    definition.nodes[1] = {
+      ...definition.nodes[1]!,
+      incoming: {
+        repeat: {min: 3, max: 5},
+        length: {min: 40, max: 60},
+      },
+    };
+    setInputs(fixture.componentRef, definition);
+    fixture.componentRef.setInput('mode', 'editor');
+    fixture.componentRef.setInput('rewireMode', true);
+    let changed: FlowerDefinition | null = null;
+    fixture.componentInstance.definitionChange.subscribe((next) => changed = next);
+
+    fixture.componentInstance.startConnection(pointer('pointerdown', 0, 0), 'alternative');
+    fixture.componentInstance.finishConnection(pointer('pointerup', 0, 0), 'child');
+
+    expect(changed).not.toBeNull();
+    expect(changed!.nodes.find((node) => node.id === 'root')!.connections).toEqual([]);
+    expect(changed!.nodes.find((node) => node.id === 'alternative')!.connections)
+      .toEqual([{childId: 'child'}]);
+    expect(changed!.nodes.find((node) => node.id === 'child')!.incoming?.repeat)
+      .toEqual({min: 3, max: 5});
   });
 });
 

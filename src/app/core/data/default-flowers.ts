@@ -412,8 +412,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 50,
-            "max": 70
+            "min": 18.3,
+            "max": 34.1
           },
           "direction": {
             "x": 0,
@@ -545,7 +545,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 1
           },
           "length": {
-            "min": 0,
+            "min": 45,
             "max": 45
           },
           "direction": {
@@ -1937,7 +1937,8 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "bendCrossProfile": {
             "base": -2,
             "tip": 18
-          }
+          },
+          "patterns": []
         },
         "connections": [],
         "incoming": {
@@ -1972,9 +1973,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "stem": {
             "color": "#477348",
-            "width": 10,
-            "startWidth": 10,
-            "endWidth": 7.199999999999999,
+            "width": 0,
+            "startWidth": 0,
+            "endWidth": 0,
             "bend": 0,
             "curve": 0,
             "bendRotation": {
@@ -2087,12 +2088,12 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 32
           },
           "length": {
-            "min": 62.5,
-            "max": 62.5
+            "min": 17.4,
+            "max": 17.4
           },
           "originOffset": {
             "x": 0,
-            "y": -56.2,
+            "y": -8,
             "z": 0
           },
           "direction": {
@@ -2103,7 +2104,7 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           "spread": {
             "deviation": {
               "min": 0,
-              "max": 13.4
+              "max": 37.9
             },
             "revolution": {
               "min": -180,
@@ -4864,18 +4865,6 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           {
             "childId": "seed-crown-copy-2"
-          },
-          {
-            "childId": "seed-crown-copy-2-copy-copy-copy"
-          },
-          {
-            "childId": "seed-crown-copy-2-copy"
-          },
-          {
-            "childId": "seed-crown-copy-2-copy-copy"
-          },
-          {
-            "childId": "node-7"
           }
         ]
       },
@@ -4968,21 +4957,21 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       },
       {
         "id": "seed-crown-copy-2",
-        "name": "Samenkranz 2",
+        "name": "Samenkranz",
         "draggable": false,
         "graphic": {
           "primitive": "sphere",
           "color": "#674218",
-          "width": 5,
-          "height": 5,
-          "depth": 2,
+          "width": 3.8000000000000003,
+          "height": 4.1000000000000005,
+          "depth": 1.5,
           "scale": 1,
           "orientation": "toward-parent",
-          "rotationBase": 0,
+          "rotationBase": -97.2,
           "rotationSpread": 0,
           "rotation": {
-            "min": 0,
-            "max": 0
+            "min": -97.2,
+            "max": -97.2
           },
           "start": {
             "x": 0.5,
@@ -4994,333 +4983,24 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "offset": {
             "x": 0,
-            "y": 6,
+            "y": 5.300000000000001,
             "z": 0
           },
           "patterns": []
         },
         "incoming": {
           "repeat": {
-            "min": 19,
-            "max": 19
-          },
-          "length": {
-            "min": 8,
-            "max": 8
-          },
-          "direction": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "spread": {
-            "deviation": {
-              "min": 67,
-              "max": 67
-            },
-            "revolution": {
-              "min": -180,
-              "max": 180
-            },
-            "roll": {
-              "min": 53,
-              "max": 53
-            },
-            "randomness": 0.03,
-            "orientation": "spread"
-          },
-          "stem": {
-            "color": "#71502a",
-            "width": 1.2,
-            "startWidth": 1.2,
-            "endWidth": 0.6,
-            "bend": 0,
-            "curve": 18,
-            "bendRotation": {
-              "min": 0,
-              "max": 0
-            }
-          }
-        },
-        "connections": []
-      },
-      {
-        "id": "seed-crown-copy-2-copy",
-        "name": "Samenkranz 3",
-        "draggable": false,
-        "graphic": {
-          "primitive": "sphere",
-          "color": "#674218",
-          "width": 5,
-          "height": 5,
-          "depth": 2,
-          "scale": 1,
-          "orientation": "toward-parent",
-          "rotationBase": 0,
-          "rotationSpread": 0,
-          "rotation": {
-            "min": 0,
-            "max": 0
-          },
-          "start": {
-            "x": 0.5,
-            "y": 0.92
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0.08
-          },
-          "offset": {
-            "x": 0,
-            "y": 6,
-            "z": 0
-          }
-        },
-        "incoming": {
-          "repeat": {
-            "min": 26,
-            "max": 26
-          },
-          "length": {
-            "min": 11,
-            "max": 11
-          },
-          "direction": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "spread": {
-            "deviation": {
-              "min": 71,
-              "max": 71
-            },
-            "revolution": {
-              "min": -180,
-              "max": 180
-            },
-            "roll": {
-              "min": 62,
-              "max": 62
-            },
-            "randomness": 0.03,
-            "orientation": "spread"
-          },
-          "stem": {
-            "color": "#71502a",
-            "width": 1.2,
-            "startWidth": 1.2,
-            "endWidth": 0.6,
-            "bend": 0,
-            "curve": 18,
-            "bendRotation": {
-              "min": 0,
-              "max": 0
-            }
-          }
-        },
-        "connections": []
-      },
-      {
-        "id": "seed-crown-copy-2-copy-copy",
-        "name": "Samenkranz 4",
-        "draggable": false,
-        "graphic": {
-          "primitive": "sphere",
-          "color": "#674218",
-          "width": 5,
-          "height": 5,
-          "depth": 2,
-          "scale": 1,
-          "orientation": "toward-parent",
-          "rotationBase": 0,
-          "rotationSpread": 0,
-          "rotation": {
-            "min": 0,
-            "max": 0
-          },
-          "start": {
-            "x": 0.5,
-            "y": 0.92
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0.08
-          },
-          "offset": {
-            "x": 0,
-            "y": 6,
-            "z": 0
-          }
-        },
-        "incoming": {
-          "repeat": {
-            "min": 30,
-            "max": 30
-          },
-          "length": {
-            "min": 14,
-            "max": 14
-          },
-          "direction": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "spread": {
-            "deviation": {
-              "min": 74,
-              "max": 74
-            },
-            "revolution": {
-              "min": -180,
-              "max": 180
-            },
-            "roll": {
-              "min": 30,
-              "max": 30
-            },
-            "randomness": 0.03,
-            "orientation": "spread"
-          },
-          "stem": {
-            "color": "#71502a",
-            "width": 1.2,
-            "startWidth": 1.2,
-            "endWidth": 0.6,
-            "bend": 0,
-            "curve": 18,
-            "bendRotation": {
-              "min": 0,
-              "max": 0
-            }
-          }
-        },
-        "connections": []
-      },
-      {
-        "id": "seed-crown-copy-2-copy-copy-copy",
-        "name": "Samenkranz 1",
-        "draggable": false,
-        "graphic": {
-          "primitive": "sphere",
-          "color": "#674218",
-          "width": 5,
-          "height": 5,
-          "depth": 2,
-          "scale": 1,
-          "orientation": "toward-parent",
-          "rotationBase": 0,
-          "rotationSpread": 0,
-          "rotation": {
-            "min": 0,
-            "max": 0
-          },
-          "start": {
-            "x": 0.5,
-            "y": 0.92
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0.08
-          },
-          "offset": {
-            "x": 0,
-            "y": 6,
-            "z": 0
-          }
-        },
-        "incoming": {
-          "repeat": {
-            "min": 20,
-            "max": 20
-          },
-          "length": {
-            "min": 3,
-            "max": 3
-          },
-          "direction": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "spread": {
-            "deviation": {
-              "min": 49,
-              "max": 49
-            },
-            "revolution": {
-              "min": -180,
-              "max": 180
-            },
-            "roll": {
-              "min": 32,
-              "max": 32
-            },
-            "randomness": 0.09,
-            "orientation": "spread"
-          },
-          "stem": {
-            "color": "#71502a",
-            "width": 1.2,
-            "startWidth": 1.2,
-            "endWidth": 0.6,
-            "bend": 0,
-            "curve": 18,
-            "bendRotation": {
-              "min": 0,
-              "max": 0
-            }
-          }
-        },
-        "connections": []
-      },
-      {
-        "id": "node-7",
-        "name": "Unterblätter",
-        "draggable": false,
-        "graphic": {
-          "primitive": "leaf-pointed",
-          "color": "#35662e",
-          "width": 13,
-          "height": 30,
-          "depth": 0.5,
-          "scale": 1,
-          "offset": {
-            "x": 0,
-            "y": 1,
-            "z": -5
-          },
-          "orientation": "toward-parent",
-          "rotationBase": 90,
-          "rotationSpread": 0,
-          "rotation": {
-            "min": 90,
-            "max": 90
-          },
-          "start": {
-            "x": 0.5,
-            "y": 0.9
-          },
-          "end": {
-            "x": 0.5,
-            "y": 0.1
-          },
-          "bendMain": 15,
-          "bendMainProfile": {
-            "base": 31,
-            "tip": -40
-          },
-          "bendCross": 0
-        },
-        "incoming": {
-          "repeat": {
-            "min": 10,
-            "max": 10
+            "min": 100,
+            "max": 100
           },
           "length": {
             "min": 0,
-            "max": 0
+            "max": 10.4
+          },
+          "originOffset": {
+            "x": 0,
+            "y": 9.3,
+            "z": 0
           },
           "direction": {
             "x": 0,
@@ -5329,27 +5009,27 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "spread": {
             "deviation": {
-              "min": 81,
-              "max": 81
+              "min": 106.8,
+              "max": 106.8
             },
             "revolution": {
               "min": -180,
               "max": 180
             },
             "roll": {
-              "min": 0,
-              "max": 0
+              "min": -85.1,
+              "max": -85.1
             },
             "randomness": 0,
             "orientation": "spread"
           },
           "stem": {
-            "color": "#477348",
-            "width": 10,
-            "startWidth": 10,
-            "endWidth": 7.199999999999999,
+            "color": "#60472a",
+            "width": 0,
+            "startWidth": 0,
+            "endWidth": 0.5,
             "bend": 0,
-            "curve": 0,
+            "curve": 18,
             "bendRotation": {
               "min": 0,
               "max": 0
@@ -5363,31 +5043,15 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
       "nodePositions": {
         "head": {
           "x": 500,
-          "y": 840
+          "y": 247
         },
         "petal": {
-          "x": -130,
-          "y": 692
+          "x": 374,
+          "y": 99
         },
         "seed-crown-copy-2": {
-          "x": 122,
-          "y": 692
-        },
-        "seed-crown-copy-2-copy": {
           "x": 626,
-          "y": 692
-        },
-        "seed-crown-copy-2-copy-copy": {
-          "x": 878,
-          "y": 692
-        },
-        "seed-crown-copy-2-copy-copy-copy": {
-          "x": 374,
-          "y": 692
-        },
-        "node-7": {
-          "x": 1067.5767847610168,
-          "y": 692.340552528798
+          "y": 99
         }
       }
     }

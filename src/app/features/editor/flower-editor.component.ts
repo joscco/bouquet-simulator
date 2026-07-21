@@ -53,7 +53,8 @@ import {
 import {AppButtonComponent} from '../../shared/app-button/app-button.component';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {createFlowerLoop} from './domain/flower-editor-loop-creation';
-import {pruneDisconnectedLoopMembers} from './domain/flower-editor-loops';
+import {dissolveFlowerLoop, pruneDisconnectedLoopMembers} from './domain/flower-editor-loops';
+import {isDefaultFlowerDefinitionId} from '../../core/data/default-flower-catalog';
 import {
   duplicateFlowerEditorNode,
   removeFlowerEditorNode,
@@ -198,6 +199,7 @@ export class FlowerEditorComponent implements OnDestroy {
   readonly selectedNodeId = signal(this.draft().rootNodeId);
   readonly addMenuOpen = signal(false);
   readonly componentPickerOpen = signal(false);
+  readonly rewireMode = signal(false);
   readonly subtreeAnchorIds = signal<Set<string>>(new Set());
   readonly subtreeName = signal('');
   readonly subtreeActionsOpen = signal(false);
@@ -209,6 +211,14 @@ export class FlowerEditorComponent implements OnDestroy {
     this.catalogEntries().filter((entry) => entry.availableAsComponent));
   readonly selectedCatalogEntry = computed(() =>
     this.catalogEntries().find((entry) => entry.key === this.selectedCatalogKey()) ?? null);
+  readonly selectedDefinitionIsDefault = computed(() => {
+    const entry = this.selectedCatalogEntry();
+    return entry?.source === 'definition' && isDefaultFlowerDefinitionId(entry.tree.id);
+  });
+  readonly selectedDefinitionReadOnly = computed(() =>
+    !this.isDevelopment && this.selectedDefinitionIsDefault());
+  readonly selectedDefinitionOriginLabel = computed(() =>
+    this.selectedDefinitionIsDefault() ? 'Standard' : 'Lokal');
   readonly catalogSearchEntries = computed<FlowerSearchEntry[]>(() =>
     this.catalogEntries().flatMap((entry) => {
       const rawDefinition = entry.source === 'definition'
@@ -222,6 +232,9 @@ export class FlowerEditorComponent implements OnDestroy {
         id: entry.key,
         name: entry.tree.name,
         definition,
+        origin: entry.source === 'definition' && isDefaultFlowerDefinitionId(entry.tree.id)
+          ? 'default' as const
+          : 'local' as const,
       }];
     }));
   readonly componentSearchEntries = computed<FlowerSearchEntry[]>(() => {
@@ -230,7 +243,9 @@ export class FlowerEditorComponent implements OnDestroy {
   });
   readonly canDeleteSelectedCatalogEntry = computed(() => {
     const entry = this.selectedCatalogEntry();
-    return entry !== null && (entry.source === 'saved' || this.store.definitions().length > 1);
+    return entry !== null
+      && (entry.source === 'saved'
+        || (!isDefaultFlowerDefinitionId(entry.tree.id) && this.store.definitions().length > 1));
   });
   readonly graphPositions = signal<Record<string, Point>>(
     structuredClone(this.draft().editor?.nodePositions ?? {}),
@@ -341,7 +356,7 @@ export class FlowerEditorComponent implements OnDestroy {
       this.toggleSubtreeAnchor(id);
       return;
     }
-    if (id && this.draft().nodes.some((node) => node.id === id)) {
+    if (!this.selectedDefinitionReadOnly() && id && this.draft().nodes.some((node) => node.id === id)) {
       this.draft.update((definition) => withDerivedFlowerRoot(definition, id));
     }
     this.selectedNodeId.set(id);
@@ -350,6 +365,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   updateSelectedNodeName(value: string): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const selectedIds = this.subtreeNodeIds().size
       ? this.subtreeNodeIds()
       : new Set([this.selectedNodeId()]);
@@ -362,6 +378,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   duplicateSelectedNode(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const update = duplicateFlowerEditorNode(
       this.draft(),
       this.graphPositions(),
@@ -374,6 +391,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   removeSelectedNode(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const update = removeFlowerEditorNode(
       this.draft(),
       this.graphPositions(),
@@ -385,6 +403,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   removeSelectedIncomingConnection(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const incoming = this.selectedIncoming();
     if (!incoming || this.multiNodeSelection()) return;
     const positions = new Map(createGraphLayout(this.draft(), this.graphPositions()).nodes
@@ -407,6 +426,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   applyDefinitionChange(definition: FlowerDefinition): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const selectedNodeId = definition.nodes.some((node) => node.id === this.selectedNodeId())
       ? this.selectedNodeId()
       : null;
@@ -421,6 +441,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   updateDefinitionField(key: 'id' | 'name', value: string): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.applyDefinitionChange({...this.draft(), [key]: value});
   }
 
@@ -428,6 +449,7 @@ export class FlowerEditorComponent implements OnDestroy {
     key: 'availableInBouquet' | 'availableAsComponent',
     enabled: boolean,
   ): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.applyDefinitionChange({...this.draft(), [key]: enabled});
   }
 
@@ -443,6 +465,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   toggleDefinitionOutput(outputId: string, enabled: boolean): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const options = this.definitionOutputOptions();
     const current = new Set(this.draft().outputNodeIds ?? options);
     if (enabled) current.add(outputId);
@@ -487,6 +510,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   addNode(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.addMenuOpen.set(false);
     this.componentPickerOpen.set(false);
     const existing = new Set(this.draft().nodes.map((node) => node.id));
@@ -515,11 +539,13 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   openComponentPicker(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.addMenuOpen.set(false);
     this.componentPickerOpen.set(true);
   }
 
   insertComponentFromAddMenu(entryKey: string): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const entry = this.componentCatalog().find((candidate) => candidate.key === entryKey);
     if (!entry) return;
     if (entry.source === 'definition') {
@@ -532,6 +558,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   addLoop(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.addMenuOpen.set(false);
     this.componentPickerOpen.set(false);
     const selection = this.subtreeSelection()
@@ -550,6 +577,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   autoLayout(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const positions = createCompactGraphPositions(this.draft());
     this.recordUndo('positions', true);
     this.graphPositions.set(positions);
@@ -585,6 +613,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   extractSelectedSubtree(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const selection = this.subtreeSelection();
     if (!selection) {
       this.notify('Wähle mit Shift-Klick mindestens einen Knoten aus.');
@@ -615,6 +644,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   insertSavedTree(tree: FlowerSubtreeDefinition): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const parentId = this.selectedNodeId();
     try {
       const inserted = insertFlowerSubtree(
@@ -634,6 +664,7 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   insertDefinitionReference(definitionId: string): void {
+    if (this.selectedDefinitionReadOnly()) return;
     const parentId = this.selectedNodeId();
     const sourceDefinition = this.store.definitions().find((definition) => definition.id === definitionId);
     if (!sourceDefinition) {
@@ -689,7 +720,32 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   beginPositionEdit(): void {
+    if (this.selectedDefinitionReadOnly()) return;
     this.recordUndo('positions', true);
+  }
+
+  setGraphPositions(positions: Record<string, Point>): void {
+    if (this.selectedDefinitionReadOnly()) return;
+    this.graphPositions.set(positions);
+  }
+
+  toggleRewireMode(): void {
+    if (this.selectedDefinitionReadOnly()) return;
+    this.rewireMode.update((enabled) => !enabled);
+  }
+
+  dissolveSelectedLoop(): void {
+    if (this.selectedDefinitionReadOnly()) return;
+    const selected = this.selectedNode();
+    if (!selected?.loop) return;
+    const dissolved = dissolveFlowerLoop(this.draft(), selected.id);
+    if (dissolved.definition === this.draft()) return;
+    this.recordUndo('structure', true);
+    this.draft.set(withDerivedFlowerRoot(dissolved.definition, dissolved.nextSelectedNodeId));
+    const {[selected.id]: _removed, ...positions} = this.graphPositions();
+    this.graphPositions.set(positions);
+    this.selectNode(dissolved.nextSelectedNodeId ?? this.draft().rootNodeId);
+    this.notify('Schleife aufgelöst. Die Knoten und ihre Einstellungen bleiben erhalten.');
   }
 
   toggleEditorPanel(): void {
@@ -721,6 +777,7 @@ export class FlowerEditorComponent implements OnDestroy {
     this.addMenuOpen.set(false);
     this.componentPickerOpen.set(false);
     this.subtreeActionsOpen.set(false);
+    this.rewireMode.set(false);
   }
 
   toggleGraphLayoutDirection(): void {
@@ -776,9 +833,9 @@ export class FlowerEditorComponent implements OnDestroy {
     this.lastHistoryRecordAt = 0;
   }
 
-  savePendingChanges(): void {
+  async savePendingChanges(): Promise<void> {
     const transition = this.pendingTransition();
-    if (!transition || !this.saveCurrentDraft()) return;
+    if (!transition || !await this.saveCurrentDraft()) return;
     this.pendingTransition.set(null);
     this.performTransition(transition);
   }
@@ -832,38 +889,42 @@ export class FlowerEditorComponent implements OnDestroy {
   }
 
   saveToCatalog(): void {
-    this.saveCurrentDraft();
+    void this.saveCurrentDraft();
   }
 
-  private saveCurrentDraft(): boolean {
+  private async saveCurrentDraft(): Promise<boolean> {
     const definition = this.definitionWithEditorState();
+
+    if (this.isDevelopment) {
+      try {
+        const previewDefinition = this.materializedThumbnailDefinition(definition);
+        const preview = await this.thumbnailGenerator.generate(previewDefinition);
+        if (!await this.persistence.saveToDefaults(
+          definition,
+          this.persistedDefinitionId(),
+          {definition: previewDefinition, blob: preview},
+        )) return false;
+        this.thumbnailCache.storeBlob(previewDefinition, preview);
+        this.finishDefinitionSave(definition);
+        return true;
+      } catch (error: unknown) {
+        this.notifyError(error instanceof Error
+          ? `Preview konnte nicht gespeichert werden: ${error.message}`
+          : 'Preview konnte nicht gespeichert werden.');
+        return false;
+      }
+    }
+
+    if (this.selectedDefinitionIsDefault()) {
+      this.notify('Standard-Blumen sind im Build schreibgeschützt. Lege zuerst eine Kopie an.');
+      return false;
+    }
     if (this.persistence.saveToBrowser(definition, this.persistedDefinitionId())) {
       this.finishDefinitionSave(definition);
       void this.generateAndStoreThumbnail(definition);
       return true;
     }
     return false;
-  }
-
-  async saveToDefaults(): Promise<void> {
-    if (!this.isDevelopment) return;
-    const definition = this.definitionWithEditorState();
-    try {
-      const previewDefinition = this.materializedThumbnailDefinition(definition);
-      const preview = await this.thumbnailGenerator.generate(previewDefinition);
-      if (await this.persistence.saveToDefaults(
-        definition,
-        this.persistedDefinitionId(),
-        {definition: previewDefinition, blob: preview},
-      )) {
-        this.thumbnailCache.storeBlob(previewDefinition, preview);
-        this.finishDefinitionSave(definition);
-      }
-    } catch (error: unknown) {
-      this.notifyError(error instanceof Error
-        ? `Preview konnte nicht gespeichert werden: ${error.message}`
-        : 'Preview konnte nicht gespeichert werden.');
-    }
   }
 
   async deleteSelectedCatalogEntry(): Promise<void> {

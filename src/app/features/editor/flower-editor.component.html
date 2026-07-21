@@ -39,6 +39,7 @@
             <input
               class="h-9 min-w-0 flex-1 truncate rounded-lg border border-stone-200 bg-stone-50 px-2.5 text-xs font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-white focus:border-emerald-700 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
               [ngModel]="node.name"
+              [disabled]="selectedDefinitionReadOnly()"
               [attr.aria-label]="'inspector.nodeName' | transloco"
               (ngModelChange)="updateSelectedNodeName($event)"
             >
@@ -47,19 +48,22 @@
                 {{ subtreeNodeIds().size }} {{ 'editor.selected' | transloco }}
               </span>
             }
-            <button app-button variant="icon" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
-            @if (!multiNodeSelection() && selectedIncoming()) {
-              <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco" (click)="removeSelectedIncomingConnection()"><mat-icon>link_off</mat-icon></button>
+            @if (node.loop) {
+              <button app-button variant="icon" [disabled]="selectedDefinitionReadOnly()" matTooltip="Schleife auflösen" aria-label="Schleife auflösen" (click)="dissolveSelectedLoop()"><mat-icon>repeat_one</mat-icon></button>
             }
-            <button app-button variant="icon" tone="danger" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
+            <button app-button variant="icon" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'inspector.copyNode' | transloco" [attr.aria-label]="'inspector.copyNode' | transloco" (click)="duplicateSelectedNode()"><mat-icon>content_copy</mat-icon></button>
+            @if (!multiNodeSelection() && selectedIncoming()) {
+              <button app-button variant="icon" tone="danger" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'inspector.disconnect' | transloco" [attr.aria-label]="'inspector.disconnect' | transloco" (click)="removeSelectedIncomingConnection()"><mat-icon>link_off</mat-icon></button>
+            }
+            <button app-button variant="icon" tone="danger" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'inspector.deleteNode' | transloco" [attr.aria-label]="'inspector.deleteNode' | transloco" (click)="removeSelectedNode()"><mat-icon>delete</mat-icon></button>
           }
         </div>
 
         <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-stone-50">
           <div class="absolute left-2 top-2 z-30 flex items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/95 p-0.5 shadow-sm backdrop-blur">
-            <button app-button variant="icon" [matTooltip]="'editor.editSelection' | transloco" [attr.aria-label]="'editor.editSelection' | transloco" [disabled]="!subtreeSelection()" (click)="toggleSubtreeActions()"><mat-icon>inventory_2</mat-icon></button>
+            <button app-button variant="icon" [matTooltip]="'editor.editSelection' | transloco" [attr.aria-label]="'editor.editSelection' | transloco" [disabled]="selectedDefinitionReadOnly() || !subtreeSelection()" (click)="toggleSubtreeActions()"><mat-icon>inventory_2</mat-icon></button>
             <div class="relative">
-              <button app-button variant="icon" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" [attr.aria-expanded]="addMenuOpen()" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
+              <button app-button variant="icon" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'editor.addNode' | transloco" [attr.aria-label]="'editor.addNode' | transloco" [attr.aria-expanded]="addMenuOpen()" (click)="toggleAddMenu()"><mat-icon>add_circle</mat-icon></button>
               @if (addMenuOpen()) {
                 <div class="absolute left-0 top-[calc(100%+0.4rem)] z-50 w-56 overflow-hidden rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl">
                   <button
@@ -87,10 +91,11 @@
                 </div>
               }
             </div>
-            <button app-button variant="icon" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
+            <button app-button variant="icon" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'editor.addLoop' | transloco" [attr.aria-label]="'editor.addLoop' | transloco" (click)="addLoop()"><mat-icon>repeat</mat-icon></button>
+            <button app-button variant="icon" [tone]="rewireMode() ? 'primary' : 'neutral'" [disabled]="selectedDefinitionReadOnly()" matTooltip="Verbindungen umhängen: Neue Verbindung auf einen bereits verbundenen Knoten ziehen" aria-label="Verbindungen umhängen" [attr.aria-pressed]="rewireMode()" (click)="toggleRewireMode()"><mat-icon>conversion_path</mat-icon></button>
             <span class="mx-0.5 h-6 w-px bg-stone-200"></span>
             <button app-button variant="icon" [matTooltip]="'editor.undo' | transloco" [attr.aria-label]="'editor.undo' | transloco" [disabled]="!canUndo()" (click)="undo()"><mat-icon>undo</mat-icon></button>
-            <button app-button variant="icon" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>auto_awesome_motion</mat-icon></button>
+            <button app-button variant="icon" [disabled]="selectedDefinitionReadOnly()" [matTooltip]="'editor.autoLayout' | transloco" [attr.aria-label]="'editor.autoLayout' | transloco" (click)="autoLayout()"><mat-icon>auto_awesome_motion</mat-icon></button>
           </div>
 
           <div class="absolute right-2 top-2 z-30 flex items-center gap-0.5 rounded-[10px] border border-stone-200 bg-white/95 p-0.5 shadow-sm backdrop-blur">
@@ -136,8 +141,10 @@
             [subtreeAnchorIds]="subtreeAnchorIds()"
             [subtreeNodeIds]="subtreeNodeIds()"
             [compactLayoutDirection]="graphLayoutDirection()"
+            [readOnly]="selectedDefinitionReadOnly()"
+            [rewireMode]="rewireMode()"
             (definitionChange)="applyDefinitionChange($event)"
-            (positionsChange)="graphPositions.set($event)"
+            (positionsChange)="setGraphPositions($event)"
             (nodeSelection)="selectNodeFromTree($event)"
             (componentOpen)="openComponentDefinition($event)"
             (positionEditStart)="beginPositionEdit()"
@@ -182,27 +189,45 @@
       <div class="flex h-full flex-col overflow-hidden bg-white">
         <header class="relative flex min-h-14 shrink-0 items-center gap-2 border-b border-stone-200/80 bg-white px-3 py-2 portrait:px-3 portrait:pb-2 portrait:pt-2.5">
           <div class="min-w-0 flex-1">
-            <input
-              class="h-8 w-full truncate rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-stone-50 focus:border-stone-300 focus:bg-white focus:ring-3 focus:ring-emerald-700/10"
-              type="text"
-              [attr.aria-label]="'inspector.name' | transloco"
-              [ngModel]="draft().name"
-              (ngModelChange)="updateDefinitionField('name', $event)"
-            >
-            <div class="px-1.5 text-[9px] font-medium text-stone-400">{{ draft().nodes.length }} {{ 'inspector.nodes' | transloco }}</div>
+            <div class="flex min-w-0 items-center gap-2">
+              <input
+                class="h-8 min-w-0 flex-1 truncate rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-semibold text-stone-800 outline-none transition-[background-color,border-color,box-shadow] hover:bg-stone-50 focus:border-stone-300 focus:bg-white focus:ring-3 focus:ring-emerald-700/10 disabled:cursor-default disabled:text-stone-700"
+                type="text"
+                [disabled]="selectedDefinitionReadOnly()"
+                [attr.aria-label]="'inspector.name' | transloco"
+                [ngModel]="draft().name"
+                (ngModelChange)="updateDefinitionField('name', $event)"
+              >
+              <span
+                class="shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold"
+                [class.border-stone-200]="selectedDefinitionIsDefault()"
+                [class.bg-stone-50]="selectedDefinitionIsDefault()"
+                [class.text-stone-600]="selectedDefinitionIsDefault()"
+                [class.border-emerald-200]="!selectedDefinitionIsDefault()"
+                [class.bg-emerald-50]="!selectedDefinitionIsDefault()"
+                [class.text-emerald-800]="!selectedDefinitionIsDefault()"
+              >{{ selectedDefinitionOriginLabel() }}</span>
+            </div>
           </div>
           <button app-button variant="icon" [matTooltip]="'editor.search' | transloco" [attr.aria-label]="'editor.search' | transloco" (click)="catalogSearchOpen.set(true)">
             <mat-icon>search</mat-icon>
           </button>
-          @if (isDevelopment) {
-            <button app-button variant="icon" [matTooltip]="'editor.defaults' | transloco" [attr.aria-label]="'editor.defaults' | transloco" (click)="saveToDefaults()"><mat-icon>code</mat-icon></button>
+          @if (isDevelopment || !selectedDefinitionIsDefault()) {
+            <button
+              app-button
+              variant="icon"
+              tone="primary"
+              class="relative"
+              [matTooltip]="isDevelopment ? 'Als Standard-Blume speichern' : ('editor.save' | transloco)"
+              [attr.aria-label]="'editor.save' | transloco"
+              (click)="saveToCatalog()"
+            >
+              <mat-icon>save</mat-icon>
+              @if (hasUnsavedChanges()) {
+                <span class="absolute right-0.5 top-0.5 size-2 rounded-full border border-white bg-amber-400" aria-hidden="true"></span>
+              }
+            </button>
           }
-          <button app-button variant="icon" tone="primary" class="relative" [matTooltip]="'editor.save' | transloco" [attr.aria-label]="'editor.save' | transloco" (click)="saveToCatalog()">
-            <mat-icon>save</mat-icon>
-            @if (hasUnsavedChanges()) {
-              <span class="absolute right-0.5 top-0.5 size-2 rounded-full border border-white bg-amber-400" aria-hidden="true"></span>
-            }
-          </button>
           <button app-button variant="icon" [attr.aria-label]="'common.close' | transloco" (click)="toggleEditorPanel()"><mat-icon>close</mat-icon></button>
         </header>
         @if (graphWorkspaceOpen()) {
@@ -225,6 +250,7 @@
                   type="text"
                   autocomplete="off"
                   spellcheck="false"
+                  [disabled]="selectedDefinitionReadOnly()"
                   [ngModel]="draft().id"
                   (ngModelChange)="updateDefinitionField('id', $event)"
                 >
@@ -233,11 +259,11 @@
               <div class="mb-1.5 mt-3 text-[10px] font-semibold text-stone-500">{{ 'inspector.definitionScope' | transloco }}</div>
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 text-[11px] font-semibold leading-tight text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
-                  <input type="checkbox" [checked]="draft().availableInBouquet ?? true" (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)">
+                  <input type="checkbox" [disabled]="selectedDefinitionReadOnly()" [checked]="draft().availableInBouquet ?? true" (change)="updateCatalogCapability('availableInBouquet', $any($event.target).checked)">
                   {{ 'inspector.inBouquet' | transloco }}
                 </label>
                 <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-stone-200 bg-white px-2 text-[11px] font-semibold leading-tight text-stone-600 [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
-                  <input type="checkbox" [checked]="draft().availableAsComponent ?? true" (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)">
+                  <input type="checkbox" [disabled]="selectedDefinitionReadOnly()" [checked]="draft().availableAsComponent ?? true" (change)="updateCatalogCapability('availableAsComponent', $any($event.target).checked)">
                   {{ 'inspector.asComponent' | transloco }}
                 </label>
               </div>
@@ -248,7 +274,7 @@
                   <div class="grid grid-cols-2 gap-1">
                     @for (outputId of definitionOutputOptions(); track outputId) {
                       <label class="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-[11px] font-semibold text-stone-600 hover:bg-white [&_input]:m-0 [&_input]:size-4 [&_input]:shrink-0 [&_input]:accent-emerald-800">
-                        <input type="checkbox" [checked]="definitionOutputEnabled(outputId)" (change)="toggleDefinitionOutput(outputId, $any($event.target).checked)">
+                        <input type="checkbox" [disabled]="selectedDefinitionReadOnly()" [checked]="definitionOutputEnabled(outputId)" (change)="toggleDefinitionOutput(outputId, $any($event.target).checked)">
                         <span class="truncate">{{ definitionNodeName(outputId) }}</span>
                       </label>
                     } @empty {
@@ -314,6 +340,7 @@
                 [definition]="draft()"
                 [selectedNodeId]="selectedNodeId()"
                 [selectedNodeIds]="subtreeNodeIds()"
+                [readOnly]="selectedDefinitionReadOnly()"
                 (definitionChange)="applyDefinitionChange($event)"
               />
             </app-editor-disclosure>

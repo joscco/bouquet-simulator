@@ -17,6 +17,11 @@ export interface LoopMembershipPrune {
   removedNodeIds: string[];
 }
 
+export interface DissolvedFlowerLoop {
+  definition: FlowerDefinition;
+  nextSelectedNodeId: string | null;
+}
+
 /**
  * Returns the visible outputs of a member-based loop. A member is an output
  * when it already points outside the loop or when it is an internal leaf.
@@ -324,6 +329,87 @@ export function pruneDisconnectedLoopMembers(
   }
 
   return {definition: nextDefinition, removedNodeIds: [...new Set(removedNodeIds)]};
+}
+
+/**
+ * Löst einen Schleifenrahmen auf, ohne seine Knoten zu löschen. Der bisherige
+ * Eingang wird direkt an den Startknoten gelegt und die bisherigen Ausgänge
+ * des Schleifenrahmens an die End-/Fortsetzungsknoten. Das entspricht einer
+ * einmaligen Ausführung des bisherigen Schleifeninhalts.
+ */
+export function dissolveFlowerLoop(
+  definition: FlowerDefinition,
+  loopId: string,
+): DissolvedFlowerLoop {
+  const owner = definition.nodes.find((node) => node.id === loopId);
+  const loop = owner?.loop;
+  if (!owner || !loop) return {definition, nextSelectedNodeId: null};
+
+  const nodeIds = new Set(definition.nodes.map((node) => node.id));
+  const startNodeId = loop.startNodeId && nodeIds.has(loop.startNodeId)
+    ? loop.startNodeId
+    : null;
+  if (!startNodeId) {
+    const remainingNodes = definition.nodes
+      .filter((node) => node.id !== loopId)
+      .map((node) => ({
+        ...node,
+        connections: node.connections.filter((connection) =>
+          effectiveConnection(definition, connection).childId !== loopId),
+      }));
+    return {
+      definition: {
+        ...definition,
+        rootNodeId: definition.rootNodeId === loopId ? remainingNodes[0]?.id ?? '' : definition.rootNodeId,
+        nodes: remainingNodes,
+      },
+      nextSelectedNodeId: null,
+    };
+  }
+
+  const continuationIds = (loop.continuationOutputNodeIds ?? [])
+    .filter((id) => id !== loopId && nodeIds.has(id));
+  const fallbackEndId = loop.endNodeId && nodeIds.has(loop.endNodeId)
+    ? loop.endNodeId
+    : startNodeId;
+  const outputNodeIds = continuationIds.length ? continuationIds : [fallbackEndId];
+  const outgoingByNode = new Map<string, FlowerNodeDefinition['connections']>();
+  owner.connections.forEach((connection, index) => {
+    const outputId = outputNodeIds[Math.min(index, outputNodeIds.length - 1)] ?? fallbackEndId;
+    outgoingByNode.set(outputId, [
+      ...(outgoingByNode.get(outputId) ?? []),
+      structuredClone(connection),
+    ]);
+  });
+
+  const nextNodes = definition.nodes
+    .filter((node) => node.id !== loopId)
+    .map((node) => {
+      const redirectedConnections = node.connections.map((connection) =>
+        effectiveConnection(definition, connection).childId === loopId
+          ? {...connection, childId: startNodeId}
+          : connection);
+      const restoredOutgoing = outgoingByNode.get(node.id) ?? [];
+      const connections = uniqueConnections(definition, [
+        ...redirectedConnections,
+        ...restoredOutgoing,
+      ]);
+      if (node.id !== startNodeId) return {...node, connections};
+      return {
+        ...node,
+        incoming: node.incoming ?? owner.incoming,
+        connections,
+      };
+    });
+
+  return {
+    definition: {
+      ...definition,
+      rootNodeId: definition.rootNodeId === loopId ? startNodeId : definition.rootNodeId,
+      nodes: nextNodes,
+    },
+    nextSelectedNodeId: startNodeId,
+  };
 }
 
 export function activeLoopOutputNodeIds(

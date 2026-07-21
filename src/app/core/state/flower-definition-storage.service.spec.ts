@@ -17,30 +17,37 @@ describe('FlowerDefinitionStorage', () => {
 
   it('restores a valid browser-local catalog when first created', () => {
     const store = TestBed.inject(BouquetStore);
-    const definitions = structuredClone(store.definitions());
-    definitions[0]!.name = 'Lokal gespeicherte Rose';
+    const local = structuredClone(store.definitions()[0]!);
+    local.id = 'meine-rose';
+    local.name = 'Lokal gespeicherte Rose';
     globalThis.localStorage.setItem(
       FlowerDefinitionStorage.STORAGE_KEY,
-      JSON.stringify(definitions),
+      JSON.stringify([local]),
     );
 
     const storage = TestBed.inject(FlowerDefinitionStorage);
 
     expect(storage.restoredFromStorage).toBe(true);
-    expect(store.definitions()[0]!.name).toBe('Lokal gespeicherte Rose');
+    expect(store.definitions().find((definition) => definition.id === 'meine-rose')?.name)
+      .toBe('Lokal gespeicherte Rose');
+    expect(store.definitions().find((definition) => definition.id === DEFAULT_FLOWERS[0]!.id)?.name)
+      .toBe(DEFAULT_FLOWERS[0]!.name);
   });
 
   it('persists the current catalog independently of bouquet projects', () => {
     const store = TestBed.inject(BouquetStore);
     const storage = TestBed.inject(FlowerDefinitionStorage);
-    const definitions = structuredClone(store.definitions());
-    definitions[0]!.name = 'Gespeicherte Definition';
+    const local = structuredClone(store.definitions()[0]!);
+    local.id = 'lokale-definition';
+    local.name = 'Gespeicherte Definition';
+    const definitions = [...structuredClone(store.definitions()), local];
 
     storage.saveDefinitions(definitions);
 
     const persisted = JSON.parse(globalThis.localStorage.getItem(
       FlowerDefinitionStorage.STORAGE_KEY,
     )!) as typeof definitions;
+    expect(persisted).toHaveLength(1);
     expect(persisted[0]!.name).toBe('Gespeicherte Definition');
   });
 
@@ -59,39 +66,21 @@ describe('FlowerDefinitionStorage', () => {
       ['sunflower', 'tulip', 'lavender'].includes(definition.id))).toHaveLength(3);
   });
 
-  it('normalizes legacy spread settings without overwriting the rest of a local flower', () => {
+  it('keeps built-in defaults authoritative when an older catalog contains modified copies', () => {
     const store = TestBed.inject(BouquetStore);
-    const oldCatalog = structuredClone(store.definitions())
-      .filter((definition) => definition.id !== 'tulip');
     const tulip = structuredClone(
       DEFAULT_FLOWERS.find((definition) => definition.id === 'tulip')!,
     );
     tulip.name = 'Meine Tulpe';
-    const petal = tulip.nodes.find((node) => node.id === 'outer-petal')!;
-    petal.incoming = {
-      ...petal.incoming!,
-      spread: undefined,
-      angle: {min: 17, max: 30},
-      azimuth: {min: 0, max: 360},
-      randomness: 0.05,
-      placement: {mode: 'ring', orientation: 'radial'},
-    };
-    oldCatalog.push(tulip);
     globalThis.localStorage.setItem(
       FlowerDefinitionStorage.STORAGE_KEY,
-      JSON.stringify(oldCatalog),
+      JSON.stringify([tulip]),
     );
 
     TestBed.inject(FlowerDefinitionStorage);
 
     const restored = store.definitions().find((definition) => definition.id === 'tulip')!;
-    expect(restored.name).toBe('Meine Tulpe');
-    expect(restored.nodes.find((node) => node.id === 'outer-petal')!.incoming!.spread)
-      .toMatchObject({
-        deviation: {min: 90, max: 90},
-        revolution: {min: -180, max: 180},
-        orientation: 'spread',
-      });
+    expect(restored.name).toBe(DEFAULT_FLOWERS.find((definition) => definition.id === 'tulip')!.name);
   });
 
   it('removes an invalid stored catalog and keeps built-in defaults', () => {

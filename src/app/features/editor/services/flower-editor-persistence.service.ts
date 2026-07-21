@@ -8,6 +8,10 @@ import {definitionIdIsOccupied} from '../../../core/models/flower-definition-ids
 import {EditorNotifications} from './editor-notifications.service';
 import {writeDefaultFlowerPreview} from '../../../shared/flower-thumbnail/default-flower-preview-writer';
 import {FlowerThumbnailCache} from '../../../shared/flower-thumbnail/flower-thumbnail-cache.service';
+import {
+  isDefaultFlowerDefinitionId,
+  upsertBuiltInFlowerDefinition,
+} from '../../../core/data/default-flower-catalog';
 
 @Injectable()
 export class FlowerEditorPersistence {
@@ -18,6 +22,14 @@ export class FlowerEditorPersistence {
   private readonly development = isDevMode();
 
   saveToBrowser(definition: FlowerDefinition, previousId = definition.id): boolean {
+    if (isDefaultFlowerDefinitionId(previousId)) {
+      this.showError('Standard-Blumen sind schreibgeschützt. Bitte zuerst eine Kopie anlegen.');
+      return false;
+    }
+    if (isDefaultFlowerDefinitionId(definition.id)) {
+      this.showError(`Speichern nicht möglich: Die Blumen-ID „${definition.id}“ ist für eine Standard-Blume reserviert.`);
+      return false;
+    }
     const validationError = firstValidationError(definition);
     if (validationError) {
       this.showError(`Speichern nicht möglich: ${validationError}`);
@@ -56,13 +68,12 @@ export class FlowerEditorPersistence {
       this.showError(`Übernahme nicht möglich: Die Blumen-ID „${definition.id}“ ist bereits vergeben.`);
       return false;
     }
-    const definitions = upsertFlowerDefinition(this.store.definitions(), definition, previousId);
+    const definitions = upsertBuiltInFlowerDefinition(definition, previousId);
     try {
       await writeDefinitionsToDefaults(definitions);
       if (preview) await writeDefaultFlowerPreview(preview.definition, preview.blob);
       this.store.replaceDefinition(definition, previousId);
-      this.storage.trySaveDefinitions(definitions);
-      this.notifications.show('In src/app/core/data/default-flowers.ts übernommen.');
+      this.notifications.show('Als Standard-Blume gespeichert.');
       return true;
     } catch (error: unknown) {
       this.showError(error instanceof Error
@@ -73,6 +84,10 @@ export class FlowerEditorPersistence {
   }
 
   deleteDefinition(definition: FlowerDefinition): FlowerDefinition | null | undefined {
+    if (isDefaultFlowerDefinitionId(definition.id)) {
+      this.notifications.show('Standard-Blumen können nicht gelöscht werden.');
+      return undefined;
+    }
     if (this.store.definitions().length <= 1) {
       this.notifications.show('Mindestens eine Definition muss erhalten bleiben.');
       return undefined;

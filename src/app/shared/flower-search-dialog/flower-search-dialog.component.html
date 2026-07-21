@@ -91,6 +91,17 @@
           role="option"
           (click)="entrySelect.emit(entry.id)"
         >
+          @if (entry.origin; as origin) {
+            <span
+              class="absolute right-2 top-2 z-10 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm"
+              [class.border-stone-200]="origin === 'default'"
+              [class.bg-white/90]="origin === 'default'"
+              [class.text-stone-600]="origin === 'default'"
+              [class.border-emerald-200]="origin === 'local'"
+              [class.bg-emerald-50/95]="origin === 'local'"
+              [class.text-emerald-800]="origin === 'local'"
+            >{{ origin === 'default' ? 'Standard' : 'Lokal' }}</span>
+          }
           <span class="absolute inset-x-0 bottom-9 top-0 overflow-hidden bg-[radial-gradient(circle_at_50%_55%,rgba(255,255,255,1),rgba(245,245,244,.55)_65%,rgba(231,229,228,.7))] p-2">
             <app-flower-thumbnail class="transition duration-200 group-hover:scale-[1.04]" [definition]="entry.definition" />
           </span>

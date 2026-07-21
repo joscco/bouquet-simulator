@@ -1,4 +1,4 @@
-<div class="min-w-0 space-y-3 px-3 py-3">
+<fieldset class="m-0 min-w-0 space-y-3 border-0 px-3 py-3" [disabled]="readOnly()">
   @if (selectedNode(); as node) {
   @if (allSelectedSupportIncoming()) {
     @if (incomingSettings(); as incoming) {
@@ -523,4 +523,4 @@
     }
     }
   }
-</div>
+</fieldset>
