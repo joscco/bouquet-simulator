@@ -9,7 +9,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "previews/peony-blossom.png"
   },
   "daisy": {
-    "key": "png-v2:n4gsbj:daisy",
+    "key": "png-v2:1g6x8ss:daisy",
     "url": "previews/daisy.png"
   },
   "lilac": {
@@ -21,7 +21,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "previews/neue-blume.png"
   },
   "daisy-blossom": {
-    "key": "png-v2:l3bj3z:daisy-blossom",
+    "key": "png-v2:qzk92g:daisy-blossom",
     "url": "previews/daisy-blossom.png"
   },
   "neue-blume-2": {
@@ -45,7 +45,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "previews/neue-blume-3.png"
   },
   "sunflower": {
-    "key": "png-v2:z7xcoi:sunflower",
+    "key": "png-v2:10gfbqp:sunflower",
     "url": "previews/sunflower.png"
   },
   "tulip": {
