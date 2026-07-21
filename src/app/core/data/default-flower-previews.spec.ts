@@ -14,7 +14,7 @@ describe('DEFAULT_FLOWER_PREVIEWS', () => {
     for (const definition of definitions) {
       expect(DEFAULT_FLOWER_PREVIEWS[definition.id]).toEqual({
         key: flowerThumbnailKey(definition),
-        url: `/previews/${definition.id}.png`,
+        url: `previews/${definition.id}.png`,
       });
     }
   });
