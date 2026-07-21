@@ -313,7 +313,8 @@ export class BouquetSimulatorComponent implements OnDestroy {
     try {
       const format = this.videoFormat();
       const recording = await this.bouquetCanvas().recordTurntable({
-        durationSeconds: 6,
+        durationSeconds: 30,
+        turns: 5,
         fps: 30,
         width: format.width,
         height: format.height,

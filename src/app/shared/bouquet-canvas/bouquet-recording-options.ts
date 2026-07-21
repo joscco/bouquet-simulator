@@ -5,6 +5,7 @@ export interface BouquetTurntableRecordingOptions {
   fps?: number;
   width?: number;
   height?: number;
+  turns?: number;
   onProgress?: (progressPercent: number) => void;
 }
 

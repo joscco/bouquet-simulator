@@ -43,8 +43,9 @@ export async function recordBouquetTurntable(
   context: BouquetTurntableRecordingContext,
   options: BouquetTurntableRecordingOptions = {},
 ): Promise<CanvasVideoRecording> {
-  const durationSeconds = options.durationSeconds ?? 6;
+  const durationSeconds = options.durationSeconds ?? 30;
   const fps = options.fps ?? 30;
+  const turns = options.turns ?? 5;
   const width = validVideoDimension(options.width ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
   const height = validVideoDimension(options.height ?? DEFAULT_TURNTABLE_VIDEO_SIZE);
   const frames = Math.round(durationSeconds * fps);
@@ -59,7 +60,7 @@ export async function recordBouquetTurntable(
       fps,
       onProgress: options.onProgress,
       drawFrame: (frame) => {
-        const loopPhase = loopFramePhase(frame, frames);
+        const loopPhase = loopFramePhase(frame, frames, turns);
         context.bouquet.rotation.y = context.initialRotation + loopPhase * Math.PI * 2;
         context.sceneEffects.updatePhase(loopPhase);
         context.resizeCamera();
