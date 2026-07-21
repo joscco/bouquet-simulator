@@ -1,7 +1,7 @@
 {
   "name": "Bouquet Studio",
   "short_name": "Bouquet",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f5f5f4",
   "theme_color": "#064e3b",

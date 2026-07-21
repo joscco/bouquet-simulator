@@ -1,13 +1,6 @@
 @import "tailwindcss";
 @import "@angular/material/prebuilt-themes/azure-blue.css";
-
-@font-face {
-  font-family: "Material Symbols Outlined";
-  font-style: normal;
-  font-display: block;
-  font-weight: 400;
-  src: url("/fonts/material-symbols-outlined-latin-400-normal.woff2") format("woff2");
-}
+@import "@fontsource/material-symbols-outlined/400.css";
 
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined", sans-serif !important;

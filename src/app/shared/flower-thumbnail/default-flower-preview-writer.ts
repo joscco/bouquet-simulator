@@ -10,7 +10,7 @@ export async function writeDefaultFlowerPreview(
   const filename = `${safeFilename(definition.id)}.png`;
   const entry = {
     key,
-    url: `/previews/${filename}`,
+    url: `previews/${filename}`,
   };
   const response = await fetch('/api/default-preview', {
     method: 'PUT',
