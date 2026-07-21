@@ -57,7 +57,7 @@ export const DEFAULT_FLOWER_PREVIEWS: Readonly<Record<string, {key: string; url:
     "url": "previews/lavender.png"
   },
   "sonnenblumenbluete": {
-    "key": "png-v2:1knq8zh:sonnenblumenbluete",
+    "key": "png-v2:1hauvoy:sonnenblumenbluete",
     "url": "previews/sonnenblumenbluete.png"
   },
   "neue-blume-8": {

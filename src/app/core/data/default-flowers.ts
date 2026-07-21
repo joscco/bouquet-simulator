@@ -4791,9 +4791,9 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
         "graphic": {
           "primitive": "disc",
           "color": "#604020",
-          "width": 40,
+          "width": 30,
           "height": 2,
-          "depth": 40,
+          "depth": 30,
           "scale": 1,
           "orientation": "connection",
           "rotationBase": 0,
@@ -4916,8 +4916,13 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
             "max": 27
           },
           "length": {
-            "min": 15,
-            "max": 15
+            "min": 0,
+            "max": 0
+          },
+          "originOffset": {
+            "x": 0,
+            "y": -2.3000000000000003,
+            "z": 0
           },
           "direction": {
             "x": 0,
@@ -4995,11 +5000,11 @@ export const DEFAULT_FLOWERS: FlowerDefinition[] = [
           },
           "length": {
             "min": 0,
-            "max": 10.4
+            "max": 8.7
           },
           "originOffset": {
             "x": 0,
-            "y": 9.3,
+            "y": 8.8,
             "z": 0
           },
           "direction": {
